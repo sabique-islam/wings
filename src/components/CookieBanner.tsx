@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Cookie, X } from "lucide-react";
+import { Cookie, X } from "@/lib/icons";
 
 const STORAGE_KEY = "wings:cookie-consent:v1";
 

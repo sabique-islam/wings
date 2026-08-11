@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { History, Loader2, RotateCcw, X } from "lucide-react";
+import { History, Loader2, RotateCcw, X } from "@/lib/icons";
 import { toast } from "sonner";
 import { getEntryVersion, listEntryVersions, type EntryVersion } from "@/lib/entryVersions";
 

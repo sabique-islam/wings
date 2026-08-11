@@ -1,5 +1,5 @@
 import { Link, Navigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/lib/icons";
 import { motion } from "framer-motion";
 import { Seo } from "@/components/Seo";
 import { SITE } from "@/config/site";

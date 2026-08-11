@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewProps } from "@tiptap/react";
 import { useState, useRef, useCallback, useEffect } from "react";
-import { AlignLeft, AlignCenter, AlignRight, Pencil, Trash2 } from "lucide-react";
+import { AlignLeft, AlignCenter, AlignRight, Pencil, Trash2 } from "@/lib/icons";
 import { loadScene } from "@/lib/drawingStore";
 
 declare module "@tiptap/core" {

@@ -1,6 +1,6 @@
 import { ReactRenderer } from "@tiptap/react";
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus } from "@/lib/icons";
 import tippy, { type Instance as TippyInstance } from "tippy.js";
 
 export interface PageSuggestion {

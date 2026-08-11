@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { NavBar } from "@/components/landing/NavBar";
 import { Footer } from "@/components/landing/Footer";
 import { Dither } from "@/components/ui/Dither";
-import { Check } from "lucide-react";
+import { Check } from "@/lib/icons";
 import { getDashboardPath } from "@/lib/auth/redirect";
 
 const ease = [0.22, 1, 0.36, 1] as const;

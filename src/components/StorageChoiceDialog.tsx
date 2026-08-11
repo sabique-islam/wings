@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Cloud, HardDrive } from "lucide-react";
+import { Cloud, HardDrive } from "@/lib/icons";
 import {
   Dialog,
   DialogContent,

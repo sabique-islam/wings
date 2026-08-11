@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, ArrowRight, ChevronRight } from "lucide-react";
+import { Plus, ArrowRight, ChevronRight } from "@/lib/icons";
 import type { Entry } from "@/lib/journal";
 import {
   activityTrend,

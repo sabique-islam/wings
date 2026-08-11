@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Excalidraw, exportToBlob } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
-import { X, Save, Eraser } from "lucide-react";
+import { X, Save, Eraser } from "@/lib/icons";
 import { uploadImage } from "@/lib/imageUpload";
 import {
   saveScene, loadScene, saveDraft, loadDraft, clearDraft,

@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent } from "@tiptap/react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw } from "@/lib/icons";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {

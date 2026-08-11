@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail } from "lucide-react";
+import { Mail } from "@/lib/icons";
 import { FOOTER_LINKS, SOCIAL } from "@/config/navigation";
 import { Logo } from "@/components/Logo";
 import { SITE } from "@/config/site";

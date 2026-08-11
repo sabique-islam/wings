@@ -4,7 +4,7 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import {
   Bold, Italic, Strikethrough, Underline, Code, Link as LinkIcon, Sparkles,
   AlignLeft, AlignCenter, AlignRight, Type,
-} from "lucide-react";
+} from "@/lib/icons";
 import { TurnIntoDropdown, ColorDropdown } from "./ColorMenu";
 import {
   DropdownMenu,

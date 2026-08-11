@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { ArrowRight, Menu, X } from "lucide-react";
+import { ArrowRight, Menu, X } from "@/lib/icons";
 import { useState } from "react";
 import { motionEase } from "./constants";
 import { NAV_LINKS } from "@/config/navigation";

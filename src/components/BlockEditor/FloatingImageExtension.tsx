@@ -1,6 +1,6 @@
 import Image from "@tiptap/extension-image";
 import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
-import { AlignCenter, AlignLeft, AlignRight, Maximize2 } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Maximize2 } from "@/lib/icons";
 import { useCallback, useRef, useState } from "react";
 
 const ALIGNMENTS = [

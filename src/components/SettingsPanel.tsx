@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   X, Sun, Moon, Monitor, User, Palette, Sparkles, Plug, Bell, Download,
   CreditCard, AlertTriangle, Eye, EyeOff, Check, Github, MessageCircle,
-} from "lucide-react";
+} from "@/lib/icons";
 import { useTheme } from "./ThemeProvider";
 import { Slider } from "@/components/ui/slider";
 import { SURFACE_SHIFT_MAX, SURFACE_SHIFT_MIN } from "@/lib/themeSurfaceShift";

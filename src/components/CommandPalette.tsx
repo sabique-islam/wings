@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Plus, Search, Settings, Share2, Sparkles, PanelLeft, Pin } from "lucide-react";
+import { FileText, Plus, Search, Settings, Share2, Sparkles, PanelLeft, Pin } from "@/lib/icons";
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut,
 } from "@/components/ui/command";

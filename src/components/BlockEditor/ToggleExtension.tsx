@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/lib/icons";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {

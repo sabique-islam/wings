@@ -5,7 +5,7 @@ import { buildPagePreview, refreshPageEmbeds } from "@/components/BlockEditor/Pa
 import type { EditorChangePayload } from "@/lib/editorPayload";
 import { useCollabProvider } from "@/lib/collab/useCollabProvider";
 import { useAuth } from "@/hooks/useAuth";
-import { Trash2, PanelLeft, Download, Pin, PinOff, FilePlus, History, Keyboard, Sparkles, PenTool, Hash, Upload, FileJson, FileText, Lock, Cloud } from "lucide-react";
+import { Trash2, PanelLeft, Download, Pin, PinOff, FilePlus, History, Keyboard, Sparkles, PenTool, Hash, Upload, FileJson, FileText, Lock, Cloud } from "@/lib/icons";
 import { EmptyStateAscii } from "@/components/AsciiAnimation";
 import { DashboardHome } from "@/components/dashboard/DashboardHome";
 import { BlockEditor } from "@/components/BlockEditor/BlockEditor";
@@ -24,7 +24,7 @@ import { InlineAIMenu } from "@/components/InlineAIMenu";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { rememberDrawingSnapshot } from "@/lib/ai/excalidrawContext";
 import { countWords, countWordsInDoc, readingTime } from "@/lib/documentStats";
-import { Check, CloudOff } from "lucide-react";
+import { Check, CloudOff } from "@/lib/icons";
 import {
   DropdownMenu,
   DropdownMenuContent,

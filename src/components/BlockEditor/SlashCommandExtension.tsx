@@ -15,7 +15,7 @@ import {
   Code2, Image, Type, AlertCircle, ChevronRight, FileText, Table,
   Link as LinkIcon, ExternalLink, Columns, Sigma, Calculator, Calendar,
   Sparkles, FilePlus2, Layout, PenLine, BookOpen, Table2, RefreshCw,
-} from "lucide-react";
+} from "@/lib/icons";
 import { TEMPLATES } from "@/lib/templates";
 import { fuzzyMatch, insertTemplateMarkdown } from "./blockCommands";
 

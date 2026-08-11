@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Link } from "react-router-dom";
 import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@/lib/icons";
 import { Ascii, SHOWCASE_BY_TAG } from "@/lib/ascii";
 
 type CardData = {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, Wand2, Languages, Scissors, Maximize2, ListChecks, Loader2 } from "lucide-react";
+import { Sparkles, Wand2, Languages, Scissors, Maximize2, ListChecks, Loader2 } from "@/lib/icons";
 import { generateOnce, getApiKey } from "@/lib/aiClient";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";

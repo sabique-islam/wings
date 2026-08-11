@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Github, Star } from "lucide-react";
+import { Github, Star } from "@/lib/icons";
 import { SITE } from "@/config/site";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +73,7 @@ export function GitHubStarsBadge({ className }: { className?: string }) {
       )}
     >
       <Github className="size-3.5 shrink-0" aria-hidden />
-      <Star className="size-3 shrink-0 fill-current opacity-70" aria-hidden />
+      <Star className="size-3.5 shrink-0 -translate-y-px fill-current opacity-70" aria-hidden />
       <span className="tabular-nums leading-none">{stars != null ? formatStars(stars) : "…"}</span>
     </a>
   );

@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Palette } from "lucide-react";
+import { ChevronDown, Palette } from "@/lib/icons";
 
 const TURN_INTO = TURN_INTO_ITEMS;
 

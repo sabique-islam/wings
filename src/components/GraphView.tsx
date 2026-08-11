@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Share2, X } from "lucide-react";
+import { Share2, X } from "@/lib/icons";
 import { getEntryTitle, type Entry } from "@/lib/journal";
 import {
   getAllTags,

@@ -1,7 +1,7 @@
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { useState } from "react";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check } from "@/lib/icons";
 import {
   codeBlockLowlight,
   formatCodeLanguageLabel,

@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight } from "@/lib/icons";
 import { motionEase } from "./constants";
 
 interface Props {

@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/lib/icons";
 import { ReactNode } from "react";
 import { Seo, type FaqItem } from "@/components/Seo";
 

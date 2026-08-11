@@ -1,5 +1,5 @@
 import { Entry } from "@/lib/journal";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/lib/icons";
 
 interface Props {
   trail: Entry[];

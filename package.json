@@ -42,6 +42,7 @@
   },
   "author": "Sabique Islam",
   "dependencies": {
+    "@animateicons/react": "^0.4.3",
     "@excalidraw/excalidraw": "^0.18.1",
     "@hocuspocus/provider": "^4.4.0",
     "@hookform/resolvers": "^3.10.0",

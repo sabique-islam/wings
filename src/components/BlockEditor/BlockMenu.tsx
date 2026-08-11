@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import type { Editor } from "@tiptap/core";
 import { NodeSelection } from "@tiptap/pm/state";
 import { turnInto, TURN_INTO_ITEMS, TEXT_COLORS, BG_COLORS } from "./blockCommands";
-import { Trash2, Copy, ChevronRight } from "lucide-react";
+import { Trash2, Copy, ChevronRight } from "@/lib/icons";
 
 const TURN_INTO = TURN_INTO_ITEMS;
 

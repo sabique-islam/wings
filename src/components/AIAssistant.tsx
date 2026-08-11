@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Sparkles, Send, X, Settings, Loader2, Square,
   PenLine, FilePlus2, Wand2, Eye, EyeOff, Image as ImageIcon, ImagePlus,
-} from "lucide-react";
+} from "@/lib/icons";
 import { useResizable } from "@/hooks/useResizable";
 import { marked } from "marked";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";

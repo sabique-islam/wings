@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Keyboard, X } from "lucide-react";
+import { Keyboard, X } from "@/lib/icons";
 
 const shortcuts = [
   { keys: "⌘ K", desc: "Command palette (outside editor)" },

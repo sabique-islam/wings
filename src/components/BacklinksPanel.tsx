@@ -1,5 +1,5 @@
 import { useMemo, useSyncExternalStore } from "react";
-import { ArrowUpLeft, Link2Off } from "lucide-react";
+import { ArrowUpLeft, Link2Off } from "@/lib/icons";
 import { getBacklinks, getLinkIndexVersion, getUnresolvedLinks, subscribeLinkIndex } from "@/lib/linkIndex";
 import { getEntryTitle, type Entry } from "@/lib/journal";
 

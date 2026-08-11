@@ -1,6 +1,6 @@
 import type { Editor } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { Rows3, Columns3, Trash2 } from "lucide-react";
+import { Rows3, Columns3, Trash2 } from "@/lib/icons";
 
 interface Props {
   editor: Editor;

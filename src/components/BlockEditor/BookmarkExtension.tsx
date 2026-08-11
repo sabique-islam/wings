@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewProps } from "@tiptap/react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink } from "@/lib/icons";
 import { isSafeHttpUrl } from "@/lib/safeUrl";
 
 declare module "@tiptap/core" {

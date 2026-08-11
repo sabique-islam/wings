@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Check, ArrowRight } from "lucide-react";
+import { Check, ArrowRight } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { PricingTier } from "@/config/pricing";
 

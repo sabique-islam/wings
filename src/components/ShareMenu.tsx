@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { Entry } from "@/lib/journal";
-import { Share2, Copy, Check, Globe, Lock, X, Link as LinkIcon, ChevronDown, Trash2 } from "lucide-react";
+import { Share2, Copy, Check, Globe, Lock, X, Link as LinkIcon, ChevronDown, Trash2 } from "@/lib/icons";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { sendShareInviteEmail } from "@/lib/email";

@@ -1,6 +1,6 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "@/lib/icons";
 
 export type DatabaseColumnType = "text" | "status" | "date";
 
