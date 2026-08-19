@@ -74,7 +74,7 @@ function createHandleDom(): HandleState {
   const addBtn = document.createElement("span");
   addBtn.className = "nw-block-handle-btn nw-block-handle-add";
   addBtn.setAttribute("role", "button");
-  addBtn.setAttribute("tabindex", "0");
+  addBtn.setAttribute("tabindex", "-1");
   addBtn.setAttribute("aria-label", "Insert block below");
   addBtn.setAttribute("title", "Click to insert below · Alt-click to insert above");
   addBtn.textContent = "+";
@@ -82,7 +82,7 @@ function createHandleDom(): HandleState {
   const dragBtn = document.createElement("span");
   dragBtn.className = "nw-block-handle-btn nw-block-handle-drag";
   dragBtn.setAttribute("role", "button");
-  dragBtn.setAttribute("tabindex", "0");
+  dragBtn.setAttribute("tabindex", "-1");
   dragBtn.setAttribute("aria-label", "Drag to move or click for menu");
   dragBtn.setAttribute("title", "Drag to move · Click for menu");
   dragBtn.innerHTML = GRIP_SVG;
