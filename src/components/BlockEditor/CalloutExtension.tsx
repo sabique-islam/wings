@@ -107,12 +107,23 @@ export const Callout = Node.create({
     return {
       setCallout:
         (attrs) =>
-        ({ commands }) =>
-          commands.insertContent({
-            type: this.name,
-            attrs: { emoji: attrs?.emoji ?? "💡", bgColor: attrs?.bgColor ?? "" },
-            content: [{ type: "paragraph" }],
-          }),
+        ({ state, commands }) => {
+          const next = { emoji: attrs?.emoji ?? "💡", bgColor: attrs?.bgColor ?? "" };
+          const { $from } = state.selection;
+          if (!$from.parent?.isTextblock) {
+            return commands.insertContent({
+              type: this.name,
+              attrs: next,
+              content: [{ type: "paragraph" }],
+            });
+          }
+          const from = $from.before($from.depth);
+          const to = from + $from.parent.nodeSize;
+          return commands.insertContentAt(
+            { from, to },
+            { type: this.name, attrs: next, content: [$from.parent.toJSON()] },
+          );
+        },
       toggleCallout:
         () =>
         ({ commands }) =>
