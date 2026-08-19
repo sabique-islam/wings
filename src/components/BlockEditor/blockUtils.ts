@@ -46,6 +46,20 @@ export function getTopLevelBlockIndex($from: BlockPos): number {
   return depth >= 1 ? $from.index(depth - 1) : -1;
 }
 
+/**
+ * Where the caret should land after deleting an empty block that sat after
+ * the node at `prevPos`. Textblocks end at `pos + 1 + content.size`; atoms
+ * land just after the node.
+ */
+export function caretPosAfterMerge(
+  prevPos: number,
+  prev: { isTextblock: boolean; content: { size: number }; nodeSize: number },
+  docSize: number,
+): number {
+  const pos = prev.isTextblock ? prevPos + 1 + prev.content.size : prevPos + prev.nodeSize;
+  return Math.max(0, Math.min(pos, docSize));
+}
+
 /** All direct-child block positions in the document. */
 export function getDocChildBlockPositions(doc: BlockDoc): number[] {
   const positions: number[] = [];
