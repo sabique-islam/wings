@@ -372,13 +372,13 @@ export const BlockEditor = memo(function BlockEditor({
     if (!editor) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-      if (e.key.toLowerCase() === "k" && editor.isFocused) {
+      if (!mod || !editor.isFocused) return;
+      if (e.key.toLowerCase() === "k") {
         e.preventDefault();
         void setLink();
         return;
       }
-      if (e.shiftKey && e.key === "s") {
+      if (e.shiftKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
         editor.chain().focus().toggleStrike().run();
       }
