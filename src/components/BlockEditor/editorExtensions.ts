@@ -24,7 +24,6 @@ import { ExcalidrawNode } from "./ExcalidrawExtension";
 import { WritingExperience } from "./WritingExperienceExtension";
 import { BlockHandle } from "./BlockHandleExtension";
 import { BlockSelection } from "./BlockSelectionExtension";
-import { MarkdownShortcuts } from "./MarkdownShortcutsExtension";
 import { CodeBlockExtension } from "./CodeBlockExtension";
 import { Column, ColumnList } from "./ColumnExtension";
 import { Bookmark } from "./BookmarkExtension";
@@ -90,7 +89,6 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     WritingExperience,
     BlockSelection,
     BlockHandle,
-    MarkdownShortcuts,
     UniqueID.configure({
       types: [
         "paragraph", "heading", "blockquote", "codeBlock", "horizontalRule",
@@ -148,7 +146,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
       HTMLAttributes: { class: "editor-link" },
     }),
     Dropcursor.configure({ color: "hsl(var(--muted-foreground) / 0.4)", width: 2 }),
-    Typography,
+    Typography.configure({ emDash: false }),
     Table.configure({
       resizable: true,
       HTMLAttributes: { class: "editor-table" },

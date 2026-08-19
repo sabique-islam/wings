@@ -91,12 +91,23 @@ export const ToggleBlock = Node.create({
     return {
       setToggleBlock:
         () =>
-        ({ commands }) =>
-          commands.insertContent({
-            type: this.name,
-            attrs: { open: true, summary: "Toggle" },
-            content: [{ type: "paragraph" }],
-          }),
+        ({ state, commands }) => {
+          const attrs = { open: true, summary: "Toggle" };
+          const { $from } = state.selection;
+          if (!$from.parent?.isTextblock) {
+            return commands.insertContent({
+              type: this.name,
+              attrs,
+              content: [{ type: "paragraph" }],
+            });
+          }
+          const from = $from.before($from.depth);
+          const to = from + $from.parent.nodeSize;
+          return commands.insertContentAt(
+            { from, to },
+            { type: this.name, attrs, content: [$from.parent.toJSON()] },
+          );
+        },
     };
   },
 });
