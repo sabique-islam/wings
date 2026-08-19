@@ -24,7 +24,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DitherFilterDefs } from "@/lib/dither/filters";
 import { LoadingScreen } from "@/components/ui/spinner";
 import { Analytics } from "@vercel/analytics/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { getMyUsername } from "@/lib/profile";
 import { isAnalyticsEnabled, type CookieConsent } from "@/components/CookieBanner";
 
@@ -162,7 +162,7 @@ function AppRoutes() {
   );
 }
 
-function RequireAuth({ children }: { children: JSX.Element }) {
+function RequireAuth({ children }: { children: ReactElement }) {
   const { user } = useAuth();
   const location = useLocation();
   if (!user) {

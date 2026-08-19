@@ -87,7 +87,7 @@ supabase db push   # content_yjs column
 
 - **D7 (fixed 2026-07-16):** Server `fetch` seeds from `content_json` or markdown when `content_yjs` null — `collab/server.ts`, `collab/seedDocument.ts`. Persists binary once. Stub schema in `collab/seedExtensions.ts` must stay in sync with custom block names.
 - Postgres `bytea` may arrive as hex string — server parses `\\x...` (`collab/server.ts:91-98`)
-- `@hocuspocus/provider` v4 (client) vs `@hocuspocus/server` v2 — verify compatibility on upgrade
+- `@hocuspocus/provider` and `@hocuspocus/server` are both v4; collab uses `new Server()` (built-in WebSocket), and `requestHeaders.get("origin")` (web `Headers`)
 - Vercel CSP must allow `wss:` in `connect-src`
 
 ## Related

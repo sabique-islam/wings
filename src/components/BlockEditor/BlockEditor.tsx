@@ -20,7 +20,6 @@ import type { CollabSession } from "@/lib/collab/useCollabProvider";
 import type { PageOption } from "./PageMentionExtension";
 import type { PagePreview } from "./PageEmbedExtension";
 import { toast } from "sonner";
-import { Fragment, Slice } from "@tiptap/pm/model";
 import { isSelectionInCodeBlock } from "./blockUtils";
 
 const SERIALIZE_DEBOUNCE_MS = 200;
@@ -59,10 +58,10 @@ function pastePlainParagraphs(view: import("@tiptap/pm/view").EditorView, text: 
   const nodes = lines.map((line) =>
     schema.nodes.paragraph.create(null, line ? schema.text(line) : undefined),
   );
-  // Fragment.from expects nodes from the same schema instance as view.state.doc
-  const fragment = Fragment.from(nodes as Parameters<typeof Fragment.from>[0]);
-  const tr = view.state.tr.replaceSelection(new Slice(fragment, 0, 0));
-  view.dispatch(tr);
+  // Slice must come from this view's schema. Importing Slice/Fragment from
+  // @tiptap/pm/model can resolve a second prosemirror-model copy.
+  const slice = schema.topNodeType.create(null, nodes).slice(0);
+  view.dispatch(view.state.tr.replaceSelection(slice));
   return true;
 }
 
@@ -109,7 +108,7 @@ export const BlockEditor = memo(function BlockEditor({
    */
   const markdownVersion = useRef(-1);
   const loadedEntryId = useRef(entryId);
-  const serializeTimer = useRef<ReturnType<typeof setTimeout>>();
+  const serializeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const editorRef = useRef<MountedEditor | null>(null);
   const onChangeRef = useRef(onChange);
   const getPagePreviewRef = useRef(getPagePreview);

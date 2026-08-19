@@ -9,7 +9,7 @@
  * Run: cd collab && npm install && npm run dev
  */
 
-import { Hocuspocus, type onAuthenticatePayload } from "@hocuspocus/server";
+import { Server, type onAuthenticatePayload } from "@hocuspocus/server";
 import { Database } from "@hocuspocus/extension-database";
 import { createClient } from "@supabase/supabase-js";
 import { seedStateFromEntry } from "./seedDocument.ts";
@@ -71,13 +71,13 @@ function parseBytea(raw: unknown): Uint8Array | null {
   return new Uint8Array(raw as ArrayBuffer);
 }
 
-const server = new Hocuspocus({
+const server = new Server({
   port: Number(process.env.COLLAB_PORT ?? 1234),
   debounce: 2000,
   maxDebounce: 10000,
 
   async onAuthenticate({ token, documentName, requestHeaders }: onAuthenticatePayload) {
-    const origin = requestHeaders.origin ?? "";
+    const origin = requestHeaders.get("origin") ?? "";
     if (origin && !allowedOrigins.includes(origin)) {
       throw new Error("origin not allowed");
     }

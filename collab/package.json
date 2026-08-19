@@ -8,20 +8,20 @@
     "dev": "node --watch --experimental-strip-types server.ts"
   },
   "dependencies": {
-    "@hocuspocus/extension-database": "^2.15.2",
-    "@hocuspocus/server": "^2.15.2",
-    "@supabase/supabase-js": "^2.100.1",
-    "@tiptap/core": "^3.25.0",
-    "@tiptap/y-tiptap": "^3.0.7",
-    "@tiptap/extension-image": "^3.25.0",
-    "@tiptap/extension-link": "^3.25.0",
-    "@tiptap/extension-table": "^3.25.0",
-    "@tiptap/extension-table-cell": "^3.25.0",
-    "@tiptap/extension-table-header": "^3.25.0",
-    "@tiptap/extension-table-row": "^3.25.0",
-    "@tiptap/extension-task-item": "^3.25.0",
-    "@tiptap/extension-task-list": "^3.25.0",
-    "@tiptap/starter-kit": "^3.25.0",
-    "yjs": "^13.6.27"
+    "@hocuspocus/extension-database": "^4.6.0",
+    "@hocuspocus/server": "^4.6.0",
+    "@supabase/supabase-js": "^2.112.3",
+    "@tiptap/core": "^3.30.2",
+    "@tiptap/y-tiptap": "^3.0.9",
+    "@tiptap/extension-image": "^3.30.2",
+    "@tiptap/extension-link": "^3.30.2",
+    "@tiptap/extension-table": "^3.30.2",
+    "@tiptap/extension-table-cell": "^3.30.2",
+    "@tiptap/extension-table-header": "^3.30.2",
+    "@tiptap/extension-table-row": "^3.30.2",
+    "@tiptap/extension-task-item": "^3.30.2",
+    "@tiptap/extension-task-list": "^3.30.2",
+    "@tiptap/starter-kit": "^3.30.2",
+    "yjs": "^13.6.32"
   }
 }
