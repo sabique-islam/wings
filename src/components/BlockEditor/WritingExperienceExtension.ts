@@ -1,7 +1,7 @@
 import { Extension } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { turnInto, type TurnIntoType } from "./blockCommands";
-import { findTopLevelDepth } from "./blockUtils";
+import { caretPosAfterMerge, findTopLevelDepth } from "./blockUtils";
 import { openLinkHref } from "./editorLinkClick";
 import { normalizeCodeLanguage } from "./codeLanguages";
 
@@ -116,8 +116,8 @@ function mergeEmptyBlockUp(editor: any): boolean {
   const prevPos = blockPos - prev.nodeSize;
 
   const tr = state.tr.delete(blockPos, blockPos + blockNode.nodeSize);
-  const caretPos = prevPos + Math.max(1, prev.content.size);
-  tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(caretPos, tr.doc.content.size - 1))));
+  const caretPos = caretPosAfterMerge(prevPos, prev, tr.doc.content.size);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(caretPos)));
   tr.scrollIntoView();
   view.dispatch(tr);
   return true;
@@ -151,30 +151,61 @@ function nestIntoPreviousSibling(editor: any): boolean {
   return true;
 }
 
-/** Shift+Tab at block start — lift out of container blocks. */
+/** Shift+Tab at block start — lift the current textblock out of a container. */
 function liftOutOfContainer(editor: any): boolean {
-  const { selection } = editor.state;
+  const { state, view } = editor;
+  const { selection } = state;
   if (!selection.empty) return false;
   const { $from } = selection;
   if ($from.parentOffset !== 0) return false;
 
   for (let d = $from.depth; d > 0; d--) {
     const node = $from.node(d);
-    if (node.type.name === "blockquote" || node.type.name === "callout" || node.type.name === "toggleBlock") {
-      const depth = findTopLevelDepth($from);
-      if (depth < 1) return false;
-      const blockPos = $from.before(depth);
-      const block = $from.node(depth);
-      const afterPos = blockPos + block.nodeSize;
-      const tr = editor.state.tr;
-      tr.delete(blockPos, afterPos);
-      tr.insert($from.after(d), block);
-      tr.setSelection(TextSelection.near(tr.doc.resolve($from.after(d) + 1)));
-      editor.view.dispatch(tr.scrollIntoView());
-      return true;
+    if (node.type.name !== "blockquote" && node.type.name !== "callout" && node.type.name !== "toggleBlock") {
+      continue;
     }
+
+    const textDepth = $from.depth;
+    const blockPos = $from.before(textDepth);
+    const block = $from.node(textDepth);
+    const containerPos = $from.before(d);
+    const containerEnd = $from.after(d);
+
+    const tr = state.tr;
+    tr.insert(containerEnd, block);
+    tr.delete(blockPos, blockPos + block.nodeSize);
+
+    const mappedContainerPos = tr.mapping.map(containerPos);
+    const containerAfter = tr.doc.nodeAt(mappedContainerPos);
+    if (containerAfter && containerAfter.childCount === 0) {
+      tr.delete(mappedContainerPos, mappedContainerPos + containerAfter.nodeSize);
+    }
+
+    const mappedInsert = tr.mapping.map(containerEnd);
+    const caret = Math.min(mappedInsert + 1, tr.doc.content.size);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(caret)));
+    view.dispatch(tr.scrollIntoView());
+    return true;
   }
   return false;
+}
+
+/** Notion: Enter in a heading always leaves a paragraph, never another heading. */
+function exitHeadingOnEnter(editor: any): boolean {
+  const block = currentTextBlock(editor);
+  if (!block || block.typeName !== "heading") return false;
+
+  const { $from } = editor.state.selection;
+  if (block.offset === block.text.length) {
+    const after = $from.after($from.depth);
+    const next = editor.state.doc.nodeAt(after);
+    if (next?.type.name === "paragraph" && next.content.size === 0) {
+      return editor.commands.setTextSelection(after + 1);
+    }
+  }
+
+  if (!editor.commands.splitBlock({ keepMarks: true })) return false;
+  return editor.chain().setParagraph().run();
 }
 
 function moveBlock(editor: any, direction: "up" | "down"): boolean {
@@ -274,6 +305,7 @@ export const WritingExperience = Extension.create({
       if (!this.editor.isEditable) return false;
       if (applyEnterMarkdownShortcut(this.editor)) return true;
       if (convertEmptyDecorationToParagraph(this.editor)) return true;
+      if (exitHeadingOnEnter(this.editor)) return true;
       return this.editor.commands.first(({ commands }) => [
         () => commands.newlineInCode(),
         () =>
@@ -290,7 +322,11 @@ export const WritingExperience = Extension.create({
 
     return {
       Enter: enter,
-      "Shift-Enter": () => this.editor.commands.setHardBreak(),
+      "Shift-Enter": () =>
+        this.editor.commands.first(({ commands }) => [
+          () => commands.newlineInCode(),
+          () => commands.setHardBreak(),
+        ]),
       "Mod-Enter": () => modifyCurrentBlock(this.editor),
 
       Backspace: () =>
@@ -304,7 +340,8 @@ export const WritingExperience = Extension.create({
         if (this.editor.can().sinkListItem("taskItem")) {
           return this.editor.chain().focus().sinkListItem("taskItem").run();
         }
-        return nestIntoPreviousSibling(this.editor);
+        nestIntoPreviousSibling(this.editor);
+        return true;
       },
       "Shift-Tab": () => {
         if (this.editor.can().liftListItem("listItem")) {
@@ -313,7 +350,8 @@ export const WritingExperience = Extension.create({
         if (this.editor.can().liftListItem("taskItem")) {
           return this.editor.chain().focus().liftListItem("taskItem").run();
         }
-        return liftOutOfContainer(this.editor);
+        liftOutOfContainer(this.editor);
+        return true;
       },
 
       "Mod-a": () => {
