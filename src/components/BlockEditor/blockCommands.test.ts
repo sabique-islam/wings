@@ -90,3 +90,29 @@ describe("pasteExternalUrl", () => {
     editor.destroy();
   });
 });
+
+describe("setCallout / setToggleBlock convert in place", () => {
+  it("wraps the current paragraph in a callout instead of inserting a sibling", () => {
+    const editor = makeEditor("<p>note</p>");
+    editor.commands.focus();
+    editor.commands.setTextSelection(2);
+    expect(editor.commands.setCallout()).toBe(true);
+    const top = editor.getJSON().content ?? [];
+    const calloutIndex = top.findIndex((node) => node.type === "callout");
+    expect(calloutIndex).toBeGreaterThanOrEqual(0);
+    expect(top.slice(0, calloutIndex).some((node) => node.type === "paragraph")).toBe(false);
+    editor.destroy();
+  });
+
+  it("wraps the current paragraph in a toggle instead of inserting a sibling", () => {
+    const editor = makeEditor("<p>note</p>");
+    editor.commands.focus();
+    editor.commands.setTextSelection(2);
+    expect(editor.commands.setToggleBlock()).toBe(true);
+    const top = editor.getJSON().content ?? [];
+    const toggleIndex = top.findIndex((node) => node.type === "toggleBlock");
+    expect(toggleIndex).toBeGreaterThanOrEqual(0);
+    expect(top.slice(0, toggleIndex).some((node) => node.type === "paragraph")).toBe(false);
+    editor.destroy();
+  });
+});

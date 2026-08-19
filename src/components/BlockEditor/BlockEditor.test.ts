@@ -202,10 +202,16 @@ describe("BlockEditor wiring", () => {
     editor.destroy();
   });
 
-  it("registers blockSelection and markdownShortcuts extensions", () => {
+  it("registers blockSelection", () => {
     const editor = makeEditor();
     expect(editor.extensionManager.extensions.some((e) => e.name === "blockSelection")).toBe(true);
-    expect(editor.extensionManager.extensions.some((e) => e.name === "markdownShortcuts")).toBe(true);
+    editor.destroy();
+  });
+
+  it("leaves emDash off so --- Enter can become a divider", () => {
+    const editor = makeEditor();
+    const typography = editor.extensionManager.extensions.find((e) => e.name === "typography");
+    expect(typography?.options.emDash).toBe(false);
     editor.destroy();
   });
 

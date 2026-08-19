@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { stepBlockSelection, type BlockDoc } from "./blockUtils";
+import { caretPosAfterMerge, stepBlockSelection, type BlockDoc } from "./blockUtils";
 
 /** Four top-level blocks at positions 0, 10, 20, 30. */
 function doc(positions = [0, 10, 20, 30]): BlockDoc {
@@ -86,5 +86,25 @@ describe("stepBlockSelection", () => {
 
   it("ignores positions that no longer exist in the document", () => {
     expect(stepBlockSelection(doc(), [999], null, 1, false)).toBeNull();
+  });
+});
+
+describe("caretPosAfterMerge", () => {
+  it("lands after the last character of a textblock, not on it", () => {
+    expect(
+      caretPosAfterMerge(0, { isTextblock: true, content: { size: 5 }, nodeSize: 7 }, 7),
+    ).toBe(6);
+  });
+
+  it("lands inside an empty previous paragraph", () => {
+    expect(
+      caretPosAfterMerge(0, { isTextblock: true, content: { size: 0 }, nodeSize: 2 }, 2),
+    ).toBe(1);
+  });
+
+  it("lands after an atom such as a divider", () => {
+    expect(
+      caretPosAfterMerge(0, { isTextblock: false, content: { size: 0 }, nodeSize: 1 }, 1),
+    ).toBe(1);
   });
 });

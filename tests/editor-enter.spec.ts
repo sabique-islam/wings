@@ -96,6 +96,30 @@ test("pasting multi-line code stays inside the code block", async ({ page }) => 
   expect(codeEscapedToParagraph).toBe(false);
 });
 
+test("Shift+Enter inside a code block stays in the fence", async ({ page }) => {
+  await page.goto("/__editor-e2e");
+  const editor = await focusEditor(page);
+
+  await page.keyboard.type("```");
+  await page.keyboard.press("Enter");
+  await expect(editor.locator("pre .code-block-content")).toBeVisible();
+  await page.keyboard.type("line1");
+  await page.keyboard.press("Shift+Enter");
+  await page.keyboard.type("line2");
+
+  await expect(editor.locator("pre .code-block-content")).toContainText("line1");
+  await expect(editor.locator("pre .code-block-content")).toContainText("line2");
+
+  const escaped = await page.evaluate(() => {
+    const root = document.querySelector(".ProseMirror");
+    if (!root) return false;
+    return Array.from(root.children).some(
+      (el) => el.tagName === "P" && (el.textContent ?? "").includes("line2"),
+    );
+  });
+  expect(escaped).toBe(false);
+});
+
 test("Enter mid-paragraph splits the block (regression: createParagraphNear was jumping the cursor)", async ({ page }) => {
   await page.goto("/__editor-e2e");
   const editor = await focusEditor(page);
