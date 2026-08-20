@@ -70,7 +70,7 @@ export function FeatureGrid() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: i * 0.06, ease: motionEase }}
-            className={`${linedCellClass(2)} group flex flex-col p-5 sm:p-6 transition-colors hover:bg-accent/20`}
+            className={`${linedCellClass(2)} flex flex-col p-5 sm:p-6`}
           >
             <div className="flex items-start justify-between gap-4 mb-5">
               <h3 className="font-display text-2xl sm:text-3xl tracking-tight capitalize">{f.t}</h3>
@@ -105,7 +105,7 @@ export function FeatureGrid() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.45, delay: i * 0.04, ease: motionEase }}
-            className={`${linedCellClass(3)} p-5 sm:p-6 transition-colors hover:bg-accent/20`}
+            className={`${linedCellClass(3)} p-5 sm:p-6`}
           >
             <div className="font-display text-lg tracking-tight mb-1.5">{f.t}</div>
             <p className="text-sm text-ink-1 font-sans leading-relaxed mb-4">{f.d}</p>

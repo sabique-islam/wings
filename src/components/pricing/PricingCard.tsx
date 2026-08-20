@@ -22,7 +22,7 @@ export function PricingCard({ tier, index, onSelect, busy }: Props) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: index * 0.06, ease: motionEase }}
-      className={`${linedCellClass(3)} group flex flex-col p-5 sm:p-6 transition-colors hover:bg-accent/20`}
+      className={`${linedCellClass(3)} flex flex-col p-5 sm:p-6`}
     >
       <div className="flex items-start justify-between gap-4 mb-5">
         <h3 className="font-display text-2xl sm:text-3xl tracking-tight">{tier.name}</h3>
@@ -61,7 +61,8 @@ export function PricingCard({ tier, index, onSelect, busy }: Props) {
           onClick={() => onSelect(tier)}
           disabled={disabled}
           className={cn(
-            "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-mono uppercase tracking-[0.2em] transition-all hover:gap-3 disabled:opacity-60 disabled:hover:gap-2 disabled:cursor-not-allowed",
+            "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-[11px] font-mono uppercase tracking-[0.2em] disabled:opacity-60 disabled:cursor-not-allowed",
+            checkoutReady && "transition-all hover:gap-3",
             checkoutReady
               ? "bg-accent-strong text-accent-strong-foreground"
               : "border border-border-strong bg-surface-1/40",

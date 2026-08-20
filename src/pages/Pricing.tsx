@@ -102,7 +102,7 @@ export default function Pricing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.45, delay: i * 0.03, ease: motionEase }}
-                className={`${linedCellClass(3)} p-5 sm:p-6 transition-colors hover:bg-accent/20`}
+                className={`${linedCellClass(3)} p-5 sm:p-6`}
               >
                 <div className="text-[10px] font-mono text-ink-2 mb-2 tabular-nums">
                   {String(i + 1).padStart(2, "0")}
