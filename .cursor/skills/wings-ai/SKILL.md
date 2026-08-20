@@ -18,6 +18,7 @@ src/lib/ai/client.ts         streamChat, generateImage
 src/lib/ai/providers/        Per-vendor implementations
 src/lib/ai/storage.ts        Keys + model preferences
 src/components/AIModelSelect.tsx  Current vs dedicated picker
+src/components/AIThinkingStatus.tsx  thinking-orbs loader while generating
 ```
 
 ## Providers
