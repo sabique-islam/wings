@@ -1635,8 +1635,8 @@
   left: calc(var(--wordmark-ch) * 1.6);
   top: 0;
   z-index: 1;
-  width: calc(var(--wordmark-ch) * 5.2);
-  height: calc(var(--wordmark-ch) * 5.2);
+  width: calc(var(--wordmark-ch) * 4.4);
+  height: calc(var(--wordmark-ch) * 4.4);
   transform: translateY(-58%);
   pointer-events: none;
   background-color: hsl(var(--fg-2));
@@ -1652,15 +1652,6 @@
   -webkit-mask-source-type: luminance;
   mask-mode: luminance;
   filter: url(#nw-dither-text);
-}
-
-.nw-logo-mark {
-  mix-blend-mode: screen;
-}
-
-[data-theme="light"] .nw-logo-mark {
-  filter: invert(1);
-  mix-blend-mode: multiply;
 }
 
 [data-theme="light"] .nw-footer-wordmark {

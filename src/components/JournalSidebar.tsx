@@ -333,7 +333,7 @@ export const JournalSidebar = memo(function JournalSidebar({
           >
             <button type="button" onClick={onHome} className="flex items-center gap-2">
               <Logo
-                size={railCollapsed ? 22 : 28}
+                size={22}
                 withWordmark={!railCollapsed}
                 wordmarkClassName="text-sm font-display font-semibold"
               />

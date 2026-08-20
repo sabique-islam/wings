@@ -57,7 +57,7 @@ export default function Auth() {
           to="/"
           className="absolute top-6 left-6 z-10 text-ink-2 hover:text-foreground transition-colors"
         >
-          <Logo size={32} withWordmark wordmarkClassName="text-xs font-display font-medium" />
+          <Logo size={24} withWordmark wordmarkClassName="text-xs font-display font-medium" />
         </Link>
 
         <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-20">
