@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "@/lib/icons";
 import { Ascii, SHOWCASE_BY_TAG } from "@/lib/ascii";
 import { motionEase } from "./constants";
-import { LinedGrid, LinedHeading, linedCellClass, StripeDivider } from "./LinedShell";
+import { GraphicWell, LinedGrid, LinedHeading, linedSubgridCellClass, StripeDivider } from "./LinedShell";
 
 type CardData = {
   tag: string;
@@ -55,11 +55,11 @@ export function StackedScroll() {
 function ShowcaseCell({ card, i }: { card: CardData; i: number }) {
   return (
     <motion.article
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0 }}
+      whileInView={{ opacity: 1 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: i * 0.08, ease: motionEase }}
-      className={`${linedCellClass(2)} grid grid-cols-1`}
+      className={linedSubgridCellClass(2, 2)}
     >
       <ShowcaseCopy card={card} />
       <ShowcaseArt tag={card.tag} />
@@ -87,14 +87,18 @@ function ShowcaseCopy({ card }: { card: CardData }) {
 
 function ShowcaseArt({ tag }: { tag: string }) {
   return (
-    <div className="dither-viewbox relative flex min-h-[180px] items-center justify-center border-t border-line p-4 sm:p-6 overflow-x-auto">
-      <Ascii
-        box
-        size="text-[7px] xs:text-[8px] sm:text-[9px]"
-        className="text-white/80 shrink-0"
-      >
-        {SHOWCASE_BY_TAG[tag]}
-      </Ascii>
+    <div className="px-6 pb-6 sm:px-8 sm:pb-8">
+      <GraphicWell className="dither-viewbox">
+        <div className="absolute inset-0 flex items-center justify-center p-4 sm:p-6">
+          <Ascii
+            box
+            size="text-[7px] xs:text-[8px] sm:text-[9px]"
+            className="text-white/80 max-h-full max-w-full"
+          >
+            {SHOWCASE_BY_TAG[tag]}
+          </Ascii>
+        </div>
+      </GraphicWell>
     </div>
   );
 }

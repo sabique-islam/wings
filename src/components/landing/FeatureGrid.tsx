@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { motionEase } from "./constants";
-import { LinedGrid, LinedHeading, linedCellClass, StripeDivider } from "./LinedShell";
+import { GraphicWell, LinedGrid, LinedHeading, linedCellClass, linedSubgridCellClass, StripeDivider } from "./LinedShell";
 import { FeatureGraphic } from "./FeatureGraphic";
 
 type GraphicKind = "gyro" | "folder" | "tornado" | "smiley";
@@ -68,30 +68,34 @@ export function FeatureGrid() {
         {SHOWCASE.map((f, i) => (
           <motion.article
             key={f.t}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: i * 0.06, ease: motionEase }}
-            className={`${linedCellClass(2)} flex flex-col p-5 sm:p-6`}
+            className={linedSubgridCellClass(2, 3)}
           >
-            <div className="flex items-start justify-between gap-4 mb-5">
+            <div className="flex items-start justify-between gap-4 px-5 pt-6 pb-4 sm:px-6 sm:pt-8 sm:pb-5">
               <h3 className="font-display text-2xl sm:text-3xl tracking-tight capitalize">{f.t}</h3>
               <span className="font-display text-4xl sm:text-5xl font-bold text-transparent [-webkit-text-stroke:1px_hsl(var(--fg-3))] tabular-nums leading-none">
                 {String(i + 1).padStart(2, "0")}
               </span>
             </div>
-            <div className="relative mb-5 aspect-[16/9] min-h-[180px] w-full overflow-hidden bg-black contain-paint">
-              <FeatureGraphic kind={f.graphic} />
+            <div className="px-5 sm:px-6">
+              <GraphicWell>
+                <FeatureGraphic kind={f.graphic} />
+              </GraphicWell>
             </div>
-            <div className="flex-1 space-y-2">
-              <h4 className="font-display text-lg sm:text-xl font-semibold tracking-tight">{f.headline}</h4>
-              <p className="text-sm text-ink-1 font-sans leading-relaxed">{f.d}</p>
-            </div>
-            <div className="mt-5 flex items-end justify-between gap-4">
-              <span className="inline-flex items-center gap-2 text-[10px] font-mono text-ink-2 border border-line px-2 py-1">
-                {f.tag}
-              </span>
-              <span className="text-[10px] font-mono text-ink-3 uppercase tracking-widest">wings</span>
+            <div className="flex h-full flex-col px-5 pt-5 pb-6 sm:px-6 sm:pt-6 sm:pb-8">
+              <div className="space-y-2">
+                <h4 className="font-display text-lg sm:text-xl font-semibold tracking-tight">{f.headline}</h4>
+                <p className="text-sm text-ink-1 font-sans leading-relaxed">{f.d}</p>
+              </div>
+              <div className="mt-auto flex items-end justify-between gap-4 pt-6">
+                <span className="inline-flex items-center gap-2 text-[10px] font-mono text-ink-2 border border-line px-2 py-1">
+                  {f.tag}
+                </span>
+                <span className="text-[10px] font-mono text-ink-3 uppercase tracking-widest">wings</span>
+              </div>
             </div>
           </motion.article>
         ))}

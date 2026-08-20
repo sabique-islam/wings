@@ -66,7 +66,7 @@ export function LinedGrid({ children, cols = 3, className }: LinedGridProps) {
     <div className={cn("screen-line-top relative", className)}>
       {cols === 2 ? (
         <div
-          className="pointer-events-none absolute inset-0 z-0 hidden sm:grid sm:grid-cols-2 gap-4"
+          className="pointer-events-none absolute inset-0 z-10 hidden sm:grid sm:grid-cols-2 gap-x-4"
           aria-hidden
         >
           <div className="border-r border-line" />
@@ -74,7 +74,7 @@ export function LinedGrid({ children, cols = 3, className }: LinedGridProps) {
         </div>
       ) : (
         <div
-          className="pointer-events-none absolute inset-0 z-0 hidden sm:grid sm:grid-cols-2 md:grid-cols-3 gap-4"
+          className="pointer-events-none absolute inset-0 z-10 hidden sm:grid sm:grid-cols-2 md:grid-cols-3 gap-4"
           aria-hidden
         >
           <div className="border-r border-line" />
@@ -85,7 +85,7 @@ export function LinedGrid({ children, cols = 3, className }: LinedGridProps) {
       <div
         className={cn(
           "relative grid grid-cols-1",
-          cols === 2 ? "sm:grid-cols-2 gap-4" : "sm:grid-cols-2 md:grid-cols-3 gap-4",
+          cols === 2 ? "sm:grid-cols-2 gap-x-4" : "sm:grid-cols-2 md:grid-cols-3 gap-4",
         )}
       >
         {children}
@@ -99,6 +99,27 @@ export function linedCellClass(cols: LinedCols = 3) {
     "screen-line-bottom",
     cols === 2 && "max-sm:screen-line-top",
     cols === 3 && "max-sm:screen-line-top",
+  );
+}
+
+/** Pair a 2-col cell with parent tracks so neighboring wells sit on one line. */
+export function linedSubgridCellClass(cols: LinedCols, rows: 2 | 3 | 4) {
+  return cn(
+    linedCellClass(cols),
+    "min-w-0 grid grid-cols-1",
+    "sm:grid-rows-subgrid sm:gap-0",
+    rows === 2 && "sm:row-span-2",
+    rows === 3 && "sm:row-span-3",
+    rows === 4 && "sm:row-span-4",
+  );
+}
+
+/** Shared 16:9 black diagram slot — same size in features and showcase. */
+export function GraphicWell({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cn("relative aspect-[16/9] w-full min-h-0 overflow-hidden bg-black contain-paint", className)}>
+      {children}
+    </div>
   );
 }
 

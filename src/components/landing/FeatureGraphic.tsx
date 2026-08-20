@@ -56,7 +56,7 @@ function SvgGraphic({ src }: { src: string }) {
       loading="lazy"
       fetchPriority="low"
       draggable={false}
-      className="pointer-events-none h-full w-full object-contain"
+      className="pointer-events-none h-full w-full object-cover"
     />
   );
 }

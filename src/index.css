@@ -1465,7 +1465,7 @@
     position: absolute;
     top: 0;
     left: -100vw;
-    z-index: 0;
+    z-index: 1;
     height: 1px;
     width: 200vw;
     background-color: var(--line);
@@ -1479,7 +1479,7 @@
     position: absolute;
     bottom: 0;
     left: -100vw;
-    z-index: 0;
+    z-index: 1;
     height: 1px;
     width: 200vw;
     background-color: var(--line);
