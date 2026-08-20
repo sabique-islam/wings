@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, type ComponentType } from "react";
 import {
   X, Sun, Moon, Monitor, User, Palette, Sparkles, Plug, Bell, Download,
   CreditCard, AlertTriangle, Eye, EyeOff, Check, Github, MessageCircle,
+  type IconProps,
 } from "@/lib/icons";
 import { useTheme } from "./ThemeProvider";
 import { Slider } from "@/components/ui/slider";
@@ -10,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import { PROVIDERS } from "@/lib/ai/providers";
+import { AIModelSelect } from "@/components/AIModelSelect";
 import {
   getActiveProvider, setActiveProvider, getApiKeyFor, setApiKeyFor, clearApiKeyFor,
   getModelFor, setModelFor,
@@ -40,7 +42,7 @@ const PRESET_COLORS = [
 
 type TabId = "account" | "appearance" | "ai" | "connections" | "notifications" | "data" | "billing" | "danger";
 
-const TABS: { id: TabId; label: string; icon: typeof User }[] = [
+const TABS: { id: TabId; label: string; icon: ComponentType<IconProps> }[] = [
   { id: "account", label: "account", icon: User },
   { id: "appearance", label: "appearance", icon: Palette },
   { id: "ai", label: "ai", icon: Sparkles },
@@ -135,7 +137,7 @@ export function SettingsPanel() {
   const [saving, setSaving] = useState(false);
   const [savingUsername, setSavingUsername] = useState(false);
   const usernameCheckSeq = useRef(0);
-  const usernameDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // AI tab state
   const [provider, setProvider] = useState(() => getActiveProvider());
@@ -516,11 +518,12 @@ export function SettingsPanel() {
                   )}
                 </Field>
                 <Field label="model">
-                  <select value={model} onChange={(e) => setModel(e.target.value)} className={inputCls}>
-                    {(providerObj?.models || []).map((m) => (
-                      <option key={m.id} value={m.id}>{m.label}{m.vision ? " · 👁" : ""}{m.image ? " · 🎨" : ""}</option>
-                    ))}
-                  </select>
+                  <AIModelSelect
+                    models={providerObj?.models || []}
+                    value={model}
+                    onChange={setModel}
+                    triggerClassName={inputCls + " h-9"}
+                  />
                 </Field>
                 <div className="flex items-center gap-2">
                   <button onClick={saveAI} className="rounded bg-accent-strong text-accent-strong-foreground text-xs font-mono px-4 py-1.5 hover:bg-accent-strong-hover transition-colors">save</button>
