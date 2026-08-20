@@ -4,40 +4,70 @@ import { FOOTER_LINKS, SOCIAL } from "@/config/navigation";
 import { Logo } from "@/components/Logo";
 import { SITE } from "@/config/site";
 import { FooterWordmark } from "@/components/landing/FooterWordmark";
+import { LinedShell, StripeDivider } from "./LinedShell";
 
 export function Footer() {
   const year = new Date().getFullYear();
-  return (
-    <footer className="relative border-t border-border-subtle bg-background pt-16 sm:pt-20 pb-0 px-4 sm:px-6 overflow-hidden">
-      <div className="relative max-w-6xl mx-auto">
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-8 sm:gap-10 mb-12 sm:mb-16">
-          <div className="col-span-2 space-y-3">
-            <Logo size={28} withWordmark wordmarkClassName="text-sm" />
-            <p className="text-xs text-ink-2 font-mono leading-relaxed max-w-[18rem]">
-              block editor for notes — markdown, LaTeX, Excalidraw, and AI. hosted on Supabase.
-            </p>
-            <div className="flex items-center gap-2 pt-2">
-              <a href={SOCIAL.discord} target="_blank" rel="noreferrer" aria-label="discord" className="w-8 h-8 grid place-items-center rounded border border-border-subtle hover:bg-accent/40 hover:border-border-strong transition-colors">
-                <DiscordGlyph />
-              </a>
-              <a href={SOCIAL.email} aria-label="email" className="w-8 h-8 grid place-items-center rounded border border-border-subtle hover:bg-accent/40 hover:border-border-strong transition-colors"><Mail className="w-3.5 h-3.5" /></a>
-            </div>
+  const columns = [
+    {
+      h: "wings",
+      node: (
+        <div className="space-y-3">
+          <Logo size={28} withWordmark wordmarkClassName="text-sm" />
+          <p className="text-xs text-ink-2 font-mono leading-relaxed">
+            block editor for notes. keep page bodies in a folder on this device — or in the cloud when you share.
+          </p>
+          <div className="flex items-center gap-2 pt-1">
+            <a href={SOCIAL.discord} target="_blank" rel="noreferrer" aria-label="discord" className="w-8 h-8 grid place-items-center border border-line hover:bg-accent/40 transition-colors">
+              <DiscordGlyph />
+            </a>
+            <a href={SOCIAL.email} aria-label="email" className="w-8 h-8 grid place-items-center border border-line hover:bg-accent/40 transition-colors"><Mail className="w-3.5 h-3.5" /></a>
           </div>
-          {FOOTER_LINKS.map((c) => (
-            <div key={c.h} className="space-y-3">
-              <div className="text-[10px] font-mono uppercase tracking-widest text-ink-2">{c.h}</div>
-              <ul className="space-y-2">
-                {c.links.map((l) => (
-                  <li key={l.l}>
-                    <Link to={l.to} className="text-xs font-mono text-ink-1 hover:text-foreground transition-colors">{l.l}</Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
         </div>
+      ),
+    },
+    ...FOOTER_LINKS.map((c) => ({
+      h: c.h,
+      node: (
+        <div className="space-y-3">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-ink-2">{c.h}</div>
+          <ul className="space-y-2">
+            {c.links.map((l) => (
+              <li key={l.l}>
+                <Link to={l.to} className="text-xs font-mono text-ink-1 hover:text-foreground transition-colors">{l.l}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ),
+    })),
+  ];
 
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pt-8 border-t border-border-subtle">
+  return (
+    <footer className="relative bg-background pt-0 overflow-hidden">
+      <LinedShell>
+        <StripeDivider />
+        <div className="screen-line-bottom relative">
+          <div className="pointer-events-none absolute inset-0 z-0 hidden md:grid md:grid-cols-6 gap-4" aria-hidden>
+            <div className="col-span-2 border-r border-line" />
+            <div className="border-l border-r border-line" />
+            <div className="border-l border-r border-line" />
+            <div className="border-l border-r border-line" />
+            <div className="border-l border-line" />
+          </div>
+          <div className="relative grid grid-cols-2 md:grid-cols-6 gap-4">
+            {columns.map((c, i) => (
+              <div
+                key={c.h}
+                className={`screen-line-bottom p-5 sm:p-6 ${i === 0 ? "col-span-2" : ""}`}
+              >
+                {c.node}
+              </div>
+            ))}
+          </div>
+        </div>
+        <StripeDivider />
+        <div className="screen-line-bottom flex flex-col md:flex-row items-start md:items-center justify-between gap-3 px-5 sm:px-6 py-6">
           <div className="text-[10px] font-mono text-ink-2">© {year} {SITE.brand}</div>
           <div className="flex items-center gap-4">
             <button
@@ -49,9 +79,8 @@ export function Footer() {
             <Link to="/status" className="text-[10px] font-mono text-ink-2 hover:text-foreground transition-colors">{SITE.domain}</Link>
           </div>
         </div>
-
-        <div className="mt-8 sm:mt-10 pt-8 border-t border-border-subtle" aria-hidden />
-      </div>
+        <StripeDivider />
+      </LinedShell>
       <FooterWordmark />
     </footer>
   );

@@ -3,7 +3,6 @@ import { cn } from "@/lib/utils";
 
 export function InfiniteMarquee({ items, reverse = false }: { items: string[]; reverse?: boolean }) {
   const row = [...items, ...items];
-  // Rotate a single accent highlight through the base items.
   const [accentIdx, setAccentIdx] = useState(0);
   useEffect(() => {
     const t = setInterval(() => setAccentIdx((i) => (i + 1) % items.length), 1800);
@@ -11,7 +10,7 @@ export function InfiniteMarquee({ items, reverse = false }: { items: string[]; r
   }, [items.length]);
 
   return (
-    <div className="relative overflow-hidden border-y border-border-subtle bg-surface-1/40 py-4 sm:py-5">
+    <div className="screen-line-top screen-line-bottom relative overflow-hidden py-4 sm:py-5">
       <div
         className={cn(
           "flex w-max gap-8 sm:gap-12 whitespace-nowrap",

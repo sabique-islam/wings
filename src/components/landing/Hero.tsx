@@ -5,12 +5,14 @@ import { motionEase } from "./constants";
 import { HeroScreenshot } from "./HeroScreenshot";
 import { AsciiWordmark } from "@/lib/ascii";
 
+import { StripeDivider } from "./LinedShell";
+
 interface Props { ctaHref: string }
 
 export function Hero({ ctaHref }: Props) {
   return (
-    <section className="relative isolate pt-28 sm:pt-32 md:pt-36 pb-16 sm:pb-24 px-4 sm:px-6">
-      <div className="max-w-5xl mx-auto text-center flex flex-col items-center gap-6 sm:gap-7">
+    <section>
+      <div className="screen-line-top screen-line-bottom px-4 pt-12 sm:pt-16 md:pt-20 pb-12 sm:pb-16 text-center flex flex-col items-center gap-6 sm:gap-7">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -33,7 +35,7 @@ export function Hero({ ctaHref }: Props) {
           transition={{ duration: 0.9, delay: 0.2, ease: motionEase }}
           className="text-sm sm:text-base md:text-lg text-ink-1 font-sans max-w-xl mx-auto leading-relaxed px-2"
         >
-          nested pages, slash commands, LaTeX, Excalidraw, and an AI panel that reads the page you have open.
+          nested pages, slash commands, LaTeX, Excalidraw, and an AI panel with Ask / Plan / Agent. keep private pages in a folder on this device — or share a link when you want to write together.
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -56,7 +58,8 @@ export function Hero({ ctaHref }: Props) {
           </Link>
         </motion.div>
       </div>
-      <div className="mt-12 sm:mt-16 md:mt-20">
+      <StripeDivider />
+      <div className="screen-line-bottom px-4 py-8 sm:py-10 md:py-12">
         <HeroScreenshot />
       </div>
     </section>

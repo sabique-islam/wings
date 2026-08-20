@@ -9,13 +9,16 @@ const WORDMARK_COLS = Math.max(
 export function FooterWordmark() {
   return (
     <div
-      className="nw-footer-wordmark-wrap relative left-1/2 -translate-x-1/2 w-screen select-none overflow-hidden"
+      className="nw-footer-wordmark-wrap relative left-1/2 -translate-x-1/2 w-screen select-none overflow-x-hidden"
       aria-hidden
       style={{ "--wordmark-cols": WORDMARK_COLS } as React.CSSProperties}
     >
-      <Ascii size="" box className="nw-footer-wordmark">
-        {WINGS_WORDMARK.trim()}
-      </Ascii>
+      <div className="nw-footer-wordmark-inner">
+        <span className="nw-footer-wordmark-mark" />
+        <Ascii size="" box className="nw-footer-wordmark">
+          {WINGS_WORDMARK.trim()}
+        </Ascii>
+      </div>
     </div>
   );
 }
