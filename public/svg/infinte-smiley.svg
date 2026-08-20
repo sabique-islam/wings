@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" fill="#000"/>
+  <g transform="translate(256 256)" fill="#fff" stroke="#fff">
+    <g>
+      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="12s" repeatCount="indefinite"/>
+      <g transform="translate(0 -168)"><rect x="-28" y="-28" width="56" height="56" rx="10"/></g>
+      <g transform="rotate(45) translate(0 -168)"><rect x="-28" y="-28" width="56" height="56" rx="10"/></g>
+      <g transform="rotate(90) translate(0 -168)"><rect x="-28" y="-28" width="56" height="56" rx="10"/></g>
+      <g transform="rotate(135) translate(0 -168)"><rect x="-28" y="-28" width="56" height="56" rx="10"/></g>
+      <g transform="rotate(180) translate(0 -168)"><rect x="-28" y="-28" width="56" height="56" rx="10"/></g>
+      <g transform="rotate(225) translate(0 -168)"><rect x="-28" y="-28" width="56" height="56" rx="10"/></g>
+      <g transform="rotate(270) translate(0 -168)"><rect x="-28" y="-28" width="56" height="56" rx="10"/></g>
+      <g transform="rotate(315) translate(0 -168)"><rect x="-28" y="-28" width="56" height="56" rx="10"/></g>
+    </g>
+    <circle r="72" fill="none" stroke-width="10"/>
+    <circle cx="-26" cy="-10" r="9" stroke="none"/>
+    <circle cx="26" cy="-10" r="9" stroke="none"/>
+    <path d="M-34 28c18 28 50 28 68 0" fill="none" stroke-width="10" stroke-linecap="round"/>
+  </g>
+</svg>

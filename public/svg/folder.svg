@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" fill="none">
+  <style>
+    .sheet{transform-box:fill-box;transform-origin:50% 90%}
+    .s1{animation:pop1 3.4s cubic-bezier(.22,1.28,.36,1) infinite}
+    .s2{animation:pop2 3.4s .16s cubic-bezier(.22,1.28,.36,1) infinite}
+    .s3{animation:pop3 3.4s .32s cubic-bezier(.22,1.28,.36,1) infinite}
+    @keyframes pop1{
+      0%,16%{transform:translate(6px,46px) rotate(-2deg) scale(.82)}
+      32%{transform:translate(-1px,-7px) rotate(-18deg) scale(1.05)}
+      42%,68%{transform:translate(0,0) rotate(-16deg) scale(1)}
+      86%,100%{transform:translate(6px,46px) rotate(-2deg) scale(.82)}
+    }
+    @keyframes pop2{
+      0%,16%{transform:translate(-4px,48px) rotate(2deg) scale(.82)}
+      32%{transform:translate(2px,-8px) rotate(13deg) scale(1.05)}
+      42%,68%{transform:translate(0,0) rotate(11deg) scale(1)}
+      86%,100%{transform:translate(-4px,48px) rotate(2deg) scale(.82)}
+    }
+    @keyframes pop3{
+      0%,16%{transform:translate(2px,44px) rotate(-1deg) scale(.84)}
+      32%{transform:translate(0,-6px) rotate(-6deg) scale(1.04)}
+      42%,68%{transform:translate(0,0) rotate(-5deg) scale(1)}
+      86%,100%{transform:translate(2px,44px) rotate(-1deg) scale(.84)}
+    }
+    @media (prefers-reduced-motion:reduce){
+      .s1,.s2,.s3{animation:none}
+      .s1{transform:rotate(-16deg)}
+      .s2{transform:rotate(11deg)}
+      .s3{transform:rotate(-5deg)}
+    }
+  </style>
+
+  <rect width="240" height="180" fill="#000"/>
+
+  <!-- left note -->
+  <g class="sheet s1">
+    <g transform="translate(78 16)">
+      <rect width="54" height="70" rx="4" fill="#fff" stroke="#000" stroke-opacity=".22"/>
+      <rect width="16" height="70" rx="4" fill="#000" fill-opacity=".07"/>
+      <path d="M16 0v70" stroke="#000" stroke-opacity=".16"/>
+      <circle cx="5" cy="7" r="1.2" fill="#000" fill-opacity=".28"/>
+      <circle cx="9.5" cy="7" r="1.2" fill="#000" fill-opacity=".16"/>
+      <rect x="3" y="14" width="10" height="1.5" rx=".5" fill="#000" fill-opacity=".35"/>
+      <rect x="3" y="19" width="10" height="6" rx="1" fill="#000" fill-opacity=".08"/>
+      <rect x="4" y="20.6" width="8" height="2.4" rx=".4" fill="#000" fill-opacity=".7"/>
+      <rect x="3" y="28" width="9" height="1.3" rx=".4" fill="#000" fill-opacity=".22"/>
+      <rect x="20" y="8" width="10" height="1.2" rx=".4" fill="#000" fill-opacity=".28"/>
+      <rect x="20" y="14" width="28" height="3.2" rx=".8" fill="#000" fill-opacity=".9"/>
+      <rect x="20" y="21" width="26" height="1.6" rx=".5" fill="#000" fill-opacity=".32"/>
+      <rect x="20" y="25.5" width="20" height="1.6" rx=".5" fill="#000" fill-opacity=".2"/>
+      <rect x="20" y="32" width="28" height="16" rx="2" fill="none" stroke="#000" stroke-opacity=".35"/>
+      <rect x="24" y="37" width="20" height="1.4" rx=".5" fill="#000" fill-opacity=".3"/>
+      <rect x="24" y="41.5" width="14" height="1.4" rx=".5" fill="#000" fill-opacity=".2"/>
+    </g>
+  </g>
+
+  <!-- right note -->
+  <g class="sheet s2">
+    <g transform="translate(116 12)">
+      <rect width="54" height="70" rx="4" fill="#fff" stroke="#000" stroke-opacity=".22"/>
+      <rect width="16" height="70" rx="4" fill="#000" fill-opacity=".07"/>
+      <path d="M16 0v70" stroke="#000" stroke-opacity=".16"/>
+      <circle cx="5" cy="7" r="1.2" fill="#000" fill-opacity=".28"/>
+      <circle cx="9.5" cy="7" r="1.2" fill="#000" fill-opacity=".16"/>
+      <rect x="3" y="14" width="10" height="1.5" rx=".5" fill="#000" fill-opacity=".3"/>
+      <rect x="3" y="19" width="9" height="1.3" rx=".4" fill="#000" fill-opacity=".2"/>
+      <rect x="3" y="24" width="10" height="6" rx="1" fill="#000" fill-opacity=".08"/>
+      <rect x="4" y="25.6" width="8" height="2.4" rx=".4" fill="#000" fill-opacity=".7"/>
+      <rect x="20" y="8" width="12" height="1.2" rx=".4" fill="#000" fill-opacity=".28"/>
+      <rect x="20" y="14" width="24" height="3.2" rx=".8" fill="#000" fill-opacity=".9"/>
+      <rect x="20" y="21" width="28" height="1.6" rx=".5" fill="#000" fill-opacity=".3"/>
+      <rect x="20" y="25.5" width="22" height="1.6" rx=".5" fill="#000" fill-opacity=".2"/>
+      <rect x="20" y="30" width="18" height="1.6" rx=".5" fill="#000" fill-opacity=".16"/>
+      <rect x="20" y="38" width="7" height="7" rx="1.2" fill="none" stroke="#000" stroke-opacity=".5"/>
+      <rect x="30" y="40.5" width="16" height="1.6" rx=".5" fill="#000" fill-opacity=".32"/>
+    </g>
+  </g>
+
+  <!-- front note -->
+  <g class="sheet s3">
+    <g transform="translate(74 18)">
+      <rect width="54" height="70" rx="4" fill="#fff" stroke="#000" stroke-opacity=".22"/>
+      <rect width="16" height="70" rx="4" fill="#000" fill-opacity=".07"/>
+      <path d="M16 0v70" stroke="#000" stroke-opacity=".16"/>
+      <circle cx="5" cy="7" r="1.2" fill="#000" fill-opacity=".28"/>
+      <circle cx="9.5" cy="7" r="1.2" fill="#000" fill-opacity=".16"/>
+      <rect x="3" y="14" width="10" height="1.5" rx=".5" fill="#000" fill-opacity=".35"/>
+      <rect x="3" y="19" width="10" height="6" rx="1" fill="#000" fill-opacity=".08"/>
+      <rect x="4" y="20.6" width="8" height="2.4" rx=".4" fill="#000" fill-opacity=".7"/>
+      <rect x="3" y="28" width="9" height="1.3" rx=".4" fill="#000" fill-opacity=".22"/>
+      <rect x="3" y="32" width="8" height="1.3" rx=".4" fill="#000" fill-opacity=".16"/>
+      <rect x="20" y="8" width="14" height="1.2" rx=".4" fill="#000" fill-opacity=".28"/>
+      <rect x="20" y="14" width="28" height="3.2" rx=".8" fill="#000" fill-opacity=".92"/>
+      <rect x="20" y="21" width="26" height="1.6" rx=".5" fill="#000" fill-opacity=".32"/>
+      <rect x="20" y="25.5" width="20" height="1.6" rx=".5" fill="#000" fill-opacity=".2"/>
+      <rect x="20" y="33" width="28" height="13" rx="2" fill="none" stroke="#000" stroke-opacity=".35"/>
+      <path d="M24 37.5h20M24 42h12" stroke="#000" stroke-opacity=".4" stroke-width="1.3" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- folder pocket in front: dark body, white edge, so the pages read -->
+  <path
+    fill="#141414"
+    stroke="#fff"
+    stroke-width="1.8"
+    stroke-linejoin="round"
+    d="M42 58h46c3.2 0 6.1 1.6 8.2 4.3L106 74h92c11 0 20 9 20 20v50c0 11-9 20-20 20H42c-11 0-20-9-20-20V78c0-11 9-20 20-20Z"
+  />
+  <rect x="22" y="82" width="196" height="82" rx="16" fill="#141414" stroke="#fff" stroke-width="1.8"/>
+</svg>
