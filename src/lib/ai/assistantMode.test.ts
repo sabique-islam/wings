@@ -33,10 +33,11 @@ describe("assistantMode", () => {
     expect(canApplyAiTools("agent")).toBe(true);
   });
 
-  it("keeps tool protocol out of Ask and Plan prompts", () => {
-    expect(systemPromptFor("ask")).not.toContain("tool:write");
-    expect(systemPromptFor("plan")).not.toContain("tool:write");
-    expect(systemPromptFor("agent")).toContain("tool:write");
+  it("does not teach the tool protocol in Ask or Plan", () => {
+    expect(systemPromptFor("ask")).not.toContain("```tool:write");
+    expect(systemPromptFor("plan")).not.toContain("```tool:write");
+    expect(systemPromptFor("ask")).not.toContain("You may emit fenced action blocks");
+    expect(systemPromptFor("agent")).toContain("```tool:write");
     expect(systemPromptFor("ask")).toContain("Ask mode");
     expect(systemPromptFor("plan")).toContain("Plan mode");
   });
