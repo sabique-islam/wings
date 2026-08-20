@@ -3,6 +3,7 @@ import { LoadingScreen } from "@/components/ui/spinner";
 import { LandingCta } from "@/components/landing/LandingCta";
 import { MarketingLayout } from "@/components/landing/MarketingLayout";
 import { StackedScroll } from "@/components/landing/StackedScroll";
+import { StripeDivider } from "@/components/landing/LinedShell";
 import { usePublicMarketingPage } from "@/hooks/usePublicMarketingPage";
 
 export default function LandingShowcase() {
@@ -17,11 +18,12 @@ export default function LandingShowcase() {
       <Seo
         title="showcase"
         path="/showcase"
-        description="See how Wings handles blocks, AI with page context, and sharing by link or invite."
+        description="See how Wings handles blocks, a local vault on this device, AI with Ask / Plan / Agent, and sharing by link or invite."
       />
       <MarketingLayout>
-        <main className="pt-14">
+        <main>
           <StackedScroll />
+          <StripeDivider />
           <LandingCta />
         </main>
       </MarketingLayout>

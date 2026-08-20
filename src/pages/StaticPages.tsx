@@ -8,13 +8,13 @@ export function About() {
       eyebrow="company · about"
       title="what Wings is."
       path="/about"
-      description="Wings is a web notes app with nested pages, LaTeX, Excalidraw, and a BYOK AI panel. Built for keyboard-first writing."
+      description="Wings is a web notes app with nested pages, a local vault folder, LaTeX, Excalidraw, and a BYOK AI panel. Built for keyboard-first writing."
     >
       <p className="text-muted-foreground">
-        {SITE.brand} is a web-based notes app: nested pages, a block editor, LaTeX math, Excalidraw drawings, and an AI panel that reads the page you have open. Pages can be shared by public link or email invite.
+        {SITE.brand} is a web-based notes app: nested pages, a block editor, LaTeX math, Excalidraw drawings, and an AI panel that reads the page you have open. Keep private pages in a folder on this device, or share by public link or email invite.
       </p>
       <p className="text-muted-foreground">
-        It started after a Notion workspace limit in February 2026 and moved onto a personal React, Vite, Supabase, and TipTap stack in July 2026. The editor runs in the browser. Your pages sync through Supabase. AI calls go to whichever provider you configure. Keys stay in your browser, not on our servers.
+        It started after a Notion workspace limit in February 2026 and moved onto a personal React, Vite, Supabase, and TipTap stack in July 2026. The editor runs in the browser. Cloud pages sync through Supabase. Local vault pages keep the body on a folder you connect — Wings only stores the title so the sidebar still works. AI calls go to whichever provider you configure. Keys stay in your browser, not on our servers.
       </p>
       <p className="text-muted-foreground">
         Source is AGPL-3.0 on{" "}
@@ -83,6 +83,7 @@ export function Roadmap() {
         "block editor with slash commands",
         "LaTeX math & Excalidraw",
         "AI panel + inline edits (⌘J)",
+        "local vault folder (page bodies on this device)",
         "nested pages, pin, trash",
         "public share links & email invites",
         "draft cache + markdown/JSON export",
@@ -136,7 +137,7 @@ export function Docs() {
       eyebrow="resources · docs"
       title="using Wings."
       path="/docs"
-      description="Wings docs: sign-in, sharing, export, BYOK AI, keyboard shortcuts, and FAQ."
+      description="Wings docs: sign-in, local vault, sharing, export, BYOK AI, keyboard shortcuts, and FAQ."
       faq={DOCS_FAQ}
     >
       <p className="text-muted-foreground">
@@ -152,6 +153,16 @@ export function Docs() {
         <a href="/auth.md" className="underline underline-offset-2 hover:text-foreground">auth.md</a>.
       </p>
 
+      <h2 className="text-base font-mono uppercase tracking-tight pt-6">local vault</h2>
+      <p className="text-muted-foreground">
+        Connect a folder on this device (Chrome or Edge). New pages can be Always local, Always cloud, or Ask each time.
+      </p>
+      <ul className="list-none space-y-2 pl-0">
+        <li className="text-muted-foreground">▸ Always local: the page body stays on disk as markdown. Wings stores the title so the sidebar still works. Not shareable.</li>
+        <li className="text-muted-foreground">▸ Always cloud: shareable and synced across devices</li>
+        <li className="text-muted-foreground">▸ Shared and collab pages are always cloud — collaborators never own a local vault body</li>
+      </ul>
+
       <h2 className="text-base font-mono uppercase tracking-tight pt-6">sharing</h2>
       <ul className="list-none space-y-2 pl-0">
         <li className="text-muted-foreground">▸ public link (<code className="text-xs">/s/:token</code>): view or edit by role; these URLs are noindex</li>
@@ -161,6 +172,7 @@ export function Docs() {
       <h2 className="text-base font-mono uppercase tracking-tight pt-6">export and drafts</h2>
       <ul className="list-none space-y-2 pl-0">
         <li className="text-muted-foreground">▸ export a page as markdown or JSON from the app</li>
+        <li className="text-muted-foreground">▸ download a zip of every page in vault-layout markdown</li>
         <li className="text-muted-foreground">▸ offline draft cache keeps recent edits in the browser</li>
         <li className="text-muted-foreground">▸ empty saves cannot overwrite substantial server content</li>
       </ul>
@@ -234,7 +246,7 @@ export function Support() {
       description="Get help with Wings: docs for shortcuts and usage, or email for account and bug reports."
     >
       <p className="text-muted-foreground">
-        check the <a href="/docs" className="underline underline-offset-2 hover:text-foreground">docs</a> for sign-in, sharing, export, AI, and keyboard shortcuts.
+        check the <a href="/docs" className="underline underline-offset-2 hover:text-foreground">docs</a> for sign-in, local vault, sharing, export, AI, and keyboard shortcuts.
       </p>
       <p className="text-muted-foreground pt-2">
         for account issues, bugs, or anything else, email{" "}
@@ -260,7 +272,7 @@ export function Status() {
         and we'll look into it.
       </p>
       <p className="text-muted-foreground pt-2 text-sm">
-        Wings depends on Supabase (auth + database) and your configured AI provider. outages there will affect sign-in, sync, or AI, not the local draft cache in your browser.
+        Wings depends on Supabase (auth + database) and your configured AI provider. outages there will affect sign-in, cloud sync, or AI. local vault page bodies stay on this device; the draft cache still covers unsaved edits.
       </p>
     </InfoPage>
   );
@@ -276,7 +288,7 @@ export function Press() {
     >
       <h2 className="text-base font-mono uppercase tracking-tight">boilerplate</h2>
       <p className="text-muted-foreground">
-        Wings is a web notes app with nested pages, a block editor, LaTeX math, Excalidraw drawings, and a bring-your-own-key AI panel. It is free for features that ship today, open source under AGPL-3.0, and hosted at {SITE.domain}.
+        Wings is a web notes app with nested pages, a block editor, LaTeX math, Excalidraw drawings, a local vault folder for private page bodies, and a bring-your-own-key AI panel. It is free for features that ship today, open source under AGPL-3.0, and hosted at {SITE.domain}.
       </p>
       <h2 className="text-base font-mono uppercase tracking-tight pt-6">assets</h2>
       <ul className="list-none space-y-2 pl-0">

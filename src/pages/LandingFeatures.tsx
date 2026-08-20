@@ -4,6 +4,7 @@ import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { InfiniteMarquee } from "@/components/landing/InfiniteMarquee";
 import { LandingCta } from "@/components/landing/LandingCta";
 import { MarketingLayout } from "@/components/landing/MarketingLayout";
+import { StripeDivider } from "@/components/landing/LinedShell";
 import { usePublicMarketingPage } from "@/hooks/usePublicMarketingPage";
 
 export default function LandingFeatures() {
@@ -18,13 +19,16 @@ export default function LandingFeatures() {
       <Seo
         title="features"
         path="/features"
-        description="Wings features: block editor, LaTeX math, Excalidraw, AI panel, sharing, and offline draft cache."
+        description="Wings features: block editor, local vault folder, LaTeX math, Excalidraw, Ask / Plan / Agent AI, sharing, and collab."
       />
       <MarketingLayout>
-        <main className="pt-14">
-          <InfiniteMarquee items={["markdown", "latex", "excalidraw", "ai panel", "block editor", "draft cache", "share links", "slash commands"]} />
+        <main>
+          <InfiniteMarquee items={["ask / plan / agent", "block editor", "local vault", "on this device", "latex", "excalidraw", "databases", "wikilinks", "collab"]} />
+          <StripeDivider />
           <FeatureGrid />
-          <InfiniteMarquee reverse items={["⌘J ai", "/ slash", "$$ math $$", "≡ blocks", "✎ drawings", "↗ /s/", "⌘K palette"]} />
+          <StripeDivider />
+          <InfiniteMarquee reverse items={["⌘J ai", "/ slash", "$$ math $$", "[[]] wiki", "✎ drawings", "↗ /s/", "⌘K palette"]} />
+          <StripeDivider />
           <LandingCta />
         </main>
       </MarketingLayout>

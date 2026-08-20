@@ -10,7 +10,7 @@ export default function Legal({ slug }: { slug: Slug }) {
     <InfoPage
       eyebrow={doc.eyebrow}
       title={doc.title}
-      updated="may 2026"
+      updated="aug 2026"
       path={`/legal/${slug}`}
       description={doc.description}
     >

@@ -7,8 +7,31 @@ import { FeatureGrid } from "@/components/landing/FeatureGrid";
 import { StackedScroll } from "@/components/landing/StackedScroll";
 import { LandingCta } from "@/components/landing/LandingCta";
 import { MarketingLayout } from "@/components/landing/MarketingLayout";
+import { StripeDivider } from "@/components/landing/LinedShell";
 import { Seo } from "@/components/Seo";
 import { LoadingScreen } from "@/components/ui/spinner";
+
+const MARQUEE_FEATURES = [
+  "ask / plan / agent",
+  "block editor",
+  "local vault",
+  "on this device",
+  "latex",
+  "excalidraw",
+  "databases",
+  "wikilinks",
+  "collab",
+];
+
+const MARQUEE_SHORTCUTS = [
+  "⌘J ai",
+  "/ slash",
+  "$$ math $$",
+  "[[]] wiki",
+  "✎ drawings",
+  "↗ /s/",
+  "⌘K palette",
+];
 
 export default function Landing() {
   const { ready } = usePublicMarketingPage();
@@ -29,10 +52,15 @@ export default function Landing() {
       <Seo path="/" jsonLd />
       <MarketingLayout ctaHref={ctaHref}>
         <Hero ctaHref={ctaHref} />
-        <InfiniteMarquee items={["markdown", "latex", "excalidraw", "ai panel", "block editor", "draft cache", "share links", "slash commands"]} />
+        <StripeDivider />
+        <InfiniteMarquee items={MARQUEE_FEATURES} />
+        <StripeDivider />
         <FeatureGrid />
-        <InfiniteMarquee reverse items={["⌘J ai", "/ slash", "$$ math $$", "≡ blocks", "✎ drawings", "↗ /s/", "⌘K palette"]} />
+        <StripeDivider />
+        <InfiniteMarquee reverse items={MARQUEE_SHORTCUTS} />
+        <StripeDivider />
         <StackedScroll />
+        <StripeDivider />
         <LandingCta ctaHref={ctaHref} />
       </MarketingLayout>
     </>
