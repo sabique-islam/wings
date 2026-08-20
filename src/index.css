@@ -526,7 +526,7 @@
   background: rgba(135, 131, 120, 0.15);
 }
 .callout-emoji {
-  @apply text-xl leading-none mt-0.5 select-none shrink-0 bg-transparent border-0 cursor-pointer p-0;
+  @apply leading-none mt-0.5 select-none shrink-0 bg-transparent border-0 cursor-pointer p-0 text-muted-foreground;
 }
 .callout-content {
   @apply flex-1 min-w-0;
