@@ -187,6 +187,9 @@
     /* Dither texture tokens */
     --dither-size: 4px;
     --dither-dot: hsl(var(--fg-2) / 0.5);
+
+    /* Full-bleed marketing hairlines (chanhdai-style lined grid). */
+    --line: color-mix(in oklab, hsl(var(--border-subtle)) 64%, hsl(var(--background)));
   }
 }
 
@@ -1452,6 +1455,118 @@
   background-image: repeating-linear-gradient(45deg, hsl(var(--fg-2) / 0.1) 0 1px, transparent 1px 5px);
 }
 
+/* Lined marketing grid — full-viewport hairlines clipped by overflow-x. */
+@layer utilities {
+  .screen-line-top {
+    position: relative;
+  }
+  .screen-line-top::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -100vw;
+    z-index: 0;
+    height: 1px;
+    width: 200vw;
+    background-color: var(--line);
+    pointer-events: none;
+  }
+  .screen-line-bottom {
+    position: relative;
+  }
+  .screen-line-bottom::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: -100vw;
+    z-index: 0;
+    height: 1px;
+    width: 200vw;
+    background-color: var(--line);
+    pointer-events: none;
+  }
+  .diagonal-stripes {
+    --pattern-foreground: color-mix(in oklab, var(--line) 56%, transparent);
+    background-image: repeating-linear-gradient(
+      315deg,
+      var(--pattern-foreground) 0,
+      var(--pattern-foreground) 1px,
+      transparent 0,
+      transparent 50%
+    );
+    background-size: 10px 10px;
+  }
+  .stripe-divider {
+    position: relative;
+    height: 2rem;
+  }
+  .stripe-divider-bleed {
+    position: relative;
+    height: 100%;
+    width: 100vw;
+    margin-left: calc(50% - 50vw);
+    pointer-events: none;
+  }
+  .stripe-divider-fill {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    --pattern-foreground: color-mix(in oklab, var(--line) 56%, transparent);
+    background-image: repeating-linear-gradient(
+      315deg,
+      var(--pattern-foreground) 0,
+      var(--pattern-foreground) 1px,
+      transparent 0,
+      transparent 50%
+    );
+    background-size: 10px 10px;
+  }
+  .stripe-divider-rule {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--line);
+    pointer-events: none;
+  }
+  .stripe-divider-rule--top { top: 0; }
+  .stripe-divider-rule--bottom { bottom: 0; }
+  .stripe-divider-corner {
+    position: absolute;
+    z-index: 3;
+    width: 8px;
+    height: 8px;
+    pointer-events: none;
+    border-color: hsl(var(--accent-strong));
+    border-style: solid;
+    border-width: 0;
+  }
+  .stripe-divider-corner--tl {
+    top: 0;
+    left: 0;
+    border-top-width: 1px;
+    border-left-width: 1px;
+  }
+  .stripe-divider-corner--tr {
+    top: 0;
+    right: 0;
+    border-top-width: 1px;
+    border-right-width: 1px;
+  }
+  .stripe-divider-corner--bl {
+    bottom: 0;
+    left: 0;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+  }
+  .stripe-divider-corner--br {
+    bottom: 0;
+    right: 0;
+    border-bottom-width: 1px;
+    border-right-width: 1px;
+  }
+}
+
 /* Black viewbox container for dithered SVG art */
 .dither-viewbox {
   background: #000;
@@ -1492,17 +1607,50 @@
 /* Footer wordmark — full-bleed, scales to viewport width */
 .nw-footer-wordmark-wrap {
   --wordmark-cols: 41;
+  --wordmark-ch: calc(100vw / var(--wordmark-cols));
+  padding-top: calc(var(--wordmark-ch) * 2.6);
   padding-bottom: clamp(1rem, 3vw, 2.5rem);
+}
+
+.nw-footer-wordmark-inner {
+  position: relative;
+  width: max-content;
+  margin-inline: auto;
 }
 
 .nw-footer-wordmark {
   display: block;
   width: max-content;
   margin-inline: auto;
-  font-size: calc(100vw / var(--wordmark-cols));
+  font-size: var(--wordmark-ch);
   line-height: 1.05;
   letter-spacing: 0;
   color: hsl(var(--fg-2));
+  filter: url(#nw-dither-text);
+}
+
+/* Brand mark perched on the W of the ASCII wordmark. */
+.nw-footer-wordmark-mark {
+  position: absolute;
+  left: calc(var(--wordmark-ch) * 1.6);
+  top: 0;
+  z-index: 1;
+  width: calc(var(--wordmark-ch) * 4.4);
+  height: calc(var(--wordmark-ch) * 4.4);
+  transform: translateY(-58%);
+  pointer-events: none;
+  background-color: hsl(var(--fg-2));
+  -webkit-mask-image: url("/wings-logo.png");
+  mask-image: url("/wings-logo.png");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-mode: luminance;
+  -webkit-mask-source-type: luminance;
+  mask-mode: luminance;
   filter: url(#nw-dither-text);
 }
 

@@ -25,6 +25,7 @@ export default {
           strong: "hsl(var(--border-strong))",
           focus: "hsl(var(--border-focus))",
         },
+        line: "var(--line)",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
