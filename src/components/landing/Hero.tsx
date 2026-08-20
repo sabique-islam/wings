@@ -33,9 +33,9 @@ export function Hero({ ctaHref }: Props) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.9, delay: 0.2, ease: motionEase }}
-          className="text-sm sm:text-base md:text-lg text-ink-1 font-sans max-w-xl mx-auto leading-relaxed px-2"
+          className="text-sm sm:text-base md:text-lg text-ink-1 font-sans max-w-2xl mx-auto leading-relaxed px-2"
         >
-          nested pages, slash commands, LaTeX, Excalidraw, and an AI panel with Ask / Plan / Agent. keep private pages in a folder on this device — or share a link when you want to write together.
+          Block editor for nested pages with LaTeX math, Excalidraw drawings, and an AI panel. Keep page bodies in a local vault on this device, or share by link. Export markdown.
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 12 }}

@@ -31,9 +31,10 @@ interface LinedHeadingProps {
   title: ReactNode;
   subtitle?: ReactNode;
   className?: string;
+  as?: "h1" | "h2";
 }
 
-export function LinedHeading({ eyebrow, title, subtitle, className }: LinedHeadingProps) {
+export function LinedHeading({ eyebrow, title, subtitle, className, as: Tag = "h2" }: LinedHeadingProps) {
   return (
     <div className={cn("screen-line-top screen-line-bottom", className)}>
       {eyebrow && (
@@ -41,9 +42,9 @@ export function LinedHeading({ eyebrow, title, subtitle, className }: LinedHeadi
           {eyebrow}
         </div>
       )}
-      <h2 className="px-4 pt-2 pb-4 font-display font-bold text-3xl sm:text-4xl md:text-5xl tracking-tight leading-[1.05]">
+      <Tag className="px-4 pt-2 pb-4 font-display font-bold text-3xl sm:text-4xl md:text-5xl tracking-tight leading-[1.05]">
         {title}
-      </h2>
+      </Tag>
       {subtitle && (
         <p className="px-4 pb-6 text-sm sm:text-base text-ink-1 font-sans leading-relaxed max-w-2xl">
           {subtitle}
