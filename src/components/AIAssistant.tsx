@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ComponentType } from "react";
 import {
   Sparkles, Send, X, Settings, Square,
   PenLine, FilePlus2, Wand2, Eye, EyeOff, Image as ImageIcon, ImagePlus,
+  MessageCircle, ListChecks, BookOpen, type IconProps,
 } from "@/lib/icons";
 import { useResizable } from "@/hooks/useResizable";
 import { marked } from "marked";
@@ -12,7 +13,14 @@ import { ChatMessage } from "@/lib/ai/types";
 import { streamChat, generateImage } from "@/lib/ai/client";
 import { PROVIDERS, getProvider } from "@/lib/ai/providers";
 import { AIModelSelect } from "@/components/AIModelSelect";
+import { AIModeSelect } from "@/components/AIModeSelect";
 import { AIThinkingStatus } from "@/components/AIThinkingStatus";
+import {
+  getAssistantMode, setAssistantMode,
+  systemPromptFor, placeholderFor, emptyStateBlurb,
+  type AssistantMode,
+} from "@/lib/ai/assistantMode";
+import { finalizeAssistantOutput } from "@/lib/ai/toolBlocks";
 import {
   getActiveProvider, setActiveProvider,
   getApiKeyFor, setApiKeyFor, clearApiKeyFor,
@@ -57,47 +65,24 @@ interface PendingImage {
 
 const MAX_PENDING_IMAGES = 5;
 
-const SYSTEM_PROMPT = `You are an embedded writing assistant inside Wings, a Notion-style markdown editor.
-You help the user think, write, organize pages, and can even generate images.
-
-You may emit fenced action blocks at the start of a line. Use them ONLY when the user wants you to modify their workspace. Otherwise just chat in markdown.
-
-Tools (each must be its own fenced block):
-
-\`\`\`tool:write
-<markdown to APPEND to the current page>
-\`\`\`
-
-\`\`\`tool:replace
-<markdown that REPLACES the entire current page>
-\`\`\`
-
-\`\`\`tool:newpage
-title: <title>
----
-<markdown body>
-\`\`\`
-
-\`\`\`tool:image
-<image prompt — a clear, descriptive sentence>
-\`\`\`
-
-Rules:
-- Markdown only: # headings, lists, tables, code, math ($...$ / $$...$$), task lists (- [ ]).
-- If excalidraw drawings from the current page are attached as images, reference them naturally.
-- If the user attaches images, analyze them and respond accordingly.
-- Keep prose tight. No fluff.
-`;
-
-function parseToolBlocks(text: string): { stripped: string; tools: { kind: string; body: string }[] } {
-  const tools: { kind: string; body: string }[] = [];
-  const re = /```tool:(write|replace|newpage|image)\s*\n([\s\S]*?)```/g;
-  const stripped = text.replace(re, (_m, kind, body) => {
-    tools.push({ kind, body: body.trim() });
-    return "";
-  });
-  return { stripped: stripped.trim(), tools };
-}
+const STARTERS: Record<AssistantMode, { icon: ComponentType<IconProps>; label: string }[]> = {
+  ask: [
+    { icon: Wand2, label: "Summarize this page in 3 bullets" },
+    { icon: MessageCircle, label: "What is this page missing?" },
+    { icon: BookOpen, label: "Explain the structure of this page" },
+  ],
+  plan: [
+    { icon: ListChecks, label: "Plan a rewrite of this page" },
+    { icon: FilePlus2, label: "Outline a meeting notes page for tomorrow" },
+    { icon: PenLine, label: "Propose a better structure for this page" },
+  ],
+  agent: [
+    { icon: PenLine, label: "Continue writing this page" },
+    { icon: Wand2, label: "Summarize this page in 3 bullets" },
+    { icon: FilePlus2, label: "Create a meeting notes page for tomorrow" },
+    { icon: ImageIcon, label: "Generate an image of a serene mountain at dawn" },
+  ],
+};
 
 export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEntry, onNavigate }: Props) {
   const { user } = useAuth();
@@ -112,8 +97,11 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
   const [model, setModelState] = useState(getModelFor(getActiveProvider()));
   const [showKey, setShowKey] = useState(false);
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [mode, setModeState] = useState<AssistantMode>(getAssistantMode);
 
   const abortRef = useRef<AbortController | null>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingImagesRef = useRef(pendingImages);
@@ -261,11 +249,17 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
     };
   }, [activeEntry]);
 
+  const setMode = useCallback((next: AssistantMode) => {
+    setModeState(next);
+    setAssistantMode(next);
+  }, []);
+
   const send = useCallback(async () => {
     const text = input.trim();
     const hasImages = pendingImages.length > 0;
     if ((!text && !hasImages) || streaming) return;
     if (!getApiKeyFor(getActiveProvider())) { setShowSettings(true); return; }
+    const promptedMode = mode;
 
     const page = activePageContext();
     const wantsVisual = mentionsVisual(text);
@@ -336,7 +330,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
       let acc = "";
       for await (const chunk of streamChat({
         messages: history,
-        systemInstruction: `${SYSTEM_PROMPT}\n${context}`,
+        systemInstruction: `${systemPromptFor(promptedMode)}\n${context}`,
         signal: ctrl.signal,
         images,
       })) {
@@ -344,12 +338,12 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
         setMessages((prev) => prev.map((m) => (m.id === asstMsg.id ? { ...m, content: acc } : m)));
       }
 
-      const { stripped, tools } = parseToolBlocks(acc);
-      const actions = tools.length ? await applyTools(tools) : [];
+      const { display, toolsToApply } = finalizeAssistantOutput(acc, promptedMode, modeRef.current);
+      const actions = toolsToApply.length ? await applyTools(toolsToApply) : [];
       setMessages((prev) =>
         prev.map((m) =>
           m.id === asstMsg.id
-            ? { ...m, content: stripped || (tools.length ? "_(applied to your page)_" : acc), pending: false, actions }
+            ? { ...m, content: display, pending: false, actions }
             : m
         )
       );
@@ -360,7 +354,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
       setStreaming(false);
       abortRef.current = null;
     }
-  }, [input, streaming, messages, allEntries, activePageContext, applyTools, pendingImages, activeModelSupportsVision]);
+  }, [input, streaming, messages, allEntries, activePageContext, applyTools, pendingImages, activeModelSupportsVision, mode]);
 
   const stop = () => abortRef.current?.abort();
 
@@ -401,7 +395,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
         <div className="flex flex-col leading-tight min-w-0">
           <span className="text-[11px] font-semibold tracking-tight">AI Assistant</span>
           <span className="text-[9px] text-muted-foreground/70 font-mono truncate max-w-[200px]">
-            {activeProviderObj?.label || "—"} · {activeModelId}
+            {activeProviderObj?.label || "—"} · {activeModelId} · {mode}
           </span>
         </div>
         <span className="nw-ascii-bar ml-2 hidden sm:inline-block" aria-hidden />
@@ -480,19 +474,14 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
           <div className="text-center text-muted-foreground/80 py-6 space-y-4">
             <pre className="text-[10px] leading-tight font-mono select-none text-muted-foreground/40 mx-auto inline-block text-left">
 {`  ╭─────────────╮
-  │  ai · write │
+  │  ai · ${mode.padEnd(5)} │
   │  ─────────  │
   │  ⌘J  toggle │
   ╰─────────────╯`}
             </pre>
-            <p className="text-[11px]">Ask me to write, edit, create pages, generate images, or attach a photo to analyze.</p>
+            <p className="text-[11px]">{emptyStateBlurb(mode)}</p>
             <div className="grid gap-1.5 max-w-[300px] mx-auto">
-              {[
-                { icon: PenLine, label: "Continue writing this page" },
-                { icon: Wand2, label: "Summarize this page in 3 bullets" },
-                { icon: FilePlus2, label: "Create a meeting notes page for tomorrow" },
-                { icon: ImageIcon, label: "Generate an image of a serene mountain at dawn" },
-              ].map((s) => (
+              {STARTERS[mode].map((s) => (
                 <button key={s.label} onClick={() => setInput(s.label)} className="nw-ai-chip">
                   <s.icon className="h-3 w-3 shrink-0 opacity-70" />
                   <span className="truncate">{s.label}</span>
@@ -594,7 +583,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
             }}
-            placeholder="Ask AI to write, edit, create, or generate images…"
+            placeholder={placeholderFor(mode)}
             rows={2}
             className="nw-ai-input"
           />
@@ -617,9 +606,12 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
             </button>
           )}
         </div>
-        <div className="flex items-center justify-between text-[9px] text-muted-foreground/50 mt-1.5 px-1 font-mono">
-          <span>⏎ send · ⇧⏎ newline</span>
-          <span className="flex items-center gap-1">
+        <div className="flex items-center justify-between gap-2 mt-1.5 px-0.5">
+          <AIModeSelect value={mode} onChange={setMode} />
+          <span className="text-[9px] text-muted-foreground/50 font-mono truncate">
+            {mode === "agent" ? "can edit pages" : "never edits"} · ⏎ send
+          </span>
+          <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50 font-mono shrink-0">
             <span className={`h-1.5 w-1.5 rounded-full ${getApiKeyFor(getActiveProvider()) ? "bg-foreground/60" : "bg-destructive/70"}`} />
             {getApiKeyFor(getActiveProvider()) ? "key linked" : "no key"}
           </span>
