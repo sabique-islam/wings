@@ -207,6 +207,30 @@
     outline: 2px solid hsl(var(--accent-strong) / 0.6);
     outline-offset: 2px;
   }
+  /* Tailwind v4 preflight no longer sets pointer on buttons. Stay in @layer
+     base so grab/resize utilities and unlayered editor CSS still win. */
+  button:not(:disabled):not([aria-disabled="true"]),
+  a[href],
+  summary,
+  label[for],
+  select:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"],
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="checkbox"]:not([aria-disabled="true"]),
+  [role="radio"]:not([aria-disabled="true"]),
+  [role="switch"]:not([aria-disabled="true"]),
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  input[type="file"]:not(:disabled),
+  input[type="color"]:not(:disabled) {
+    @apply cursor-pointer;
+  }
 }
 
 /* Markdown prose styling */
