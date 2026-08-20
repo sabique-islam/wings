@@ -14,11 +14,11 @@ export const SITE = {
   domain: "wings.nopejs.me",
   url: "https://wings.nopejs.me",
   description:
-    "Block editor for nested pages with LaTeX math, Excalidraw drawings, and an AI panel. Share by link, export markdown, sign in with Google or magic link.",
+    "Block editor for nested pages with LaTeX math, Excalidraw drawings, and an AI panel. Keep page bodies in a local vault on this device, or share by link. Export markdown.",
   tagline: "notes, math, drawings, and ai in one editor.",
   ogTitle: "Wings | think in plain text. render in everything",
   ogDescription:
-    "A corner for ideas | Markdown, LaTeX, drawings, and an agentic AI without ever leaving the keyboard.",
+    "A corner for ideas | keep private pages on this device. Markdown, LaTeX, drawings, and an agentic AI without ever leaving the keyboard.",
   email: "mail@wings.nopejs.me",
   mail: {
     domain: "mail.wings.nopejs.me",
