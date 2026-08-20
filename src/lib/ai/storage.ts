@@ -37,12 +37,17 @@ export function clearApiKeyFor(provider: string): void {
   if (provider === "google") localStorage.removeItem(LEGACY_KEY);
 }
 
+function catalogIds(provider: string): Set<string> {
+  return new Set((getProvider(provider)?.models || []).map((m) => m.id));
+}
+
 export function getModelFor(provider: string): string {
+  const ids = catalogIds(provider);
   const stored = localStorage.getItem(modelKey(provider));
-  if (stored) return stored;
+  if (stored && ids.has(stored)) return stored;
   if (provider === "google") {
     const legacy = localStorage.getItem(LEGACY_MODEL);
-    if (legacy) return legacy;
+    if (legacy && ids.has(legacy)) return legacy;
   }
   return getProvider(provider)?.models[0]?.id || "";
 }

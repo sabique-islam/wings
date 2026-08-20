@@ -22,6 +22,9 @@ export interface StreamOptions {
   images?: ImageAttachment[];
 }
 
+export type ModelGroup = "current" | "dedicated";
+export type ModelKind = "chat" | "coding" | "image" | "system";
+
 export interface ProviderModel {
   id: string;
   label: string;
@@ -29,6 +32,10 @@ export interface ProviderModel {
   vision?: boolean;
   /** marks the model as capable of generating images */
   image?: boolean;
+  /** current chat catalog vs dedicated coding/image/system IDs */
+  group?: ModelGroup;
+  /** dedicated-model role, used for picker icons */
+  kind?: ModelKind;
 }
 
 export interface AIProvider {
