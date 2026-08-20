@@ -327,9 +327,9 @@ const getSuggestionItems = (h: SlashHandlers = {}): CommandItem[] => [
   },
   // Templates
   ...TEMPLATES.map<CommandItem>((tpl) => ({
-    title: `${tpl.emoji} ${tpl.name}`,
+    title: tpl.name,
     description: tpl.description,
-    icon: FileText,
+    icon: tpl.icon,
     category: "Templates",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();

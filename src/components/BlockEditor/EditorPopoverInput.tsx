@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { CALLOUT_ICON_OPTIONS } from "@/lib/calloutIcons";
 
 export type EditorPromptKind = "url" | "text" | "emoji";
 
@@ -38,8 +39,6 @@ export function EditorPopoverInput() {
 
   if (!req) return null;
 
-  const emojis = ["💡", "⚠️", "✅", "❌", "📌", "🔥", "💬", "📝", "🎯", "⭐"];
-
   return (
     <div className="fixed inset-0 z-[300] flex items-start justify-center pt-[20vh] bg-background/20">
       <div
@@ -50,16 +49,21 @@ export function EditorPopoverInput() {
         <p className="text-sm font-medium mb-2">{req.title}</p>
         {req.kind === "emoji" ? (
           <div className="flex flex-wrap gap-2 mb-3">
-            {emojis.map((em) => (
-              <button
-                key={em}
-                type="button"
-                className="text-xl p-2 rounded-md hover:bg-muted"
-                onClick={() => finish(em)}
-              >
-                {em}
-              </button>
-            ))}
+            {CALLOUT_ICON_OPTIONS.map((opt) => {
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.emoji}
+                  type="button"
+                  title={opt.label}
+                  aria-label={opt.label}
+                  className="p-2 rounded-md hover:bg-muted text-muted-foreground"
+                  onClick={() => finish(opt.emoji)}
+                >
+                  <Icon className="h-5 w-5" />
+                </button>
+              );
+            })}
           </div>
         ) : (
           <input

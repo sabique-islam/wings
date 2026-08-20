@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { useState } from "react";
+import { CALLOUT_ICON_OPTIONS, calloutIconFor } from "@/lib/calloutIcons";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -22,10 +23,9 @@ const CALLOUT_COLORS = [
 
 const ALLOWED_BG_COLORS = new Set(CALLOUT_COLORS.map((c) => c.value).filter(Boolean));
 
-const EMOJI_OPTIONS = ["💡", "⚠️", "✅", "❌", "📌", "🔥", "💬", "📝", "🎯", "⭐"];
-
 function CalloutView({ node, updateAttributes }: NodeViewProps) {
   const emoji = (node.attrs.emoji as string) || "💡";
+  const Icon = calloutIconFor(emoji);
   const rawBg = (node.attrs.bgColor as string) || "";
   const bgColor = ALLOWED_BG_COLORS.has(rawBg) ? rawBg : "";
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -41,25 +41,31 @@ function CalloutView({ node, updateAttributes }: NodeViewProps) {
         <button
           type="button"
           className="callout-emoji"
+          aria-label="Callout icon"
           onClick={() => setPickerOpen((o) => !o)}
         >
-          {emoji}
+          <Icon className="h-5 w-5" />
         </button>
         {pickerOpen && (
           <div className="callout-emoji-picker absolute left-0 top-full z-20 flex flex-wrap gap-1 p-2 rounded-md border border-border bg-popover shadow-md">
-            {EMOJI_OPTIONS.map((em) => (
-              <button
-                key={em}
-                type="button"
-                className="text-lg p-1 rounded hover:bg-muted"
-                onClick={() => {
-                  updateAttributes({ emoji: em });
-                  setPickerOpen(false);
-                }}
-              >
-                {em}
-              </button>
-            ))}
+            {CALLOUT_ICON_OPTIONS.map((opt) => {
+              const OptionIcon = opt.icon;
+              return (
+                <button
+                  key={opt.emoji}
+                  type="button"
+                  title={opt.label}
+                  aria-label={opt.label}
+                  className="p-1.5 rounded hover:bg-muted text-muted-foreground"
+                  onClick={() => {
+                    updateAttributes({ emoji: opt.emoji });
+                    setPickerOpen(false);
+                  }}
+                >
+                  <OptionIcon className="h-4 w-4" />
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
