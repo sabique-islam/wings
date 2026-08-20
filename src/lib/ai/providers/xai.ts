@@ -7,11 +7,9 @@ export const xai: AIProvider = {
   keyHelpUrl: "https://console.x.ai/",
   keyPlaceholder: "xai-…",
   models: [
-    { id: "grok-4-fast", label: "Grok 4 Fast", vision: true },
-    { id: "grok-4", label: "Grok 4", vision: true },
-    { id: "grok-4-heavy", label: "Grok 4 Heavy (reasoning)", vision: true },
-    { id: "grok-3", label: "Grok 3" },
-    { id: "grok-3-mini", label: "Grok 3 mini" },
+    { id: "grok-4.6", label: "Grok 4.6", vision: true, group: "current" },
+    { id: "grok-4.5", label: "Grok 4.5", vision: true, group: "current" },
+    { id: "grok-4.3", label: "Grok 4.3", vision: true, group: "current" },
   ],
   stream({ messages, systemInstruction, model, signal, images }, apiKey) {
     return streamOpenAICompat({

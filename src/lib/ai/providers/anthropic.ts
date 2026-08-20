@@ -33,7 +33,7 @@ async function* streamAnthropic(opts: {
     },
     body: JSON.stringify({
       model: opts.model,
-      max_tokens: 4096,
+      max_tokens: 16384,
       stream: true,
       ...(opts.systemInstruction ? { system: opts.systemInstruction } : {}),
       messages: msgs,
@@ -74,11 +74,10 @@ export const anthropic: AIProvider = {
   keyHelpUrl: "https://console.anthropic.com/settings/keys",
   keyPlaceholder: "sk-ant-…",
   models: [
-    { id: "claude-opus-4-5", label: "Claude Opus 4.5", vision: true },
-    { id: "claude-sonnet-4-5", label: "Claude Sonnet 4.5", vision: true },
-    { id: "claude-opus-4-1", label: "Claude Opus 4.1", vision: true },
-    { id: "claude-haiku-4-5", label: "Claude Haiku 4.5", vision: true },
-    { id: "claude-3-7-sonnet-latest", label: "Claude 3.7 Sonnet", vision: true },
+    { id: "claude-fable-5", label: "Claude Fable 5", vision: true, group: "current" },
+    { id: "claude-opus-5", label: "Claude Opus 5", vision: true, group: "current" },
+    { id: "claude-sonnet-5", label: "Claude Sonnet 5", vision: true, group: "current" },
+    { id: "claude-haiku-4-5", label: "Claude Haiku 4.5", vision: true, group: "current" },
   ],
   stream(opts, apiKey) {
     return streamAnthropic({ apiKey, ...opts });

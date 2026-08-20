@@ -58,20 +58,19 @@ export const google: AIProvider = {
   keyHelpUrl: "https://aistudio.google.com/apikey",
   keyPlaceholder: "AIza…",
   models: [
-    { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash", vision: true },
-    { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (preview)", vision: true },
-    { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite", vision: true },
-    { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (preview)", vision: true },
-    { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro", vision: true },
-    { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash", vision: true },
-    { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite", vision: true },
-    { id: "gemini-2.5-flash-image", label: "Gemini 2.5 Flash Image (gen)", vision: true, image: true },
+    { id: "gemini-3.7-flash", label: "Gemini 3.7 Flash", vision: true, group: "current" },
+    { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash", vision: true, group: "current" },
+    { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash", vision: true, group: "current" },
+    { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash Lite", vision: true, group: "current" },
+    { id: "gemini-3.1-flash-lite", label: "Gemini 3.1 Flash Lite", vision: true, group: "current" },
+    { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (preview)", vision: true, group: "current" },
+    { id: "gemini-3.1-flash-image", label: "Gemini 3.1 Flash Image", vision: true, image: true, group: "dedicated", kind: "image" },
   ],
   stream(opts, apiKey) {
     return streamGemini({ apiKey, ...opts });
   },
   async generateImage(prompt, apiKey, signal) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${encodeURIComponent(apiKey)}`;
     const resp = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -7,14 +7,10 @@ export const openai: AIProvider = {
   keyHelpUrl: "https://platform.openai.com/api-keys",
   keyPlaceholder: "sk-…",
   models: [
-    { id: "gpt-5.5", label: "GPT-5.5 (most capable)", vision: true },
-    { id: "gpt-5.4", label: "GPT-5.4", vision: true },
-    { id: "gpt-5.4-mini", label: "GPT-5.4 mini", vision: true },
-    { id: "gpt-5.4-nano", label: "GPT-5.4 nano" },
-    { id: "gpt-5.2", label: "GPT-5.2", vision: true },
-    { id: "gpt-5", label: "GPT-5", vision: true },
-    { id: "gpt-5-mini", label: "GPT-5 mini", vision: true },
-    { id: "gpt-5-nano", label: "GPT-5 nano" },
+    { id: "gpt-5.6-sol", label: "GPT-5.6 Sol", vision: true, group: "current" },
+    { id: "gpt-5.6-terra", label: "GPT-5.6 Terra", vision: true, group: "current" },
+    { id: "gpt-5.6-luna", label: "GPT-5.6 Luna", vision: true, group: "current" },
+    { id: "gpt-5.3-codex", label: "GPT-5.3 Codex", vision: true, group: "dedicated", kind: "coding" },
   ],
   stream({ messages, systemInstruction, model, signal, images }, apiKey) {
     return streamOpenAICompat({
@@ -26,7 +22,7 @@ export const openai: AIProvider = {
     const resp = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: "gpt-image-1", prompt, size: "1024x1024", n: 1 }),
+      body: JSON.stringify({ model: "gpt-image-2", prompt, size: "1024x1024", n: 1 }),
       signal,
     });
     if (!resp.ok) throw new Error(`Image gen failed (${resp.status}): ${(await resp.text()).slice(0, 200)}`);
