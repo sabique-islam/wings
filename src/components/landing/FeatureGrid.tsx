@@ -1,14 +1,16 @@
 import { motion } from "framer-motion";
 import { motionEase } from "./constants";
-import { DitherGraphic, DITHER_GRAPHIC_MAP } from "@/lib/dither/graphics";
 import { LinedGrid, LinedHeading, linedCellClass, StripeDivider } from "./LinedShell";
+import { FeatureGraphic } from "./FeatureGraphic";
+
+type GraphicKind = "gyro" | "folder" | "tornado" | "smiley";
 
 type ShowcaseFeature = {
   t: string;
   headline: string;
   d: string;
   tag: string;
-  graphic: keyof typeof DITHER_GRAPHIC_MAP;
+  graphic: GraphicKind;
 };
 
 const SHOWCASE: ShowcaseFeature[] = [
@@ -17,28 +19,28 @@ const SHOWCASE: ShowcaseFeature[] = [
     headline: "block editor",
     d: "headings, lists, tasks, tables, code, callouts, toggles, and two- or three-column layouts. type / for slash commands or use markdown shortcuts.",
     tag: "/  →  table",
-    graphic: "block editor",
+    graphic: "gyro",
   },
   {
     t: "keep",
     headline: "local vault",
     d: "connect a folder on this device. Always local pages keep the body as markdown on disk — Wings keeps the title in your account so the sidebar still works, not the body. share or collab and that page goes to the cloud. Chrome or Edge.",
     tag: "◉ on device",
-    graphic: "offline first",
+    graphic: "folder",
   },
   {
     t: "summon",
     headline: "ask / plan / agent",
     d: "press ⌘J. Ask answers, Plan outlines, Agent writes. it sees the open page and can append, replace, or spin up a new one. keys stay in your browser — Google, OpenAI, Anthropic, Groq, xAI, Moonshot, MiniMax.",
     tag: "⌘J",
-    graphic: "agentic ai",
+    graphic: "tornado",
   },
   {
     t: "publish",
     headline: "share & collab",
     d: "public read link at /s/…, or invite by email as viewer, editor, or admin. shared pages go live over Yjs so two people can type the same note. local vault pages stay private until you choose cloud.",
     tag: "↗ /s/",
-    graphic: "share & publish",
+    graphic: "smiley",
   },
 ];
 
@@ -78,8 +80,8 @@ export function FeatureGrid() {
                 {String(i + 1).padStart(2, "0")}
               </span>
             </div>
-            <div className="dither-viewbox relative aspect-[8/3] w-full mb-5">
-              <DitherGraphic id={DITHER_GRAPHIC_MAP[f.graphic]} />
+            <div className="relative mb-5 aspect-[16/9] min-h-[180px] w-full overflow-hidden bg-black contain-paint">
+              <FeatureGraphic kind={f.graphic} />
             </div>
             <div className="flex-1 space-y-2">
               <h4 className="font-display text-lg sm:text-xl font-semibold tracking-tight">{f.headline}</h4>
