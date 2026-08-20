@@ -7,6 +7,7 @@ Wings is **free today**. Paid plans for hosted AI and higher limits are planned 
 - Nested pages and block editor
 - LaTeX math and Excalidraw
 - BYOK AI panel (bring your own provider keys)
+- Local vault folder (page bodies on this device)
 - Share links and email invites
 - Markdown / JSON export
 - Local draft cache

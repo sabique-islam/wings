@@ -1,6 +1,6 @@
 # Wings
 
-> Block editor for notes with nested pages, LaTeX math, Excalidraw drawings, and a BYOK AI panel. Share by link, export markdown, sign in with Google or magic link.
+> Block editor for notes with nested pages, LaTeX math, Excalidraw drawings, and a BYOK AI panel. Keep page bodies in a local vault on this device, or share by link. Export markdown. Sign in with Google or magic link.
 
 Wings is a private journal product. User notes and share links are not for crawling. Use the pages below for product facts.
 
@@ -10,7 +10,7 @@ Wings is a private journal product. User notes and share links are not for crawl
 - [Pricing](https://wings.nopejs.me/pricing): Free today; paid plans planned
 - [About](https://wings.nopejs.me/about): What Wings is and how it is built
 - [Roadmap](https://wings.nopejs.me/roadmap): Shipped, in progress, and exploring
-- [Docs](https://wings.nopejs.me/docs): Auth, sharing, export, AI BYOK, keyboard, FAQ
+- [Docs](https://wings.nopejs.me/docs): Auth, local vault, sharing, export, AI BYOK, keyboard, FAQ
 - [Docs (markdown)](https://wings.nopejs.me/docs.md): Same docs as markdown
 
 ## Blog

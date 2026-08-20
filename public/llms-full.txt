@@ -1,10 +1,10 @@
 # Wings - full agent context
 
-> Block editor for nested pages with LaTeX, Excalidraw, and BYOK AI. Private journal product on https://wings.nopejs.me
+> Block editor for nested pages with LaTeX, Excalidraw, a local vault folder, and BYOK AI. Private journal product on https://wings.nopejs.me
 
 ## Summary
 
-Wings is a Vite SPA journal. Marketing pages and the blog are public. The app (`/app`, `/:username`), auth, checkout, and share links (`/s/`) are private or noindex. There is no public REST API for third parties. Auth is Supabase (Google OAuth + magic link PKCE). AI is bring-your-own-key in the browser.
+Wings is a Vite SPA journal. Marketing pages and the blog are public. The app (`/app`, `/:username`), auth, checkout, and share links (`/s/`) are private or noindex. There is no public REST API for third parties. Auth is Supabase (Google OAuth + magic link PKCE). AI is bring-your-own-key in the browser. Local vault pages keep bodies on a connected folder; Wings stores the title so the sidebar still works.
 
 ## Docs and blog
 

@@ -9,9 +9,10 @@ Wings (https://wings.nopejs.me) is a web notes app:
 
 - Nested pages and TipTap block editor (slash commands, markdown-friendly)
 - LaTeX math and Excalidraw drawings
+- Local vault folder — page bodies can stay on this device; titles stay in the account
 - BYOK AI panel (⌘J) — provider keys stay in the browser
 - Share via public link (`/s/:token`) or email invite
-- Export markdown/JSON; local draft cache
+- Export markdown/JSON or a zip of vault-layout files; local draft cache
 
 ## Not available
 
