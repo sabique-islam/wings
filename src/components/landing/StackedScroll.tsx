@@ -69,15 +69,15 @@ function ShowcaseCell({ card, i }: { card: CardData; i: number }) {
 
 function ShowcaseCopy({ card }: { card: CardData }) {
   return (
-    <div className="flex flex-col justify-center p-6 sm:p-8 space-y-3 sm:space-y-4">
+    <div className="flex h-full flex-col justify-center p-6 sm:p-8">
       <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-accent-strong">{card.tag}</div>
-      <h3 className="font-display font-bold text-2xl sm:text-3xl tracking-tight leading-[1.05] m-0">
+      <h3 className="mt-3 sm:mt-4 font-display font-bold text-2xl sm:text-3xl tracking-tight leading-[1.05]">
         {card.title}
       </h3>
-      <p className="text-sm sm:text-base text-ink-1 font-sans leading-relaxed max-w-md m-0">{card.body}</p>
+      <p className="mt-3 sm:mt-4 text-sm sm:text-base text-ink-1 font-sans leading-relaxed max-w-md">{card.body}</p>
       <Link
         to="/auth"
-        className="inline-flex items-center gap-1.5 text-xs font-mono text-ink-2 hover:text-foreground transition-colors w-fit"
+        className="mt-5 sm:mt-6 inline-flex w-fit items-center justify-center gap-1.5 rounded-full bg-accent-strong text-accent-strong-foreground px-4 py-2 text-[10px] sm:text-[11px] font-mono uppercase tracking-widest hover:scale-[1.03] transition-transform touch-manipulation active:scale-[0.98]"
       >
         try it <ArrowRight className="h-3 w-3" />
       </Link>
