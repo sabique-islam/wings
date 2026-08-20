@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Sparkles, Wand2, Languages, Scissors, Maximize2, ListChecks, Loader2 } from "@/lib/icons";
+import { Sparkles, Wand2, Languages, Scissors, Maximize2, ListChecks } from "@/lib/icons";
+import { ThinkingOrb } from "thinking-orbs";
 import { generateOnce, getApiKey } from "@/lib/aiClient";
 import { toast } from "sonner";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
@@ -107,7 +108,7 @@ export function InlineAIMenu() {
           placeholder="Ask AI to edit selection…"
           className="flex-1 bg-transparent text-xs focus:outline-none"
         />
-        {busy && <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />}
+        {busy && <ThinkingOrb state="composing" size={20} theme="auto" aria-label="Generating" />}
       </div>
       <div className="py-1">
         {PRESETS.map((p) => (

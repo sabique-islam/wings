@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Sparkles, Send, X, Settings, Loader2, Square,
+  Sparkles, Send, X, Settings, Square,
   PenLine, FilePlus2, Wand2, Eye, EyeOff, Image as ImageIcon, ImagePlus,
 } from "@/lib/icons";
 import { useResizable } from "@/hooks/useResizable";
@@ -11,6 +11,8 @@ import { Entry, getEntryTitle, createEntry } from "@/lib/journal";
 import { ChatMessage } from "@/lib/ai/types";
 import { streamChat, generateImage } from "@/lib/ai/client";
 import { PROVIDERS, getProvider } from "@/lib/ai/providers";
+import { AIModelSelect } from "@/components/AIModelSelect";
+import { AIThinkingStatus } from "@/components/AIThinkingStatus";
 import {
   getActiveProvider, setActiveProvider,
   getApiKeyFor, setApiKeyFor, clearApiKeyFor,
@@ -153,7 +155,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
   const addPendingImages = useCallback((files: FileList | File[]) => {
     if (!activeModelSupportsVision()) {
       toast.error("This model doesn't support images", {
-        description: "Switch to a vision-capable model in AI settings (marked with 👁).",
+        description: "Switch to a vision-capable model in AI settings.",
       });
       return;
     }
@@ -270,7 +272,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
     const needsPageVision = wantsVisual && (page?.images.length ?? 0) > 0;
     if ((hasImages || needsPageVision) && !activeModelSupportsVision()) {
       toast.error("This model doesn't support images", {
-        description: "Switch to a vision-capable model in AI settings (marked with 👁).",
+        description: "Switch to a vision-capable model in AI settings.",
       });
       return;
     }
@@ -352,7 +354,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
         )
       );
     } catch (e: any) {
-      const msg = e?.name === "AbortError" ? "_(stopped)_" : `❌ ${e?.message || "Failed"}`;
+      const msg = e?.name === "AbortError" ? "_(stopped)_" : (e?.message || "Failed");
       setMessages((prev) => prev.map((m) => (m.id === asstMsg.id ? { ...m, content: msg, pending: false } : m)));
     } finally {
       setStreaming(false);
@@ -391,7 +393,11 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
       />
 
       <div className="h-12 flex items-center px-3 border-b border-border-subtle gap-2 shrink-0 bg-gradient-to-b from-card to-card/80">
-        <Sparkles className={`h-3.5 w-3.5 text-foreground ${streaming ? "nw-sparkle-anim" : ""}`} />
+        {streaming ? (
+          <AIThinkingStatus size={20} label="Generating answer" />
+        ) : (
+          <Sparkles className="h-3.5 w-3.5 text-foreground" />
+        )}
         <div className="flex flex-col leading-tight min-w-0">
           <span className="text-[11px] font-semibold tracking-tight">AI Assistant</span>
           <span className="text-[9px] text-muted-foreground/70 font-mono truncate max-w-[200px]">
@@ -448,17 +454,12 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
 
           <div>
             <label className="text-[10px] uppercase tracking-widest text-muted-foreground">Model</label>
-            <select
+            <AIModelSelect
+              models={providerObj?.models || []}
               value={model}
-              onChange={(e) => setModelState(e.target.value)}
-              className="w-full mt-1 bg-background border border-border rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-            >
-              {(providerObj?.models || []).map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}{m.vision ? " · 👁" : ""}{m.image ? " · 🎨" : ""}
-                </option>
-              ))}
-            </select>
+              onChange={setModelState}
+              triggerClassName="w-full mt-1 bg-background border-border"
+            />
           </div>
 
           <div className="flex items-center gap-2">
@@ -516,10 +517,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
                 </div>
               )}
               {m.pending && !m.content ? (
-                <div className="flex items-center gap-2 py-0.5">
-                  <span className="nw-shimmer text-[11px] font-medium">thinking</span>
-                  <span className="nw-ascii-bar" aria-hidden />
-                </div>
+                <AIThinkingStatus />
               ) : (
                 <div
                   className="ai-msg-prose"
