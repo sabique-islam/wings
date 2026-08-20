@@ -20,7 +20,8 @@ export const LEGAL_DOCS: Record<LegalDoc["slug"], LegalDoc> = {
     description: `Privacy policy for ${SITE.brand} — what we collect, why we collect it, and how to make it go away.`,
     sections: [
       { h: "controller", p: `${CONTROLLER} is the data controller for personal data processed via this site. Contact: ${CONTACT}.` },
-      { h: "what we collect", p: "Account data (email address, optional display name and username). Content you create (notes, drafts, drawings, attachments). Minimal technical metadata required to deliver the service (IP address at request time, browser user agent, timestamps). Cookie preferences you set on this site." },
+      { h: "what we collect", p: "Account data (email address, optional display name and username). For cloud pages, the content you create (notes, drafts, drawings, attachments). For local vault pages, the title and metadata needed to list the page in the sidebar — the body stays on your device. Minimal technical metadata required to deliver the service (IP address at request time, browser user agent, timestamps). Cookie preferences you set on this site." },
+      { h: "local vault", p: "If you connect a vault folder and mark a page Always local, the page body is written as markdown on that device. We do not store the body on our servers. Shared and collaborative pages are always stored in the cloud. Vault folder access uses the browser's directory picker (Chrome or Edge)." },
       { h: "what we don't collect", p: "We do not run third-party advertising trackers, fingerprinting scripts, or analytics that identify you. We do not buy or sell personal data. We do not profile you for targeted advertising." },
       { h: "legal bases (GDPR art. 6)", p: "Contract: to provide the editor, sync, and sharing features you signed up for. Legitimate interest: to keep the service secure, prevent abuse, and debug errors. Consent: for marketing cookies, which are off by default and stored locally. Analytics cookies are on by default and can be turned off in the cookie banner." },
       { h: "ai prompts", p: "When you invoke the agent (⌘J or slash command), the active page content and a small amount of context are sent to the model provider you configured (Google AI Studio by default). We do not retain copies of those prompts on our servers beyond transient request logs." },
@@ -58,7 +59,7 @@ export const LEGAL_DOCS: Record<LegalDoc["slug"], LegalDoc> = {
     description: `Security practices for ${SITE.brand}: TLS, row-level security, passwordless auth, and a 48-hour disclosure window.`,
     sections: [
       { h: "transport", p: "All traffic moves over TLS 1.3. HSTS is enabled. Session cookies are HTTP-only, SameSite=Lax, and Secure in production." },
-      { h: "at rest", p: "Postgres-managed encryption at rest. Object storage (drawings, image attachments) uses signed URLs with short expirations." },
+      { h: "at rest", p: "Postgres-managed encryption at rest for cloud content. Local vault page bodies are not stored on our servers — they live in a folder you connect on your device. Object storage (drawings, image attachments) uses signed URLs with short expirations." },
       { h: "authorization", p: "Row-level security policies enforce per-user access at the database, not in the UI. Shared pages are gated by signed share tokens with role-scoped capabilities." },
       { h: "authentication", p: "Passwordless: magic link, 6-digit OTP, or managed Google OAuth. No passwords means nothing to leak. Sessions are revocable from settings." },
       { h: "backups", p: "Encrypted daily snapshots retained for 30 days. Deleted content is purged from backups within that window." },

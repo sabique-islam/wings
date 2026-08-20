@@ -13,6 +13,11 @@ export const DOCS_FAQ: FaqItem[] = [
       "Bring-your-own-key. You configure a provider key in the browser. Keys stay local. Prompts go to the provider you choose when you open the AI panel with Cmd+J.",
   },
   {
+    question: "What is the local vault?",
+    answer:
+      "Connect a folder on this device in Chrome or Edge. New pages can be Always local, Always cloud, or Ask each time. Local page bodies stay on disk as markdown; Wings stores the title so the sidebar still works. Shared and collab pages are always cloud.",
+  },
+  {
     question: "Are shared notes indexed by search engines?",
     answer:
       "No. Share links under /s/ are disallowed in robots.txt and marked noindex. They are for people you invite, not for SEO.",
@@ -20,7 +25,7 @@ export const DOCS_FAQ: FaqItem[] = [
   {
     question: "How do I export my notes?",
     answer:
-      "Export a page as markdown or JSON from the signed-in app. Drafts also cache locally when sync is unavailable.",
+      "Export a page as markdown or JSON from the signed-in app, or download a zip of every page in vault layout. Drafts also cache locally when sync is unavailable.",
   },
   {
     question: "Is Wings free?",
