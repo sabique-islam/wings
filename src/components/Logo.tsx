@@ -8,10 +8,10 @@ interface Props {
 }
 
 /**
- * Wings brand mark. Wraps the uploaded logo asset so we never inline the
- * binary path in components — swap the asset and every surface updates.
+ * Wings brand mark. The PNG is white-on-black; `.nw-logo-mark` knocks out
+ * the field and inverts on light surfaces so we don't ship a second asset.
  */
-export function Logo({ size = 28, className = "", withWordmark = false, wordmarkClassName = "" }: Props) {
+export function Logo({ size = 32, className = "", withWordmark = false, wordmarkClassName = "" }: Props) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <img
@@ -21,7 +21,7 @@ export function Logo({ size = 28, className = "", withWordmark = false, wordmark
         alt="Wings"
         loading="eager"
         decoding="async"
-        className="block select-none"
+        className="nw-logo-mark block select-none"
         draggable={false}
         style={{ width: size, height: size }}
       />

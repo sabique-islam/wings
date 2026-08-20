@@ -20,7 +20,7 @@ export function NavBar({ ctaHref, ctaLabel }: Props) {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
         <Link to="/" className="shrink-0">
-          <Logo size={24} withWordmark wordmarkClassName="text-sm tracking-tight font-display font-semibold" />
+          <Logo size={32} withWordmark wordmarkClassName="text-sm tracking-tight font-display font-semibold" />
         </Link>
         <nav className="hidden md:flex items-center gap-7 text-xs font-mono text-ink-2">
           {NAV_LINKS.map((l) => (
