@@ -17,6 +17,7 @@ InlineAIMenu                 Selection-based
 src/lib/ai/client.ts         streamChat, generateImage
 src/lib/ai/providers/        Per-vendor implementations
 src/lib/ai/storage.ts        Keys + model preferences
+src/components/AIModelSelect.tsx  Current vs dedicated picker
 ```
 
 ## Providers
@@ -28,6 +29,20 @@ Add provider:
 1. Create `src/lib/ai/providers/<name>.ts`
 2. Register in `providers/index.ts`
 3. Add to settings UI if exposed
+
+`ProviderModel.group` is `"current"` (chat) or `"dedicated"` (coding / image / system). `kind` is `"coding" | "image" | "system"` for picker icons. `getModelFor` falls back to `models[0]` when a stored ID is no longer in the catalog.
+
+Default chat IDs (first in each list):
+
+| Provider | Default | Notes |
+|----------|---------|-------|
+| Google | `gemini-3.7-flash` | Image gen: `gemini-3.1-flash-image` |
+| OpenAI | `gpt-5.6-sol` | Dedicated coding: `gpt-5.3-codex`. Image gen: `gpt-image-2` (not in chat list) |
+| Anthropic | `claude-fable-5` | Also Opus 5, Sonnet 5, Haiku 4.5. `max_tokens` 16384 |
+| Groq | `openai/gpt-oss-120b` | Production OSS. Dedicated: `qwen/qwen3.6-27b` (vision preview), `groq/compound` |
+| xAI | `grok-4.6` | Also 4.5, 4.3. Imagine/Voice are separate APIs |
+| Moonshot | `kimi-k3` | Dedicated coding: `kimi-k2.7-code` / `-highspeed`. Keys: platform.kimi.ai |
+| MiniMax | `MiniMax-M3` | Base URL `https://api.minimax.io/v1` |
 
 ## Tool block protocol
 
@@ -70,7 +85,7 @@ Legacy migration from `nw_gemini_api_key` handled in storage layer.
 
 ## Image generation
 
-OpenAI / Gemini fallback paths in `client.ts` `generateImage`.
+`generateImage` in `client.ts`: OpenAI `gpt-image-2` via `/v1/images/generations`; Gemini `gemini-3.1-flash-image` via `generateContent`. Falls back to whichever of those providers has a key.
 
 ## Related
 
