@@ -78,6 +78,16 @@ export const SHOWCASE_THINKING = asciiBox("agent ^J", [
   "  ask . refactor . inline",
 ]);
 
+export const SHOWCASE_KEEPING = asciiBox("vault", [
+  "",
+  "  [*] this device   [ ] cloud",
+  "  --------------------------------",
+  "  ~/notes/daily.md",
+  "                    ^ on disk",
+  "",
+  "  body stays . title syncs",
+]);
+
 export const SHOWCASE_SHARING = asciiBox("publish", [
   "",
   "  (*) private    ( ) link",
@@ -91,6 +101,7 @@ export const SHOWCASE_SHARING = asciiBox("publish", [
 export const SHOWCASE_BY_TAG: Record<string, string> = {
   writing: SHOWCASE_WRITING,
   thinking: SHOWCASE_THINKING,
+  keeping: SHOWCASE_KEEPING,
   sharing: SHOWCASE_SHARING,
 };
 
