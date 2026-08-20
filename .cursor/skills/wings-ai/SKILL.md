@@ -13,7 +13,10 @@ description: >-
 
 ```
 AIAssistant (side panel)     Cmd+J, nw:openAI
+  AIModeSelect               Ask / Plan / Agent (default Ask)
 InlineAIMenu                 Selection-based
+src/lib/ai/assistantMode.ts  Mode prompts + persistence
+src/lib/ai/toolBlocks.ts     Parse + gate tool:write
 src/lib/ai/client.ts         streamChat, generateImage
 src/lib/ai/providers/        Per-vendor implementations
 src/lib/ai/storage.ts        Keys + model preferences
@@ -55,7 +58,19 @@ content here
 ```
 ````
 
-Types: `write`, `replace`, `newpage`, `image` — applied to workspace via editor commands.
+Types: `write`, `replace`, `newpage`, `image` — applied to workspace via editor commands **only in Agent mode**.
+
+## Ask / Plan / Agent
+
+Composer control in `AIAssistant`. Default is **Ask** (`wings_ai_mode`). Writes never run unless the turn was prompted as Agent **and** the panel is still Agent when the reply finishes.
+
+| Mode | System prompt | `tool:*` blocks |
+|---|---|---|
+| Ask | Q&A only | stripped, not applied |
+| Plan | Propose a plan; show markdown in ordinary fences | stripped, not applied |
+| Agent | Tool protocol included | applied via editor commands |
+
+Logic: `src/lib/ai/assistantMode.ts`, `src/lib/ai/toolBlocks.ts` (`finalizeAssistantOutput`). Switching to Ask mid-stream cancels pending writes.
 
 ## Editor bridge
 
@@ -75,7 +90,7 @@ AI reads/writes via window globals:
 
 ## Storage keys
 
-Current: `wings_ai_key_<provider>`, model prefs in `storage.ts`.
+Current: `wings_ai_key_<provider>`, model prefs in `storage.ts`, panel mode in `wings_ai_mode`.
 
 Legacy migration from `nw_gemini_api_key` handled in storage layer.
 
