@@ -1,9 +1,22 @@
 // Notion-style page templates. Stored as markdown so they round-trip with tiptap-markdown.
+import type { ComponentType } from "react";
+import {
+  BookOpen,
+  Calendar,
+  FileText,
+  Flag,
+  ListChecks,
+  Repeat,
+  Rocket,
+  Wallet,
+  type IconProps,
+} from "@/lib/icons";
+
 export interface Template {
   id: string;
   name: string;
   description: string;
-  emoji: string;
+  icon: ComponentType<IconProps>;
   content: string;
 }
 
@@ -11,7 +24,7 @@ export const TEMPLATES: Template[] = [
   {
     id: "todo",
     name: "To-do list",
-    emoji: "✅",
+    icon: ListChecks,
     description: "Daily checklist with priorities",
     content: `# To-do list
 
@@ -36,7 +49,7 @@ A simple way to track what needs to get done today.
   {
     id: "expense",
     name: "Expense tracker",
-    emoji: "💸",
+    icon: Wallet,
     description: "Track spending in a table",
     content: `# Expense tracker
 
@@ -57,7 +70,7 @@ Track your daily spending. Total it up at the end of the month.
   {
     id: "meeting",
     name: "Meeting notes",
-    emoji: "📝",
+    icon: FileText,
     description: "Attendees, agenda, action items",
     content: `# Meeting notes
 
@@ -88,7 +101,7 @@ Track your daily spending. Total it up at the end of the month.
   {
     id: "weekly",
     name: "Weekly planner",
-    emoji: "📅",
+    icon: Calendar,
     description: "Plan your week, day by day",
     content: `# Weekly planner
 
@@ -117,7 +130,7 @@ Week of:
   {
     id: "habit",
     name: "Habit tracker",
-    emoji: "🌱",
+    icon: Repeat,
     description: "Track habits across days",
     content: `# Habit tracker
 
@@ -138,7 +151,7 @@ Mark each day you complete the habit.
   {
     id: "reading",
     name: "Reading list",
-    emoji: "📚",
+    icon: BookOpen,
     description: "Books to read and notes",
     content: `# Reading list
 
@@ -156,7 +169,7 @@ Mark each day you complete the habit.
   {
     id: "project",
     name: "Project tracker",
-    emoji: "🚀",
+    icon: Rocket,
     description: "Tasks, owners, deadlines",
     content: `# Project tracker
 
@@ -190,7 +203,7 @@ Mark each day you complete the habit.
   {
     id: "okr",
     name: "Goals / OKRs",
-    emoji: "🎯",
+    icon: Flag,
     description: "Objective and key results",
     content: `# Goals / OKRs
 
