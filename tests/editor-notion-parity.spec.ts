@@ -157,4 +157,33 @@ test.describe("Notion parity keyboard and blocks", () => {
     await expect(editor.locator("blockquote")).toHaveCount(1);
     await expect(editor.locator('[data-type="callout"]')).toHaveCount(0);
   });
+
+  test("Backspace after adding a bullet does not delete the pasted list", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    const markdown = `## Red Flags
+
+* I research proposals deeply
+* I can prioritize being right
+* I have low tolerance for sloppy thinking`;
+
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.evaluate(async (pasteText) => {
+      await navigator.clipboard.writeText(pasteText);
+    }, markdown);
+    await page.keyboard.press("Meta+v");
+
+    await expect(editor.locator("h2")).toContainText("Red Flags");
+    await expect(editor.locator("li")).toHaveCount(3);
+
+    await editor.locator("li").last().click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Backspace");
+
+    await expect(editor.locator("h2")).toContainText("Red Flags");
+    await expect(editor.locator("li")).toHaveCount(3);
+    await expect(editor).toContainText("I research proposals deeply");
+    await expect(editor).toContainText("I can prioritize being right");
+    await expect(editor).toContainText("I have low tolerance for sloppy thinking");
+  });
 });

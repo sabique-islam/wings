@@ -35,6 +35,29 @@ function textblockCount(editor: Editor, type: string) {
   return count;
 }
 
+function listItemTexts(editor: Editor): string[] {
+  const texts: string[] = [];
+  editor.state.doc.descendants((node) => {
+    if (node.type.name === "listItem") texts.push(node.textContent);
+  });
+  return texts;
+}
+
+function placeCursorInNthListItem(editor: Editor, index: number) {
+  let seen = 0;
+  let pos: number | null = null;
+  editor.state.doc.descendants((node, nodePos) => {
+    if (node.type.name !== "listItem") return;
+    if (seen === index) {
+      pos = nodePos + 2;
+      return false;
+    }
+    seen += 1;
+  });
+  if (pos == null) throw new Error(`list item ${index} not found`);
+  editor.commands.setTextSelection(pos);
+}
+
 describe("BlockEditor wiring", () => {
   it("registers Link exactly once (no StarterKit duplicate)", () => {
     const editor = makeEditor();
@@ -242,6 +265,61 @@ describe("BlockEditor wiring", () => {
     editor.commands.insertContent("/callout");
     const suggestionState = slashCommandSuggestionKey.getState(editor.state) as { active?: boolean } | undefined;
     expect(suggestionState?.active).toBe(true);
+    editor.destroy();
+  });
+
+  it("Backspace on an empty last list item does not delete the list", () => {
+    const editor = makeEditor(
+      "<h2>Red Flags</h2><ul><li><p>first</p></li><li><p>second</p></li><li><p></p></li></ul>",
+    );
+    placeCursorInNthListItem(editor, 2);
+
+    editor.commands.keyboardShortcut("Backspace");
+
+    expect(textblockCount(editor, "bulletList")).toBe(1);
+    expect(listItemTexts(editor)).toEqual(["first", "second"]);
+    expect(editor.getHTML()).toMatch(/<h2[^>]*>Red Flags<\/h2>/);
+    editor.destroy();
+  });
+
+  it("Backspace on an empty middle list item keeps the other bullets", () => {
+    const editor = makeEditor(
+      "<h2>Red Flags</h2><ul><li><p>first</p></li><li><p></p></li><li><p>third</p></li></ul>",
+    );
+    placeCursorInNthListItem(editor, 1);
+
+    editor.commands.keyboardShortcut("Backspace");
+
+    expect(textblockCount(editor, "bulletList")).toBeGreaterThanOrEqual(1);
+    expect(listItemTexts(editor)).toContain("first");
+    expect(editor.state.doc.textContent).toContain("first");
+    expect(editor.state.doc.textContent).toContain("third");
+    expect(editor.getHTML()).toMatch(/<h2[^>]*>Red Flags<\/h2>/);
+    editor.destroy();
+  });
+
+  it("Backspace on an empty paragraph still merges upward outside lists", () => {
+    const editor = makeEditor("<p>hello</p><p></p>");
+    let emptyPos: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "paragraph" && node.textContent === "" && emptyPos == null) {
+        emptyPos = pos + 1;
+        return false;
+      }
+    });
+    expect(emptyPos).not.toBeNull();
+    editor.commands.setTextSelection(emptyPos!);
+
+    editor.commands.keyboardShortcut("Backspace");
+
+    expect(editor.state.doc.textContent).toContain("hello");
+    const filledParagraphs: string[] = [];
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "paragraph" && node.textContent === "hello") {
+        filledParagraphs.push(node.textContent);
+      }
+    });
+    expect(filledParagraphs).toHaveLength(1);
     editor.destroy();
   });
 });

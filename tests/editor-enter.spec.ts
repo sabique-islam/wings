@@ -146,7 +146,13 @@ test("Backspace at start of a heading collapses it to a paragraph", async ({ pag
 
   await page.keyboard.type("# Title");
   await expect(editor.locator("h1")).toContainText("Title");
-  await page.keyboard.press("Home");
+  // Home is unreliable in headless Chromium contenteditable (same as ArrowLeft).
+  await page.evaluate(() => {
+    const ed = (window as any).__nw_editor;
+    const start = ed.state.selection.$from.start();
+    ed.commands.focus();
+    ed.commands.setTextSelection(start);
+  });
   await page.keyboard.press("Backspace");
   await expect(editor.locator("h1")).toHaveCount(0);
   await expect(editor.locator("p").first()).toContainText("Title");
