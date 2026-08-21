@@ -24,6 +24,7 @@ Every item here caused or could cause production failure. Check before merge.
 | E4 | Vite missing dedupe | PM type errors, weird plugins | vite.config dedupe | build |
 | E5 | pluginKey before spread | Default key used | pluginKey last in Suggestion() | plugin key test |
 | E6 | Page mention always on | suggestion$ collision | getPages conditional | E2E solo |
+| E7 | Empty-list Backspace deletes `bulletList` wrapper | Pasted list vanishes when removing one item | `mergeEmptyBlockUp` skips list items / wrappers; ListKeymap lifts one item | BlockEditor.test + notion-parity |
 
 ## 🟡 Tier 2 — UX / test flakes
 
