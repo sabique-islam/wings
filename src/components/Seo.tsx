@@ -27,7 +27,18 @@ interface SeoProps {
   faq?: FaqItem[];
 }
 
+function socialImageLd() {
+  return {
+    "@type": "ImageObject",
+    url: SITE.ogImage,
+    width: SITE.ogImageWidth,
+    height: SITE.ogImageHeight,
+    caption: SITE.ogImageAlt,
+  };
+}
+
 function buildSiteJsonLd(url: string, description: string) {
+  const image = socialImageLd();
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -37,6 +48,8 @@ function buildSiteJsonLd(url: string, description: string) {
         name: SITE.brand,
         url: SITE.url,
         email: SITE.email,
+        logo: `${SITE.url}/wings-logo.png`,
+        image,
         sameAs: [
           SITE.social.githubRepo,
           SITE.social.github,
@@ -52,6 +65,7 @@ function buildSiteJsonLd(url: string, description: string) {
         description,
         publisher: { "@id": `${SITE.url}/#organization` },
         inLanguage: "en",
+        image,
       },
       {
         "@type": "WebApplication",
@@ -62,6 +76,7 @@ function buildSiteJsonLd(url: string, description: string) {
         applicationCategory: "ProductivityApplication",
         operatingSystem: "Web",
         browserRequirements: "Requires JavaScript",
+        image,
         offers: {
           "@type": "Offer",
           price: "0",
@@ -79,6 +94,7 @@ function buildArticleJsonLd(url: string, description: string, article: ArticleSe
     "@type": "Article",
     headline: article.headline,
     description,
+    image: socialImageLd(),
     datePublished: article.datePublished,
     dateModified: article.dateModified ?? article.datePublished,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
@@ -87,6 +103,7 @@ function buildArticleJsonLd(url: string, description: string, article: ArticleSe
       "@type": "Organization",
       name: SITE.brand,
       url: SITE.url,
+      logo: `${SITE.url}/wings-logo.png`,
     },
     keywords: article.tags?.join(", "),
   };
@@ -123,6 +140,7 @@ export function Seo({
   const ogImage = image.startsWith("http") ? image : `${SITE.url}${image}`;
   const ogTitle = title ? fullTitle : SITE.ogTitle;
   const ogDescription = title ? description : SITE.ogDescription;
+  const isDefaultOg = ogImage === SITE.ogImage;
 
   return (
     <Helmet>
@@ -137,8 +155,19 @@ export function Seo({
       <meta property="og:title" content={ogTitle} />
       <meta property="og:description" content={ogDescription} />
       <meta property="og:url" content={url} />
-      <meta property="og:image" content={ogImage} />
       <meta property="og:locale" content="en_US" />
+      <meta property="og:image" content={ogImage} />
+      <meta property="og:image:url" content={ogImage} />
+      <meta property="og:image:secure_url" content={ogImage} />
+      <meta property="og:image:alt" content={SITE.ogImageAlt} />
+      {isDefaultOg && (
+        <>
+          <meta property="og:image:type" content={SITE.ogImageType} />
+          <meta property="og:image:width" content={String(SITE.ogImageWidth)} />
+          <meta property="og:image:height" content={String(SITE.ogImageHeight)} />
+        </>
+      )}
+      <link rel="image_src" href={ogImage} />
       {article && (
         <>
           <meta property="article:published_time" content={article.datePublished} />
@@ -152,6 +181,7 @@ export function Seo({
       <meta name="twitter:title" content={ogTitle} />
       <meta name="twitter:description" content={ogDescription} />
       <meta name="twitter:image" content={ogImage} />
+      <meta name="twitter:image:alt" content={SITE.ogImageAlt} />
 
       {jsonLd && (
         <script type="application/ld+json">{JSON.stringify(buildSiteJsonLd(url, description))}</script>

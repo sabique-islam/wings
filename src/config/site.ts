@@ -33,9 +33,18 @@ export const SITE = {
     githubRepo: "https://github.com/Sabique-Islam/wings",
     twitter: "https://twitter.com/nopeJS",
   },
-  /** Absolute social image (local /og.png is not shipped). */
-  ogImage:
-    "https://storage.googleapis.com/gpt-engineer-file-uploads/ITEhookfEOa8B0y7TYBaSkuVJxV2/social-images/social-1780576498159-wings-banner.webp",
+  /**
+   * Canonical social card. JPEG 1200×630 under 300 KB — WhatsApp's ceiling —
+   * and accepted by Facebook, LinkedIn, X, Slack, Discord, Telegram, iMessage.
+   * PNG/WebP are not used here: LinkedIn and older X clients still skip WebP,
+   * and the PNG is too large for WhatsApp.
+   */
+  ogImage: "https://wings.nopejs.me/og.jpg",
+  ogImageType: "image/jpeg",
+  ogImageWidth: 1200,
+  ogImageHeight: 630,
+  ogImageAlt:
+    "Wings — a night forest path lit by glowing mushrooms, with the Wings wordmark",
   twitterHandle: "@nopeJS",
   /** IndexNow key hosted at /{key}.txt - run `bun run indexnow` after deploy. */
   indexNowKey: "6ab4230d7edd3da701967b8b96d715b3",
