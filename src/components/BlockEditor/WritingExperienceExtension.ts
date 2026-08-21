@@ -77,19 +77,19 @@ function backspaceAtStartOfDecoration(editor: any): boolean {
   return editor.chain().setParagraph().run();
 }
 
-/** Empty list item → lift or exit to paragraph (Notion list behavior). */
-function exitEmptyListItem(editor: any): boolean {
-  const { selection } = editor.state;
-  if (!selection.empty) return false;
-  const { $from } = selection;
-  const parent = $from.parent;
-  if (parent.type.name !== "listItem" && parent.type.name !== "taskItem") return false;
-  if (parent.textContent.length > 0) return false;
-  const listType = parent.type.name;
-  if (editor.can().liftListItem(listType)) {
-    return editor.chain().focus().liftListItem(listType).run();
+const LIST_ITEM_TYPES = new Set(["listItem", "taskItem"]);
+const LIST_WRAPPER_TYPES = new Set(["bulletList", "orderedList", "taskList"]);
+
+/** Walk ancestors — `$from.parent` is the inner paragraph, never the list item. */
+function ancestorTypeName(
+  $from: { depth: number; node: (depth: number) => { type: { name: string } } },
+  types: Set<string>,
+): string | null {
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const name = $from.node(depth).type.name;
+    if (types.has(name)) return name;
   }
-  return editor.chain().focus().setParagraph().run();
+  return null;
 }
 
 /** Backspace on empty block merges/deletes upward (Notion merge-up). */
@@ -99,7 +99,10 @@ function mergeEmptyBlockUp(editor: any): boolean {
   if (!selection.empty) return false;
   const { $from } = selection;
 
-  if (exitEmptyListItem(editor)) return true;
+  // List Backspace belongs to ListKeymap (priority 100). The caret sits in a
+  // paragraph inside listItem, so findTopLevelDepth resolves to the list
+  // wrapper — deleting that wipes every bullet.
+  if (ancestorTypeName($from, LIST_ITEM_TYPES)) return false;
 
   const block = currentTextBlock(editor);
   if (!block || block.text.length !== 0 || block.offset !== 0) return false;
@@ -111,6 +114,8 @@ function mergeEmptyBlockUp(editor: any): boolean {
 
   const blockPos = $from.before(depth);
   const blockNode = $from.node(depth);
+  if (LIST_WRAPPER_TYPES.has(blockNode.type.name)) return false;
+
   const parent = $from.node(depth - 1);
   const prev = parent.child(indexInParent - 1);
   const prevPos = blockPos - prev.nodeSize;
