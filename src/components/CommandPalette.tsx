@@ -1,19 +1,32 @@
 import { useEffect, useState } from "react";
-import { FileText, Plus, Search, Settings, Share2, Sparkles, PanelLeft, Pin, Copy } from "@/lib/icons";
+import { FileText, Plus, Settings, Share2, Sparkles, PanelLeft, Pin, Copy, LayoutList, Trash2 } from "@/lib/icons";
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut,
 } from "@/components/ui/command";
 import { Entry, getEntryTitle } from "@/lib/journal";
+import { searchLocalEntries } from "@/lib/localSearch";
 import { isEditorFocused } from "@/lib/keyboard";
+import type { CollectionInfo } from "@/lib/collections";
 
 interface Props {
   entries: Entry[];
+  collections?: CollectionInfo[];
   onSelect: (id: string) => void;
+  onSelectCollection?: (id: string) => void;
+  onOpenTrash?: () => void;
   onNew: () => void;
   onToggleSidebar: () => void;
 }
 
-export function CommandPalette({ entries, onSelect, onNew, onToggleSidebar }: Props) {
+export function CommandPalette({
+  entries,
+  collections = [],
+  onSelect,
+  onSelectCollection,
+  onOpenTrash,
+  onNew,
+  onToggleSidebar,
+}: Props) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -23,9 +36,19 @@ export function CommandPalette({ entries, onSelect, onNew, onToggleSidebar }: Pr
         e.preventDefault();
         setOpen((o) => !o);
       }
+      if ((e.metaKey || e.ctrlKey) && (e.key === "p" || e.key === "P")) {
+        e.preventDefault();
+        setOpen(true);
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  useEffect(() => {
+    const openSearch = () => setOpen(true);
+    window.addEventListener("nw:search", openSearch);
+    return () => window.removeEventListener("nw:search", openSearch);
   }, []);
 
   const run = (fn: () => void) => {
@@ -33,8 +56,9 @@ export function CommandPalette({ entries, onSelect, onNew, onToggleSidebar }: Pr
     fn();
   };
 
-  const pinned = entries.filter((e) => e.pinned).slice(0, 6);
-  const recent = entries.filter((e) => !e.pinned).slice(0, 20);
+  const live = entries.filter((entry) => !entry.deleted_at);
+  const pinned = live.filter((e) => e.pinned).slice(0, 6);
+  const pages = searchLocalEntries(live, "", 40);
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
@@ -48,8 +72,8 @@ export function CommandPalette({ entries, onSelect, onNew, onToggleSidebar }: Pr
           <CommandItem onSelect={() => run(() => window.dispatchEvent(new CustomEvent("nw:openAI")))}>
             <Sparkles className="mr-2" /> open AI assistant <CommandShortcut>⌘J</CommandShortcut>
           </CommandItem>
-          <CommandItem onSelect={() => run(() => window.dispatchEvent(new CustomEvent("nw:search")))}>
-            <Search className="mr-2" /> search pages <CommandShortcut>⌘/</CommandShortcut>
+          <CommandItem onSelect={() => run(() => onOpenTrash?.())}>
+            <Trash2 className="mr-2" /> open trash
           </CommandItem>
           <CommandItem onSelect={() => run(() => window.dispatchEvent(new CustomEvent("nw:graph")))}>
             <Share2 className="mr-2" /> open graph view <CommandShortcut>⌘⇧G</CommandShortcut>
@@ -81,10 +105,24 @@ export function CommandPalette({ entries, onSelect, onNew, onToggleSidebar }: Pr
           </CommandGroup>
         )}
 
+        {collections.length > 0 && (
+          <CommandGroup heading="collections">
+            {collections.map((collection) => (
+              <CommandItem
+                key={collection.id}
+                value={`collection ${collection.name}`}
+                onSelect={() => run(() => onSelectCollection?.(collection.id))}
+              >
+                <LayoutList className="mr-2" /> {collection.name || "Untitled"}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
         <CommandGroup heading="jump to page">
-          {recent.map((e) => (
-            <CommandItem key={e.id} value={getEntryTitle(e)} onSelect={() => run(() => onSelect(e.id))}>
-              <FileText className="mr-2" /> {getEntryTitle(e)}
+          {pages.map(({ entry }) => (
+            <CommandItem key={entry.id} value={getEntryTitle(entry)} onSelect={() => run(() => onSelect(entry.id))}>
+              <FileText className="mr-2" /> {getEntryTitle(entry)}
             </CommandItem>
           ))}
         </CommandGroup>

@@ -44,20 +44,6 @@ export function QuickSwitcher({ entries, userId, onSelect, onLinkPage, onEmbedPa
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === "p" || e.key === "P")) {
-        e.preventDefault();
-        setMode("jump");
-        setOpen(true);
-        setQuery("");
-        setIdx(0);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  useEffect(() => {
     const openIn = (next: Mode) => () => {
       setMode(next);
       setOpen(true);

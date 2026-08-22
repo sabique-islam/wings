@@ -580,17 +580,49 @@ export const JournalSidebar = memo(function JournalSidebar({
     </SidebarProvider>
   );
 
+  const trashConfirm = (
+    <AlertDialog open={pendingTrashId != null} onOpenChange={(open) => { if (!open) setPendingTrashId(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Move to trash?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {pendingTrash
+              ? `“${getEntryTitle(pendingTrash)}” will be moved to trash. You can restore it later.`
+              : "This page will be moved to trash."}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              if (pendingTrashId) onDelete?.(pendingTrashId);
+              setPendingTrashId(null);
+            }}
+          >
+            Move to trash
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (isMobile) {
     if (!sidebarOpen) return null;
     return (
       <>
         <div onClick={onToggle} className="fixed inset-0 bg-overlay/60 backdrop-blur-sm z-40 md:hidden" />
         <aside className="fixed left-0 top-0 z-50 h-screen max-w-[85vw] shadow-4 md:hidden">{sidebarBody}</aside>
+        {trashConfirm}
       </>
     );
   }
 
-  return <aside className="relative shrink-0 h-screen">{sidebarBody}</aside>;
+  return (
+    <>
+      <aside className="relative shrink-0 h-screen">{sidebarBody}</aside>
+      {trashConfirm}
+    </>
+  );
 });
 
 function NavRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
