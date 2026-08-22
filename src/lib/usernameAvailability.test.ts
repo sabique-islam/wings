@@ -7,6 +7,7 @@ describe("validateUsername", () => {
     expect(validateUsername("a".repeat(31)).reason).toBe("too_long");
     expect(validateUsername("Bad Name!").reason).toBe("invalid");
     expect(validateUsername("admin").reason).toBe("reserved");
+    expect(validateUsername("trash").reason).toBe("reserved");
   });
 
   it("accepts valid usernames", () => {
