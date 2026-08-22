@@ -1321,14 +1321,8 @@
 }
 
 /* Drop indicator while dragging blocks */
-.nw-drop-indicator {
-  position: absolute;
-  height: 2px;
-  background: hsl(var(--accent-strong));
-  border-radius: 1px;
-  pointer-events: none;
-  z-index: 25;
-  box-shadow: 0 0 0 1px hsl(var(--accent-strong) / 0.25);
+.nw-drop-indicator.is-nest {
+  height: 3px;
 }
 
 .page-editor-viewport {

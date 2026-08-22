@@ -4,7 +4,7 @@ import { isMarkdownSuggestionOpen } from "./markdownInput";
 import type { BlockPos } from "./blockUtils";
 import { isSelectionInCodeBlock } from "./blockUtils";
 
-/** Parents that may receive a nested block (AFFiNE indent). */
+/** Parents that may receive a nested block. */
 export const NESTABLE_PARENTS = new Set([
   "outlineBlock",
   "blockquote",
@@ -219,6 +219,83 @@ export function indentCurrentBlock(editor: OutlineEditor): boolean {
     return editor.chain!().focus().sinkListItem("taskItem").run();
   }
   return nestCurrentBlock(editor);
+}
+
+/** True when a grip drop on this block's right half can nest (Tab's wrap/append). */
+export function isNestDropParent(typeName: string): boolean {
+  if (NEVER_PARENTS.has(typeName)) return false;
+  return WRAP_AS_OUTLINE.has(typeName) || NESTABLE_PARENTS.has(typeName);
+}
+
+function nestSiblingUnderParent(editor: OutlineEditor, parentPos: number, childPos: number): boolean {
+  const { state, view } = editor;
+  const parent = state.doc.nodeAt(parentPos);
+  const child = state.doc.nodeAt(childPos);
+  if (!parent?.isBlock || !child?.isBlock) return false;
+  if (childPos !== parentPos + parent.nodeSize) return false;
+  if (!isNestDropParent(parent.type.name)) return false;
+
+  const tr = state.tr;
+
+  if (WRAP_AS_OUTLINE.has(parent.type.name)) {
+    if (!canWrapAsOutline(state.schema, parent, child)) return false;
+    const wrapper = state.schema.nodes.outlineBlock.create(
+      null,
+      Fragment.from([parent.copy(parent.content), child.copy(child.content)]),
+    );
+    tr.delete(childPos, childPos + child.nodeSize);
+    tr.replaceWith(parentPos, parentPos + parent.nodeSize, wrapper);
+    const wrapped = tr.doc.nodeAt(parentPos);
+    const last = wrapped?.lastChild;
+    const caret = last ? parentPos + wrapped.nodeSize - last.nodeSize + 1 : parentPos + 1;
+    tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(caret, tr.doc.content.size))));
+    view.dispatch(tr.scrollIntoView());
+    return true;
+  }
+
+  if (!canAppend(parent as any, child)) return false;
+  const insertPos = parentPos + parent.nodeSize - 1;
+  tr.delete(childPos, childPos + child.nodeSize);
+  const mappedInsert = tr.mapping.map(insertPos);
+  tr.insert(mappedInsert, child.copy(child.content));
+  tr.setSelection(TextSelection.near(tr.doc.resolve(mappedInsert + 1)));
+  view.dispatch(tr.scrollIntoView());
+  return true;
+}
+
+/**
+ * Drag-to-nest: move `childPos` to sit after `parentPos`, then wrap/append.
+ * Uses Tab's nest math, not list-item sink — the grip drags a top-level
+ * block, not a caret inside a list.
+ */
+export function nestBlockUnder(editor: OutlineEditor, childPos: number, parentPos: number): boolean {
+  if (childPos === parentPos) return false;
+  const { state, view } = editor;
+  const child = state.doc.nodeAt(childPos);
+  const parent = state.doc.nodeAt(parentPos);
+  if (!child?.isBlock || !parent?.isBlock) return false;
+  if (!isNestDropParent(parent.type.name)) return false;
+
+  let nextParentPos = parentPos;
+  let nextChildPos = childPos;
+  const parentEnd = parentPos + parent.nodeSize;
+  if (childPos !== parentEnd) {
+    const copied = child.copy(child.content);
+    const tr = state.tr;
+    if (childPos > parentPos) {
+      tr.delete(childPos, childPos + child.nodeSize);
+      tr.insert(parentEnd, copied);
+      nextChildPos = parentEnd;
+    } else {
+      tr.delete(childPos, childPos + child.nodeSize);
+      nextParentPos = tr.mapping.map(parentPos);
+      nextChildPos = tr.mapping.map(parentEnd);
+      tr.insert(nextChildPos, copied);
+    }
+    view.dispatch(tr);
+  }
+
+  return nestSiblingUnderParent(editor, nextParentPos, nextChildPos);
 }
 
 /** Shift-Tab from the keymap or the mobile toolbar. */
