@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CodeBlockMermaidPreview } from "./CodeBlockMermaidPreview";
+import { defaultCodeWrap } from "@/lib/editorAppearance";
 import {
   codeBlockLowlight,
   filterCodeLanguages,
@@ -182,6 +183,16 @@ export const CodeBlockExtension = CodeBlockLowlight.extend({
         parseHTML: (element) => readFlag(element, "data-collapsed"),
         renderHTML: (attributes) => (attributes.collapsed ? { "data-collapsed": "true" } : {}),
       },
+    };
+  },
+
+  addCommands() {
+    return {
+      ...this.parent?.(),
+      setCodeBlock:
+        (attributes) =>
+        ({ commands }) =>
+          commands.setNode(this.name, { wrap: defaultCodeWrap(), ...attributes }),
     };
   },
 

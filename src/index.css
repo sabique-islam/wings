@@ -339,7 +339,9 @@
 }
 
 .block-editor-content {
-  @apply w-full min-w-0 text-base font-sans text-foreground relative;
+  @apply w-full min-w-0 text-foreground relative;
+  font-family: var(--nw-editor-font, ui-sans-serif, system-ui, sans-serif);
+  font-size: var(--nw-editor-size, 1rem);
   line-height: 1.65;
   letter-spacing: -0.003em;
   scroll-margin-top: 50px;
@@ -417,11 +419,13 @@
 
 /* Paragraphs — Notion line height */
 .block-editor-content p {
-  @apply text-base text-foreground/90;
+  @apply text-foreground/90;
+  font-size: 1em;
   line-height: 1.5;
 }
 .block-editor-content [data-type="paragraph"] {
-  @apply text-base text-foreground/90;
+  @apply text-foreground/90;
+  font-size: 1em;
   line-height: 1.5;
 }
 .block-editor-content [data-type="paragraph"] > :not(:first-child),

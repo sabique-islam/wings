@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import {
   EDITOR_APPEARANCE_EVENT,
   applyEditorAppearanceCss,
@@ -24,15 +24,18 @@ export function useEditorAppearance(): EditorAppearanceContextValue {
 export function EditorAppearanceProvider({ children }: { children: ReactNode }) {
   const [appearance, setAppearance] = useState(loadEditorAppearance);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     applyEditorAppearanceCss(appearance);
+  }, [appearance]);
+
+  useEffect(() => {
     const onChange = (event: Event) => {
       const detail = (event as CustomEvent<EditorAppearance>).detail;
       if (detail) setAppearance(detail);
     };
     window.addEventListener(EDITOR_APPEARANCE_EVENT, onChange);
     return () => window.removeEventListener(EDITOR_APPEARANCE_EVENT, onChange);
-  }, [appearance]);
+  }, []);
 
   const patch = useCallback((next: Partial<EditorAppearance>) => {
     setAppearance(patchEditorAppearance(next));
