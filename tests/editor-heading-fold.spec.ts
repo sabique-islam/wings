@@ -8,7 +8,7 @@ async function setEditorHtml(page: Page, html: string) {
   }, html);
 }
 
-test.describe("Heading fold and outline", () => {
+test.describe("Heading fold", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/__editor-e2e");
     await focusEditor(page);
