@@ -18,6 +18,7 @@ import { FontFamily } from "@tiptap/extension-font-family";
 import { Underline } from "@tiptap/extension-underline";
 import { TrailingNode } from "./TrailingNodeExtension";
 import { OutlineBlock } from "./OutlineBlock";
+import { HeadingFold } from "./HeadingFoldExtension";
 import { MarkdownInput } from "./MarkdownInputExtension";
 import { FloatingImage } from "./FloatingImageExtension";
 import { createSlashCommandExtension } from "./SlashCommandExtension";
@@ -115,6 +116,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
       trailingNode: false,
     }),
     OutlineBlock,
+    HeadingFold,
     CodeBlockExtension,
     Placeholder.configure({
       placeholder: ({ node, editor, pos }) => {

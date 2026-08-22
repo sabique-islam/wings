@@ -2,6 +2,7 @@ import { Extension } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { turnInto, type TurnIntoType } from "./blockCommands";
 import { caretPosAfterMerge, findTopLevelDepth } from "./blockUtils";
+import { collapsedSiblings } from "./headingFold";
 import { inlineContentSize, inlineTextOf, isInsideTable, liftCurrentBlock, nestCurrentBlock } from "./outlineNest";
 import { openLinkHref } from "./editorLinkClick";
 import { normalizeCodeLanguage } from "./codeLanguages";
@@ -145,6 +146,17 @@ function exitHeadingOnEnter(editor: any): boolean {
   if (!block || block.typeName !== "heading") return false;
 
   const { $from } = editor.state.selection;
+  if (block.offset === block.text.length && $from.parent.attrs?.collapsed) {
+    const headingPos = $from.before($from.depth);
+    const range = collapsedSiblings(editor.state.doc, headingPos);
+    const insertPos = range?.to ?? $from.after($from.depth);
+    const paragraph = editor.state.schema.nodes.paragraph.create();
+    const tr = editor.state.tr.insert(insertPos, paragraph);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)));
+    editor.view.dispatch(tr.scrollIntoView());
+    return true;
+  }
+
   if (block.offset === block.text.length) {
     const after = $from.after($from.depth);
     const next = editor.state.doc.nodeAt(after);
@@ -214,6 +226,13 @@ function modifyCurrentBlock(editor: any): boolean {
 
   for (let d = $from.depth; d > 0; d--) {
     const node = $from.node(d);
+    if (node.type.name === "heading") {
+      return editor
+        .chain()
+        .focus()
+        .updateAttributes("heading", { collapsed: !node.attrs.collapsed })
+        .run();
+    }
     if (node.type.name === "taskItem") {
       return editor
         .chain()
