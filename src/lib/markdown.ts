@@ -4,6 +4,7 @@ import { marked } from "marked";
 import TurndownService from "turndown";
 import { PAGE_HREF_PREFIX } from "./linkExtraction";
 import { normalizeMathMarkdown } from "./normalizeMath";
+import { calloutEmojiFromToken, findGfmCalloutBlocks } from "./calloutMarkdown";
 
 /** Blocks the editor stores as HTML or bespoke syntax because markdown has none. */
 const CUSTOM_BLOCK_TYPES = new Set([
@@ -199,8 +200,31 @@ function preprocessPageEmbeds(md: string, resolvePageId?: (title: string) => str
     });
 }
 
+function escapeAttr(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+function preprocessGfmCallouts(md: string): string {
+  const blocks = findGfmCalloutBlocks(md);
+  if (blocks.length === 0) return md;
+  let next = md;
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const block = blocks[i]!;
+    const emoji = calloutEmojiFromToken(block.token);
+    const titleHtml = block.title ? `<p>${escapeAttr(block.title)}</p>` : "";
+    const bodySource = block.body.trim();
+    const bodyHtml = bodySource
+      ? (marked.parse(preprocessMath(bodySource), { async: false }) as string)
+      : "";
+    const inner = `${titleHtml}${bodyHtml}`.trim() || "<p></p>";
+    const html = `\n\n<div data-type="callout" data-emoji="${escapeAttr(emoji)}">${inner}</div>\n\n`;
+    next = `${next.slice(0, block.start)}${html}${next.slice(block.end)}`;
+  }
+  return next;
+}
+
 export function markdownToHtml(md: string, resolvePageId?: (title: string) => string | null): string {
   if (!md) return "";
-  const prepared = preprocessPageEmbeds(preprocessMath(md), resolvePageId);
+  const prepared = preprocessGfmCallouts(preprocessPageEmbeds(preprocessMath(md), resolvePageId));
   return marked.parse(prepared, { async: false }) as string;
 }
