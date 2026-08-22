@@ -226,10 +226,15 @@ export function updateBookmarkMeta(editor: Editor, pos: number, meta: BookmarkMe
   return true;
 }
 
-export function insertEmbed(editor: Editor, url: string): boolean {
-  let embedUrl = url;
+/** YouTube watch / youtu.be links become an embeddable player URL. */
+export function rewriteEmbedUrl(url: string): string {
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
-  if (ytMatch) embedUrl = `https://www.youtube.com/embed/${ytMatch[1]}`;
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
+  return url;
+}
+
+export function insertEmbed(editor: Editor, url: string): boolean {
+  const embedUrl = rewriteEmbedUrl(url);
   // Reject anything not on the https embed allowlist so unsupported/hostile
   // URLs never reach the iframe node.
   if (!isAllowedEmbedUrl(embedUrl)) return false;
