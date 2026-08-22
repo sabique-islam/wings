@@ -25,6 +25,7 @@ function TemplateButtonView({ node, editor, getPos }: NodeViewProps) {
       <button
         type="button"
         className="nw-template-button-trigger"
+        data-testid="template-button"
         disabled={!editable}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => {

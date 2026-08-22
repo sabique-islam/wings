@@ -398,7 +398,7 @@ const getSuggestionItems = (h: SlashHandlers = {}): CommandItem[] => [
     description: "Insert a copy of blocks on click",
     icon: Plus,
     category: "Advanced",
-    aliases: ["template button", "new week"],
+    aliases: ["template button"],
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).insertTemplateButton({ label: "Insert" }).run();
     },

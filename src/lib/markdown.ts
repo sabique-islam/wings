@@ -65,7 +65,7 @@ turndown.addRule("taskList", {
     (node as HTMLElement).getAttribute("data-type") === "taskItem",
   replacement(_content, node) {
     const checked = (node as HTMLElement).getAttribute("data-checked") === "true";
-    const text = (node as HTMLElement).innerText.trim();
+    const text = ((node as HTMLElement).innerText ?? (node as HTMLElement).textContent ?? "").trim();
     return `- [${checked ? "x" : " "}] ${text}\n`;
   },
 });
