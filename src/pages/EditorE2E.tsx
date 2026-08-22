@@ -5,8 +5,8 @@ import { requestEditorSerialize, type EditorChangePayload } from "@/lib/editorPa
 
 const ENTRY_ID = "e2e-harness";
 
-/** Fixed workspace so the `@` and `[[` page pickers have something to offer. */
-const PAGES = [
+/** Workspace so the `@` and `[[` page pickers have something to offer. */
+const INITIAL_PAGES = [
   { id: "page-reading-list", title: "Reading List" },
   { id: "page-release-notes", title: "Release Notes" },
 ];
@@ -25,6 +25,7 @@ export default function EditorE2E() {
   const [preview, setPreview] = useState("");
   const [aiText, setAiText] = useState("");
   const [requestedPage, setRequestedPage] = useState("");
+  const [pages, setPages] = useState(INITIAL_PAGES);
   /** Bumped to remount the editor from markdown alone, as a cold load would. */
   const [mount, setMount] = useState(0);
 
@@ -48,13 +49,30 @@ export default function EditorE2E() {
           entryId={ENTRY_ID}
           content={content}
           onChange={handleChange}
-          pages={PAGES}
+          pages={pages}
           getPagePreview={getE2EPagePreview}
           onNewPage={setRequestedPage}
         />
       </div>
       <button type="button" data-testid="reload-from-markdown" onClick={() => setMount((m) => m + 1)}>
         reload from markdown
+      </button>
+      <button
+        type="button"
+        data-testid="rename-reading-list"
+        onClick={() => {
+          setPages((current) =>
+            current.map((page) =>
+              page.id === "page-reading-list" ? { ...page, title: "Bookshelf" } : page,
+            ),
+          );
+          PREVIEWS["page-reading-list"] = {
+            title: "Bookshelf",
+            preview: PREVIEWS["page-reading-list"]?.preview ?? "",
+          };
+        }}
+      >
+        rename reading list
       </button>
       <section aria-label="editor parity" className="sr-only">
         <pre data-testid="stored-text">{content}</pre>

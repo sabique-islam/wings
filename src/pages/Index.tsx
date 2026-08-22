@@ -58,8 +58,14 @@ function resolveEntryOwnerId(
   return userId;
 }
 
+type EditorChain = {
+  focus: () => EditorChain;
+  insertContent: (content: unknown) => EditorChain;
+  run: () => void;
+};
+
 type MountedEditor = {
-  chain: () => { focus: () => { insertContent: (content: unknown) => { run: () => void } } };
+  chain: () => EditorChain;
 };
 
 function mountedEditor(): MountedEditor | undefined {
@@ -67,8 +73,13 @@ function mountedEditor(): MountedEditor | undefined {
 }
 
 /** Insert a link to `entryId` at the editor's cursor, if an editor is mounted. */
-function insertPageLink(entryId: string, title: string): void {
-  mountedEditor()?.chain().focus().insertContent(`<a href="#page:${entryId}">${title}</a>`).run();
+function insertPageLink(entryId: string): void {
+  mountedEditor()
+    ?.chain()
+    .focus()
+    .insertContent({ type: "pageRef", attrs: { pageId: entryId } })
+    .insertContent(" ")
+    .run();
 }
 
 /** Insert a live preview card for `entryId`, the block form of a page link. */
@@ -450,7 +461,7 @@ export default function Index() {
       ownerId,
       parentId,
       initialContent: `# ${title}\n\n`,
-      onCreated: (entry) => insertPageLink(entry.id, title),
+      onCreated: (entry) => insertPageLink(entry.id),
     });
   }, [user, entries, roleMap, requestCreatePage]);
 
@@ -544,7 +555,7 @@ export default function Index() {
             parentId: activeId,
             initialContent: markdown,
             onCreated: (entry) => {
-              insertPageLink(entry.id, title);
+              insertPageLink(entry.id);
               toast.success(`Moved into “${title}”`);
             },
           });
@@ -996,7 +1007,7 @@ export default function Index() {
         entries={entries}
         userId={userId}
         onSelect={setActiveId}
-        onLinkPage={(entry) => insertPageLink(entry.id, getEntryTitle(entry))}
+        onLinkPage={(entry) => insertPageLink(entry.id)}
         onEmbedPage={(entry) => insertPageEmbed(entry.id, getEntryTitle(entry))}
         onMoveBlocks={handleMoveBlocksToPage}
       />
