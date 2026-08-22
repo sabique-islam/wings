@@ -89,6 +89,12 @@ turndown.addRule("styledSpan", {
 });
 
 // Added last so it outranks `styledSpan` for custom nodes that carry a style.
+turndown.addRule("collapsedHeading", {
+  filter: (node) =>
+    /^H[1-3]$/.test(node.nodeName) && (node as HTMLElement).getAttribute("data-collapsed") === "true",
+  replacement: (_content, node) => `\n\n${(node as HTMLElement).outerHTML}\n\n`,
+});
+
 turndown.addRule("customBlock", {
   filter: (node) =>
     node.nodeType === 1 &&
@@ -111,9 +117,9 @@ marked.setOptions({ gfm: true, breaks: false });
  * first), which is where unknown tags and attributes are actually dropped.
  */
 const CUSTOM_BLOCK_HTML =
-  /^\s*<(?:div|span)\b(?=[^>]*\bdata-type="(?:callout|toggle|column-list|column|bookmark|embed|page-embed|excalidraw|block-math|inline-math|database|synced-block|paragraph|heading)")/;
+  /^\s*(?:<(?:div|span)\b(?=[^>]*\bdata-type="(?:callout|toggle|column-list|column|bookmark|embed|page-embed|excalidraw|block-math|inline-math|database|synced-block|paragraph|heading)")|<h[1-3]\b(?=[^>]*\bdata-collapsed="true"))/;
 /** Inline custom markup is tokenized open-tag-first, so its close arrives alone. */
-const BARE_CLOSING_TAG = /^\s*<\/(?:div|span)>\s*$/;
+const BARE_CLOSING_TAG = /^\s*<\/(?:div|span|h[1-3])>\s*$/;
 
 // Defense-in-depth: treat raw HTML in markdown as plain text so <script> and
 // event-handler attributes never pass through marked into the editor pipeline.

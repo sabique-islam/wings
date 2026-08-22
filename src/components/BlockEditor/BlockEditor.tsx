@@ -16,11 +16,13 @@ import { applyEditorLinkAction, resolveEditorLinkAction } from "./editorLinkClic
 import { fetchLinkPreview } from "@/lib/linkPreview";
 import type { EditorChangePayload, FullEditorChangePayload } from "@/lib/editorPayload";
 import { resolveInitialEditorContent, shouldSyncEditorFromProps } from "@/lib/editorContent";
+import { expandFoldedHeadingsOverPos, findBlockPosById } from "./headingFold";
 import { createCollabExtensions } from "@/lib/collab/collabExtensions";
 import type { CollabSession } from "@/lib/collab/useCollabProvider";
 import type { PageOption } from "./PageMentionExtension";
 import type { PagePreview } from "./PageEmbedExtension";
 import { toast } from "sonner";
+import { EditorOutline } from "@/components/EditorOutline";
 import { isSelectionInCodeBlock } from "./blockUtils";
 
 const SERIALIZE_DEBOUNCE_MS = 200;
@@ -330,6 +332,8 @@ export const BlockEditor = memo(function BlockEditor({
       : "";
     if (!blockId) return;
     const timer = setTimeout(() => {
+      const pos = findBlockPosById(editor.state.doc as never, blockId);
+      if (pos != null) expandFoldedHeadingsOverPos(editor, pos);
       const target = editor.view.dom.querySelector(`[id="${CSS.escape(blockId)}"]`);
       if (!target) return;
       target.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -472,8 +476,9 @@ export const BlockEditor = memo(function BlockEditor({
   if (!editor) return null;
 
   return (
-    <div
-      className="block-editor-wrapper w-full min-w-0"
+    <div className="block-editor-shell">
+      <div
+        className="block-editor-wrapper w-full min-w-0"
       onClickCapture={(e) => {
         // Capture so ProseMirror / node views cannot swallow the click before we open.
         const anchor = (e.target as HTMLElement).closest("a");
@@ -521,6 +526,8 @@ export const BlockEditor = memo(function BlockEditor({
         </>
       )}
       <EditorContent editor={editor} className="w-full min-w-0" />
+      </div>
+      <EditorOutline editor={editor} />
     </div>
   );
 });
