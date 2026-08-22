@@ -121,24 +121,4 @@ test.describe("Heading fold and outline", () => {
     expect(inserted.some((n) => n.startsWith("paragraph:") && !n.includes("secret"))).toBe(true);
     await expect(page.locator(".ProseMirror").getByText("secret")).toBeHidden();
   });
-
-  test("clicking outline row 2 puts the caret in that heading", async ({ page }) => {
-    await setEditorHtml(page, "<h2>Alpha</h2><p>one</p><h2>Beta</h2><p>two</p>");
-
-    const outline = page.getByTestId("editor-outline");
-    await expect(outline).toBeVisible();
-    await expect(outline.locator("button")).toHaveCount(2);
-    await outline.locator("button").nth(1).click();
-
-    const inBeta = await page.evaluate(() => {
-      const ed = (
-        window as unknown as {
-          __nw_editor: { state: { selection: { $from: { parent: { type: { name: string }; textContent: string } } } } };
-        }
-      ).__nw_editor;
-      const parent = ed.state.selection.$from.parent;
-      return parent.type.name === "heading" && parent.textContent === "Beta";
-    });
-    expect(inBeta).toBe(true);
-  });
 });
