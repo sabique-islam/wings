@@ -72,7 +72,7 @@ export default function EditorE2E() {
           };
         }}
       >
-        rename reading list
+        rename first fixture page
       </button>
       <section aria-label="editor parity" className="sr-only">
         <pre data-testid="stored-text">{content}</pre>
