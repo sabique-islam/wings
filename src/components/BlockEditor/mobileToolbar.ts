@@ -28,8 +28,11 @@ export function keyboardToolbarOffset(
 }
 
 export function toggleToolbarMark(editor: Editor, mark: "bold" | "italic"): boolean {
-  if (mark === "bold") return editor.chain().focus().toggleBold().run();
-  return editor.chain().focus().toggleItalic().run();
+  const chain = editor.state.selection.$from.parent.isTextblock
+    ? editor.chain()
+    : editor.chain().focus();
+  if (mark === "bold") return chain.toggleBold().run();
+  return chain.toggleItalic().run();
 }
 
 /**
@@ -43,13 +46,14 @@ export function insertSuggestionChar(editor: Editor, char: "/" | "@"): boolean {
   const { $from } = editor.state.selection;
   if (!$from.parent.isTextblock || $from.parent.type.name === "codeBlock") return false;
   if (!editor.state.selection.empty) {
-    editor.commands.setTextSelection(editor.state.selection.to);
+    editor.commands.setTextSelection($from.end());
   }
   const caret = editor.state.selection.$from;
+  if (!caret.parent.isTextblock) return false;
   const offset = caret.parentOffset;
   const before = offset > 0 ? caret.parent.textBetween(offset - 1, offset) : "";
   const prefix = offset === 0 || /\s/.test(before) ? "" : " ";
-  return editor.chain().focus().insertContent(prefix + char).run();
+  return editor.chain().insertContent(prefix + char).run();
 }
 
 export function preventEditorBlur(event: { preventDefault: () => void }): void {
