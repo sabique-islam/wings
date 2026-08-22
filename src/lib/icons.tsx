@@ -66,6 +66,7 @@ export const FileSpreadsheet = wrapIcon(Animated.FileSpreadsheet);
 export const FileText = wrapIcon(Animated.FileText);
 export const Flag = wrapIcon(Animated.Flag);
 export const Flame = wrapIcon(Animated.Flame);
+export const Folder = wrapIcon(Animated.Folder);
 export const FolderOpen = wrapIcon(Animated.FolderOpen);
 export const Github = wrapIcon(Animated.Github);
 export const Globe = wrapIcon(Animated.Globe);

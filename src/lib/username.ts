@@ -10,6 +10,7 @@ export const RESERVED_USERNAMES = new Set([
   "settings", "account", "profile", "user", "users", "team",
   "dashboard", "home", "help", "sitemap", "robots", "well-known",
   "llms", "llms-full", "openapi",
+  "c", "trash",
   "billing", "checkout", "pay", "payments", "404", "500",
 ]);
 

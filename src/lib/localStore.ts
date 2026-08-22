@@ -9,6 +9,7 @@
 
 import Dexie, { type Table } from "dexie";
 import type { JSONContent } from "@tiptap/core";
+import type { CollectionInfo } from "./collections";
 import type { Entry, ShareRole } from "./journal";
 import { isLocalEntry } from "./localContent";
 
@@ -67,6 +68,10 @@ export interface GraphStateRow {
   updatedAt: number;
 }
 
+export interface CachedCollection extends CollectionInfo {
+  cacheOwnerId: string;
+}
+
 export interface VaultMetaRow {
   userId: string;
   folderName: string;
@@ -88,6 +93,7 @@ class WingsDatabase extends Dexie {
   linkIndex!: Table<LinkIndexRow, string>;
   graphState!: Table<GraphStateRow, string>;
   vaultMeta!: Table<VaultMetaRow, string>;
+  collections!: Table<CachedCollection, string>;
 
   constructor() {
     super("wings");
@@ -116,6 +122,16 @@ class WingsDatabase extends Dexie {
             if (!row.tags) row.tags = [];
           });
       });
+    this.version(3).stores({
+      entries: "id, cacheOwnerId",
+      meta: "userId",
+      drafts: "entryId",
+      pendingWrites: "entryId",
+      linkIndex: "entryId, *outgoing",
+      graphState: "userId",
+      vaultMeta: "userId",
+      collections: "id, cacheOwnerId",
+    });
   }
 }
 
@@ -290,5 +306,43 @@ export function putVaultMeta(row: VaultMetaRow): Promise<void> {
 export function deleteVaultMeta(userId: string): Promise<void> {
   return guard(async (instance) => {
     await instance.vaultMeta.delete(userId);
+  }, undefined);
+}
+
+function toCachedCollection(collection: CollectionInfo, cacheOwnerId: string): CachedCollection {
+  return { ...collection, cacheOwnerId };
+}
+
+function toCollectionInfo({ cacheOwnerId: _owner, ...collection }: CachedCollection): CollectionInfo {
+  return collection;
+}
+
+export function readCachedCollections(userId: string): Promise<CollectionInfo[]> {
+  return guard(async (instance) => {
+    const rows = await instance.collections.where("cacheOwnerId").equals(userId).toArray();
+    return rows.map(toCollectionInfo);
+  }, []);
+}
+
+export function replaceCachedCollections(userId: string, collections: CollectionInfo[]): Promise<void> {
+  return guard(async (instance) => {
+    const keep = new Set(collections.map((row) => row.id));
+    await instance.transaction("rw", instance.collections, async () => {
+      const stale = await instance.collections.where("cacheOwnerId").equals(userId).primaryKeys();
+      await instance.collections.bulkDelete(stale.filter((id) => !keep.has(id)));
+      await instance.collections.bulkPut(collections.map((row) => toCachedCollection(row, userId)));
+    });
+  }, undefined);
+}
+
+export function putCachedCollection(userId: string, collection: CollectionInfo): Promise<void> {
+  return guard(async (instance) => {
+    await instance.collections.put(toCachedCollection(collection, userId));
+  }, undefined);
+}
+
+export function deleteCachedCollection(id: string): Promise<void> {
+  return guard(async (instance) => {
+    await instance.collections.delete(id);
   }, undefined);
 }
