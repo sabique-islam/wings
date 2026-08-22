@@ -45,6 +45,12 @@ describe("markdown <-> html conversion", () => {
     expect(html).toContain("<ol>");
   });
 
+  it("keeps a non-1 numbered start", () => {
+    const html = markdownToHtml("3. third\n4. fourth");
+    expect(html).toContain('<ol start="3">');
+    expect(htmlToMarkdown(html)).toMatch(/^3\.\s+third/m);
+  });
+
   it("renders fenced code blocks", () => {
     const html = markdownToHtml("```ts\nconst x = 1;\n```");
     expect(html).toContain("<pre>");
@@ -102,6 +108,33 @@ describe("markdown <-> html conversion", () => {
     const md = htmlToMarkdown(blob);
     expect(md).toContain('data-type="callout"');
     expect(markdownToHtml(md)).toContain('<div data-type="callout"');
+  });
+
+  it("turns GFM and Obsidian callout quotes into callout blocks", () => {
+    const note = markdownToHtml("> [!note]\n> body");
+    expect(note).toContain('data-type="callout"');
+    expect(note).toContain('data-emoji="💬"');
+    expect(note).toContain("body");
+    expect(note).not.toContain("<blockquote");
+
+    const warning = markdownToHtml("> [!warning] Title\n> body");
+    expect(warning).toContain('data-type="callout"');
+    expect(warning).toContain('data-emoji="⚠️"');
+    expect(warning).toContain("Title");
+
+    const emoji = markdownToHtml("> [!💡]\n> idea");
+    expect(emoji).toContain('data-type="callout"');
+    expect(emoji).toContain('data-emoji="💡"');
+  });
+
+  it("leaves ordinary quotes and fenced decoys as quotes/code", () => {
+    const quote = markdownToHtml("> just a quote");
+    expect(quote).toContain("<blockquote");
+    expect(quote).not.toContain('data-type="callout"');
+
+    const fenced = markdownToHtml("```\n> [!note]\n> not a callout\n```");
+    expect(fenced).not.toContain('data-type="callout"');
+    expect(fenced).toContain("<pre>");
   });
 
   it("preserves collapsed heading HTML so fold survives markdown load", () => {

@@ -16,7 +16,7 @@ import { createBlockEditorExtensions } from "./editorExtensions";
 import { slashCommandSuggestionKey, pageMentionSuggestionKey } from "./suggestionPluginKeys";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { isEmptyDoc, shouldBlockEmptySave } from "@/lib/editorContent";
-import { liftCurrentBlock } from "./outlineNest";
+import { liftCurrentBlock, nestBlockUnder } from "./outlineNest";
 
 function makeEditor(content = "<p>hello</p>") {
   return new Editor({
@@ -494,6 +494,60 @@ Example:
     expect(top?.firstChild?.textContent).toBe("hello");
     expect(top?.lastChild?.textContent).toBe("world");
     expect(editor.getHTML()).toMatch(/data-type="paragraph"/);
+    editor.destroy();
+  });
+
+  it("types 3. space as an ordered list that starts at 3", () => {
+    const editor = makeEditor("<p></p>");
+    typeIn(editor, "3. ");
+    const list = editor.state.doc.firstChild;
+    expect(list?.type.name).toBe("orderedList");
+    expect(list?.attrs.start).toBe(3);
+    editor.destroy();
+  });
+
+  it("loads a markdown numbered list that starts at 3", () => {
+    const editor = makeEditor(markdownToHtml("3. third\n4. fourth"));
+    const list = editor.state.doc.firstChild;
+    expect(list?.type.name).toBe("orderedList");
+    expect(list?.attrs.start).toBe(3);
+    expect(listItemTexts(editor)).toEqual(["third", "fourth"]);
+    editor.destroy();
+  });
+
+  it("loads a GFM callout quote as a callout node", () => {
+    const editor = makeEditor(markdownToHtml("> [!note]\n> body"));
+    let emoji = "";
+    let callouts = 0;
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "callout") {
+        callouts += 1;
+        emoji = node.attrs.emoji;
+      }
+    });
+    expect(callouts).toBe(1);
+    expect(emoji).toBe("💬");
+    expect(editor.state.doc.textContent).toContain("body");
+    editor.destroy();
+  });
+
+  it("nests a later paragraph under an earlier one on right-half drop", () => {
+    const editor = makeEditor("<p>hello</p><p>mid</p><p>world</p>");
+    let helloPos: number | null = null;
+    let worldPos: number | null = null;
+    editor.state.doc.forEach((node, pos) => {
+      if (node.textContent === "hello") helloPos = pos;
+      if (node.textContent === "world") worldPos = pos;
+    });
+    expect(helloPos).not.toBeNull();
+    expect(worldPos).not.toBeNull();
+    expect(nestBlockUnder(editor, worldPos!, helloPos!)).toBe(true);
+
+    const top = editor.state.doc.firstChild;
+    expect(top?.type.name).toBe("outlineBlock");
+    expect(top?.firstChild?.textContent).toBe("hello");
+    expect(top?.lastChild?.textContent).toBe("world");
+    expect(editor.state.doc.textContent).toContain("mid");
     editor.destroy();
   });
 

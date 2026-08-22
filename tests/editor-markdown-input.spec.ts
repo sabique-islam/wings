@@ -69,6 +69,17 @@ test.describe("Markdown input on space", () => {
     await expect(editor.locator("blockquote")).toHaveCount(0);
   });
 
+  test("type 3. space starts a numbered list at 3, then Enter continues", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("3. foo");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("bar");
+    await expect(editor.locator("ol[start='3']")).toHaveCount(1);
+    await expect(editor.locator("ol li")).toHaveCount(2);
+    await expect(editor.locator("ol li").nth(0)).toContainText("foo");
+    await expect(editor.locator("ol li").nth(1)).toContainText("bar");
+  });
+
   test("slash menu Enter still inserts a callout", async ({ page }) => {
     const editor = page.locator(".ProseMirror");
     await page.keyboard.type("/callout");

@@ -49,4 +49,13 @@ test.describe("Paste prefers markdown", () => {
     await expect(editor.locator("table th").first()).toContainText("a");
     await expect(editor.locator("table td").first()).toContainText("1");
   });
+
+  test("pasted GFM callout markdown becomes a callout, not a quote", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await pasteClipboard(page, "> [!note]\n> body from paste");
+
+    await expect(editor.locator('[data-type="callout"]')).toHaveCount(1);
+    await expect(editor.locator("blockquote")).toHaveCount(0);
+    await expect(editor).toContainText("body from paste");
+  });
 });
