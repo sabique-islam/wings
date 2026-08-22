@@ -193,13 +193,15 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
           if (lines[1]?.trim() === "---") bodyStart = 2;
         }
         const body = lines.slice(bodyStart).join("\n").trim();
-        const content = title ? `# ${title}\n\n${body}` : body;
         try {
           const parentId = activeEntry?.id;
           const ownerId = activeEntry && activeEntry.user_id !== user.id
             ? activeEntry.user_id
             : user.id;
-          const entry = await createEntry(ownerId, content, parentId);
+          const entry = await createEntry(ownerId, body, {
+            parentId,
+            title: title || undefined,
+          });
           onCreateEntry(entry);
           onNavigate(entry.id);
           actions.push({ label: `Opened "${title || "new page"}"`, onClick: () => onNavigate(entry.id) });

@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { Entry, ShareRole } from "@/lib/journal";
-import { getEntryTitle } from "@/lib/journal";
+import { getEntryTitle, isBlankDraftPage } from "@/lib/journal";
 import { buildPagePreview, refreshPageEmbeds } from "@/components/BlockEditor/PageEmbedExtension";
 import type { EditorChangePayload } from "@/lib/editorPayload";
 import { useCollabProvider } from "@/lib/collab/useCollabProvider";
@@ -146,6 +146,12 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
   const canDelete = userRole === "owner" || userRole === "admin";
   const canManage = userRole === "owner" || userRole === "admin";
   const entryIsLocal = entry ? isLocalEntry(entry) : false;
+
+  useEffect(() => {
+    if (!entry || !canEdit || !isBlankDraftPage(entry)) return;
+    const frame = requestAnimationFrame(() => titleRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [entry, canEdit]);
 
   const handlePromoteConfirm = useCallback(async () => {
     if (!entry || !onPromoteToCloud) return;
