@@ -1058,15 +1058,15 @@
   user-select: none;
   opacity: 0;
   visibility: hidden;
+  /* Stay none even when visible — padding/gap must not steal the first glyph. */
   pointer-events: none;
   transition: opacity 150ms ease, visibility 150ms ease;
-  /* Bridge into content so moving from text → handle doesn't drop hover */
-  padding-right: 10px;
-  margin-right: -10px;
 }
 .nw-block-handle.is-visible {
   opacity: 1;
   visibility: visible;
+}
+.nw-block-handle.is-visible .nw-block-handle-btn {
   pointer-events: auto;
 }
 .nw-block-handle-btn {
