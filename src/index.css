@@ -268,6 +268,76 @@
   /* Reserve gutter without shifting text (negative margin pulls gutter into page padding) */
 }
 
+.find-replace-bar {
+  position: sticky;
+  top: 8px;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 10px;
+  padding: 6px 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--card));
+  box-shadow: 0 8px 24px hsl(var(--foreground) / 0.08);
+}
+.find-replace-input {
+  min-width: 7.5rem;
+  flex: 1 1 7.5rem;
+  font-size: 12px;
+  line-height: 1.4;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: inherit;
+}
+.find-replace-count {
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: hsl(var(--muted-foreground));
+  min-width: 4.5rem;
+  white-space: nowrap;
+}
+.find-replace-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  width: 24px;
+  border-radius: 4px;
+  color: hsl(var(--muted-foreground));
+}
+.find-replace-btn:hover,
+.find-replace-btn.is-on {
+  background: hsl(var(--accent-soft));
+  color: hsl(var(--foreground));
+}
+.find-replace-text-btn {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: hsl(var(--muted-foreground));
+}
+.find-replace-text-btn:hover {
+  background: hsl(var(--accent-soft));
+  color: hsl(var(--foreground));
+}
+.find-replace-blocked {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 11px;
+  color: hsl(var(--destructive));
+}
+.block-editor-content .nw-find-match {
+  background: hsl(var(--accent-soft));
+  border-radius: 2px;
+}
+.block-editor-content .nw-find-match.is-current {
+  background: hsl(var(--accent-strong) / 0.35);
+}
+
 .block-editor-content {
   @apply w-full min-w-0 text-base font-sans text-foreground relative;
   line-height: 1.65;
