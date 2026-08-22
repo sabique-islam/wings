@@ -1,14 +1,30 @@
 import type { JSONContent } from "@tiptap/core";
 import { markdownToHtml } from "@/lib/markdown";
 
+/** True when a paragraph (including nested empty outline children) has no text. */
+function isEmptyParagraph(node: JSONContent): boolean {
+  if (node.type !== "paragraph") return false;
+  const inner = node.content;
+  if (!inner?.length) return true;
+  return inner.every((child) => {
+    if (child.type === "text") return !child.text;
+    if (child.type === "paragraph") return isEmptyParagraph(child);
+    return false;
+  });
+}
+
 /** True when TipTap JSON is an empty doc (or a single empty paragraph). */
 export function isEmptyDoc(json: JSONContent | null | undefined): boolean {
   if (!json || json.type !== "doc") return true;
   const nodes = json.content;
   if (!nodes?.length) return true;
   if (nodes.length === 1 && nodes[0].type === "paragraph") {
+    return isEmptyParagraph(nodes[0]);
+  }
+  if (nodes.length === 1 && nodes[0].type === "outlineBlock") {
     const inner = nodes[0].content;
-    return !inner?.length;
+    if (!inner?.length) return true;
+    return inner.every((child) => child.type === "paragraph" && isEmptyParagraph(child));
   }
   return false;
 }
