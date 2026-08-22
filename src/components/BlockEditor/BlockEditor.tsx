@@ -3,6 +3,7 @@ import type { JSONContent } from "@tiptap/core";
 import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
 import { extractMathHtmlFromClipboard, looksLikeMathMarkdown, normalizeMathMarkdown } from "@/lib/normalizeMath";
 import { insertBookmark, insertEmbed, pasteExternalUrl, updateBookmarkMeta, extractSingleLinkFromHtml } from "./blockCommands";
+import { copyAsMarkdown, copyAsPlaintext, copyPageMarkdown } from "./copyMarkdown";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { createBlockEditorExtensions } from "./editorExtensions";
 import { BlockMenu } from "./BlockMenu";
@@ -415,9 +416,29 @@ export const BlockEditor = memo(function BlockEditor({
 
   useEffect(() => {
     if (!editor) return;
+    const copy = (kind: "markdown" | "plaintext" | "page") => {
+      const ok =
+        kind === "plaintext"
+          ? copyAsPlaintext(editor)
+          : kind === "page"
+            ? copyPageMarkdown(editor)
+            : copyAsMarkdown(editor);
+      if (ok) {
+        toast.success(
+          kind === "plaintext" ? "Copied as plaintext" : kind === "page" ? "Page markdown copied" : "Copied as markdown",
+        );
+      } else {
+        toast.error("Nothing to copy");
+      }
+    };
     const handleKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod || !editor.isFocused) return;
+      if (e.shiftKey && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        copy("markdown");
+        return;
+      }
       if (e.key.toLowerCase() === "k") {
         e.preventDefault();
         void setLink();
@@ -426,14 +447,26 @@ export const BlockEditor = memo(function BlockEditor({
       if (e.shiftKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
         editor.chain().focus().toggleStrike().run();
+        return;
       }
       if (e.key.toLowerCase() === "u") {
         e.preventDefault();
         editor.chain().focus().toggleUnderline().run();
       }
     };
+    const onCopyMarkdown = () => copy("markdown");
+    const onCopyPlaintext = () => copy("plaintext");
+    const onCopyPage = () => copy("page");
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("nw:copy-markdown", onCopyMarkdown);
+    window.addEventListener("nw:copy-plaintext", onCopyPlaintext);
+    window.addEventListener("nw:copy-page-markdown", onCopyPage);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("nw:copy-markdown", onCopyMarkdown);
+      window.removeEventListener("nw:copy-plaintext", onCopyPlaintext);
+      window.removeEventListener("nw:copy-page-markdown", onCopyPage);
+    };
   }, [editor, setLink]);
 
   const insertImage = useCallback((url: string) => {

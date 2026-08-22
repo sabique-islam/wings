@@ -15,6 +15,7 @@ const shortcuts = [
   { keys: "⌘ ?", desc: "Keyboard shortcuts" },
   { keys: "⌘ D", desc: "Duplicate block" },
   { keys: "⌘ ⇧ ↑/↓", desc: "Move block up/down" },
+  { keys: "⌘ ⇧ C", desc: "Copy as markdown" },
   { keys: "⌘ U", desc: "Underline" },
   { keys: "⌘ ⇧ S", desc: "Strikethrough" },
   { keys: "⌘ I", desc: "Italic" },

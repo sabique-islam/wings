@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FileText, Plus, Search, Settings, Share2, Sparkles, PanelLeft, Pin } from "@/lib/icons";
+import { FileText, Plus, Search, Settings, Share2, Sparkles, PanelLeft, Pin, Copy } from "@/lib/icons";
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut,
 } from "@/components/ui/command";
@@ -59,6 +59,15 @@ export function CommandPalette({ entries, onSelect, onNew, onToggleSidebar }: Pr
           </CommandItem>
           <CommandItem onSelect={() => run(() => window.dispatchEvent(new CustomEvent("nw:settings")))}>
             <Settings className="mr-2" /> settings
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => window.dispatchEvent(new CustomEvent("nw:copy-markdown")))}>
+            <Copy className="mr-2" /> copy as markdown <CommandShortcut>⌘⇧C</CommandShortcut>
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => window.dispatchEvent(new CustomEvent("nw:copy-plaintext")))}>
+            <Copy className="mr-2" /> copy as plaintext
+          </CommandItem>
+          <CommandItem onSelect={() => run(() => window.dispatchEvent(new CustomEvent("nw:copy-page-markdown")))}>
+            <FileText className="mr-2" /> copy page markdown
           </CommandItem>
         </CommandGroup>
 
