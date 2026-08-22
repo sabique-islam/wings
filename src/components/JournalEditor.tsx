@@ -147,13 +147,15 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
   const canManage = userRole === "owner" || userRole === "admin";
   const entryIsLocal = entry ? isLocalEntry(entry) : false;
 
+  // Focus the title once when opening a blank Untitled page so the name
+  // lands in the title field, not as an H1 in the body. The dependency is the
+  // draft id (or null) so an entries refresh cannot steal the caret back.
+  const blankDraftId = entry && canEdit && isBlankDraftPage(entry) ? entry.id : null;
   useEffect(() => {
-    if (!entry || !canEdit || !isBlankDraftPage(entry)) return;
+    if (!blankDraftId) return;
     const frame = requestAnimationFrame(() => titleRef.current?.focus());
     return () => cancelAnimationFrame(frame);
-    // Only when opening this page — a later entries refresh must not yank
-    // the caret out of the body back into the title.
-  }, [entry?.id, canEdit]);
+  }, [blankDraftId]);
 
   const handlePromoteConfirm = useCallback(async () => {
     if (!entry || !onPromoteToCloud) return;
