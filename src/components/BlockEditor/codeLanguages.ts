@@ -84,10 +84,11 @@ export function filterCodeLanguages(query: string, currentLanguage: string): str
   return options
     .map((language) => ({
       language,
-      score: fuzzyMatch(trimmed, formatCodeLanguageLabel(language), [
-        language,
-        ...aliasesFor(language),
-      ]),
+      score: Math.max(
+        fuzzyMatch(trimmed, formatCodeLanguageLabel(language)),
+        fuzzyMatch(trimmed, language),
+        ...aliasesFor(language).map((alias) => fuzzyMatch(trimmed, alias)),
+      ),
     }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score || a.language.localeCompare(b.language))
