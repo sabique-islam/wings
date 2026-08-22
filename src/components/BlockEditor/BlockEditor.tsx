@@ -1,6 +1,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import type { JSONContent } from "@tiptap/core";
 import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
+import { extractMathHtmlFromClipboard, looksLikeMathMarkdown, normalizeMathMarkdown } from "@/lib/normalizeMath";
 import { insertBookmark, insertEmbed, looksLikeMarkdown, pasteExternalUrl, updateBookmarkMeta, extractSingleLinkFromHtml } from "./blockCommands";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { createBlockEditorExtensions } from "./editorExtensions";
@@ -256,6 +257,21 @@ export const BlockEditor = memo(function BlockEditor({
               return true;
             }
           }
+          return true;
+        }
+
+        // ChatGPT / Claude attach HTML that would otherwise dump as paragraphs
+        // and skip TipTap math paste rules. Prefer the TeX in plain text.
+        if (text && looksLikeMathMarkdown(text)) {
+          event.preventDefault();
+          view.pasteHTML(markdownToHtml(normalizeMathMarkdown(text)));
+          return true;
+        }
+
+        const mathFromHtml = html ? extractMathHtmlFromClipboard(html) : null;
+        if (mathFromHtml) {
+          event.preventDefault();
+          view.pasteHTML(mathFromHtml);
           return true;
         }
 

@@ -154,7 +154,12 @@ export const BlockMath = Node.create({
   addInputRules() {
     return [
       nodeInputRule({
-        find: /\$\$([^\n$]+?)\$\$\s$/,
+        find: /\$\$([^\n$]+?)\$\$$/,
+        type: this.type,
+        getAttributes: (m) => ({ latex: (m[1] || "").trim() }),
+      }),
+      nodeInputRule({
+        find: /\\\[([^\n]+?)\\\]$/,
         type: this.type,
         getAttributes: (m) => ({ latex: (m[1] || "").trim() }),
       }),
@@ -164,6 +169,11 @@ export const BlockMath = Node.create({
     return [
       nodePasteRule({
         find: /\$\$([\s\S]+?)\$\$/g,
+        type: this.type,
+        getAttributes: (m) => ({ latex: String(m[1] || "").trim() }),
+      }),
+      nodePasteRule({
+        find: /\\\[([\s\S]+?)\\\]/g,
         type: this.type,
         getAttributes: (m) => ({ latex: String(m[1] || "").trim() }),
       }),
@@ -223,10 +233,15 @@ export const InlineMath = Node.create({
     } as any;
   },
   addInputRules() {
-    // Type $latex$ <space> → render inline. Avoid $$ (handled by block) and $5 currency.
+    // Type $latex$ → render inline. Avoid $$ (handled by block) and $5 currency.
     return [
       nodeInputRule({
-        find: /(?:^|[^\\$])\$([^\n$]+?)\$$/,
+        find: /(?<![\\$])\$([^\n$]+?)\$$/,
+        type: this.type,
+        getAttributes: (m) => ({ latex: (m[1] || "").trim() }),
+      }),
+      nodeInputRule({
+        find: /\\\(([^\n]+?)\\\)$/,
         type: this.type,
         getAttributes: (m) => ({ latex: (m[1] || "").trim() }),
       }),
@@ -235,7 +250,12 @@ export const InlineMath = Node.create({
   addPasteRules() {
     return [
       nodePasteRule({
-        find: /(?:^|[^\\$])\$([^\n$]+?)\$(?!\d)/g,
+        find: /(?<![\\$])\$([^\n$]+?)\$(?!\d)/g,
+        type: this.type,
+        getAttributes: (m) => ({ latex: (m[1] || "").trim() }),
+      }),
+      nodePasteRule({
+        find: /\\\(([^\n]+?)\\\)/g,
         type: this.type,
         getAttributes: (m) => ({ latex: (m[1] || "").trim() }),
       }),
