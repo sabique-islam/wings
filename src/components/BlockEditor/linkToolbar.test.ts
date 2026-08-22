@@ -185,9 +185,10 @@ describe("linkToolbarActions", () => {
     ]);
   });
 
-  it("offers open, copy, unlink for a page chip — no convert", () => {
+  it("offers open, peek, copy, unlink for a page chip — no convert", () => {
     expect(linkToolbarActions({ kind: "page", href: "#page:p1", pageId: "p1" })).toEqual([
       "open",
+      "peek",
       "copy",
       "unlink",
     ]);
