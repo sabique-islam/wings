@@ -102,30 +102,8 @@ Track your daily spending. Total it up at the end of the month.
     id: "weekly",
     name: "Weekly planner",
     icon: Calendar,
-    description: "Plan your week, day by day",
-    content: `# Weekly planner
-
-Week of:
-
-| Day | Focus | Tasks |
-| --- | ----- | ----- |
-| Mon |       |       |
-| Tue |       |       |
-| Wed |       |       |
-| Thu |       |       |
-| Fri |       |       |
-| Sat |       |       |
-| Sun |       |       |
-
-## Goals this week
-
-- [ ] Goal 1
-- [ ] Goal 2
-
-## Reflection
-
-> What went well? What didn't? What will you change?
-`,
+    description: "Day columns, checkboxes, and a New week button",
+    content: "",
   },
   {
     id: "habit",

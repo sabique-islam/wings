@@ -19,6 +19,7 @@ const CUSTOM_BLOCK_TYPES = new Set([
   "inline-math",
   "database",
   "synced-block",
+  "template-button",
   "paragraph",
   "heading",
 ]);
@@ -90,9 +91,12 @@ turndown.addRule("styledSpan", {
 });
 
 // Added last so it outranks `styledSpan` for custom nodes that carry a style.
-turndown.addRule("collapsedHeading", {
-  filter: (node) =>
-    /^H[1-3]$/.test(node.nodeName) && (node as HTMLElement).getAttribute("data-collapsed") === "true",
+turndown.addRule("customHeading", {
+  filter: (node) => {
+    if (!/^H[1-3]$/.test(node.nodeName)) return false;
+    const el = node as HTMLElement;
+    return el.getAttribute("data-collapsed") === "true" || Boolean(el.getAttribute("data-bg"));
+  },
   replacement: (_content, node) => `\n\n${(node as HTMLElement).outerHTML}\n\n`,
 });
 
@@ -118,7 +122,7 @@ marked.setOptions({ gfm: true, breaks: false });
  * first), which is where unknown tags and attributes are actually dropped.
  */
 const CUSTOM_BLOCK_HTML =
-  /^\s*(?:<(?:div|span)\b(?=[^>]*\bdata-type="(?:callout|toggle|column-list|column|bookmark|embed|page-embed|excalidraw|block-math|inline-math|database|synced-block|paragraph|heading)")|<h[1-3]\b(?=[^>]*\bdata-collapsed="true"))/;
+  /^\s*(?:<(?:div|span)\b(?=[^>]*\bdata-type="(?:callout|toggle|column-list|column|bookmark|embed|page-embed|excalidraw|block-math|inline-math|database|synced-block|template-button|paragraph|heading)")|<h[1-3]\b(?=[^>]*\bdata-(?:collapsed|bg)=))/;
 /** Inline custom markup is tokenized open-tag-first, so its close arrives alone. */
 const BARE_CLOSING_TAG = /^\s*<\/(?:div|span|h[1-3])>\s*$/;
 
