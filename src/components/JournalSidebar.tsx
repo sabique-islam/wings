@@ -343,6 +343,7 @@ export const JournalSidebar = memo(function JournalSidebar({
             <button type="button" onClick={onHome} className="flex items-center gap-2">
               <Logo
                 size={22}
+                className="nw-sidebar-logo"
                 withWordmark={!railCollapsed}
                 wordmarkClassName="text-sm font-display font-semibold"
               />

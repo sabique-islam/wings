@@ -1970,6 +1970,10 @@
   color: hsl(var(--fg-2));
 }
 
+[data-theme="light"] .nw-sidebar-logo img {
+  filter: invert(1);
+}
+
 /* ============ Iconography ============ */
 /* Uniform lucide stroke — CSS wins over the presentation attribute. */
 .lucide { stroke-width: 1.5px; }
