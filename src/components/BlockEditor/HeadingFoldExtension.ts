@@ -82,7 +82,7 @@ export const HeadingFold = Extension.create({
             },
             renderHTML: (attrs) =>
               attrs.bgColor && ALLOWED_HEADING_BG.has(attrs.bgColor)
-                ? { "data-bg": attrs.bgColor, style: `background-color: ${attrs.bgColor}` }
+                ? { "data-bg": attrs.bgColor }
                 : {},
           },
         },

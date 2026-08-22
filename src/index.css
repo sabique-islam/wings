@@ -885,6 +885,21 @@
   padding-top: 0.35rem;
   padding-bottom: 0.35rem;
   padding-right: 0.6rem;
+  color: hsl(var(--foreground));
+  background-color: var(--nw-heading-fill, hsl(var(--muted)));
+}
+.block-editor-content :is(h1, h2, h3)[data-bg="#f1f1ef"] { --nw-heading-fill: #f1f1ef; }
+.block-editor-content :is(h1, h2, h3)[data-bg="#f4eeee"] { --nw-heading-fill: #f4eeee; }
+.block-editor-content :is(h1, h2, h3)[data-bg="#fbecdd"] { --nw-heading-fill: #fbecdd; }
+.block-editor-content :is(h1, h2, h3)[data-bg="#fbf3db"] { --nw-heading-fill: #fbf3db; }
+.block-editor-content :is(h1, h2, h3)[data-bg="#edf3ec"] { --nw-heading-fill: #edf3ec; }
+.block-editor-content :is(h1, h2, h3)[data-bg="#e7f3f8"] { --nw-heading-fill: #e7f3f8; }
+.block-editor-content :is(h1, h2, h3)[data-bg="#f6f3f9"] { --nw-heading-fill: #f6f3f9; }
+.block-editor-content :is(h1, h2, h3)[data-bg="#faf1f5"] { --nw-heading-fill: #faf1f5; }
+.block-editor-content :is(h1, h2, h3)[data-bg="#fdebec"] { --nw-heading-fill: #fdebec; }
+[data-theme="dark"] .block-editor-content :is(h1, h2, h3)[data-bg] {
+  background-color: color-mix(in oklab, var(--nw-heading-fill, hsl(var(--muted))) 22%, hsl(var(--muted)));
+  color: hsl(var(--foreground));
 }
 
 .nw-template-button {

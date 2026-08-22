@@ -106,4 +106,12 @@ describe("heading fold persistence", () => {
     expect(html).toContain("secret body");
     editor.destroy();
   });
+
+  it("stores heading fill as data-bg so dark theme CSS can restyle the bar", () => {
+    const editor = makeEditor('<h3 data-bg="#f1f1ef">Sunday</h3>');
+    const html = editor.getHTML();
+    expect(html).toContain('data-bg="#f1f1ef"');
+    expect(html).not.toMatch(/style="[^"]*background-color:\s*#f1f1ef/i);
+    editor.destroy();
+  });
 });
