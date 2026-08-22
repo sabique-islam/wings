@@ -27,6 +27,25 @@ describe("editorContent", () => {
         type: "doc",
         content: [
           {
+            type: "table",
+            content: [
+              {
+                type: "tableRow",
+                content: [
+                  { type: "tableCell", content: [{ type: "paragraph" }] },
+                  { type: "tableCell", content: [{ type: "paragraph" }] },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      isEmptyDoc({
+        type: "doc",
+        content: [
+          {
             type: "outlineBlock",
             content: [{ type: "paragraph" }, { type: "paragraph" }],
           },

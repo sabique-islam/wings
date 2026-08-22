@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { looksLikeMarkdown, markdownWinsOverHtml, shouldPasteAsMarkdown } from "./pasteDecision";
+import { looksLikeMarkdown, markdownWinsOverHtml, parseTsv, shouldPasteAsMarkdown, tsvPasteMode } from "./pasteDecision";
 
 const MARKDOWN_DOC = "# Hi\n\n- a";
 
@@ -85,5 +85,39 @@ describe("shouldPasteAsMarkdown", () => {
     expect(shouldPasteAsMarkdown("# Hi", TABLE_HTML)).toBe(false);
     expect(shouldPasteAsMarkdown("# Hi", IMG_HTML)).toBe(false);
     expect(shouldPasteAsMarkdown("plain prose", VSCODE_HTML)).toBe(false);
+  });
+});
+
+describe("parseTsv", () => {
+  it("reads spreadsheet rows and pads ragged columns", () => {
+    expect(parseTsv("a\tb\n1\t2")).toEqual([
+      ["a", "b"],
+      ["1", "2"],
+    ]);
+    expect(parseTsv("a\tb\t\n1\t2")).toEqual([
+      ["a", "b", ""],
+      ["1", "2", ""],
+    ]);
+  });
+
+  it("rejects prose, single columns, and pipe markdown tables", () => {
+    expect(parseTsv("just a sentence")).toBeNull();
+    expect(parseTsv("one\ntwo\nthree")).toBeNull();
+    expect(parseTsv("| a | b |\n| --- | --- |\n| 1 | 2 |")).toBeNull();
+  });
+});
+
+describe("tsvPasteMode", () => {
+  it("fills when the caret is in a table", () => {
+    expect(tsvPasteMode("a\tb\n1\t2", TABLE_HTML, true)).toBe("fill");
+  });
+
+  it("lets a real HTML table win outside a table", () => {
+    expect(tsvPasteMode("a\tb\n1\t2", TABLE_HTML, false)).toBe("none");
+  });
+
+  it("inserts a table from TSV when HTML is not a real table", () => {
+    expect(tsvPasteMode("a\tb\n1\t2", "", false)).toBe("insert");
+    expect(tsvPasteMode("a\tb\n1\t2", VSCODE_HTML, false)).toBe("insert");
   });
 });
