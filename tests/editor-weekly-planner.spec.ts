@@ -59,4 +59,48 @@ test.describe("weekly planner", () => {
     await page.mouse.up();
     await expect(list).toHaveAttribute("data-widths", /,/);
   });
+
+  test("Backspace in Sunday does not delete the rest of the week row", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("/weekly");
+    const item = page.locator(".slash-menu button", { hasText: "Weekly planner" });
+    await expect(item).toBeVisible();
+    await item.click();
+    await expect(editor.getByText("Monday", { exact: true })).toBeVisible();
+
+    await page.evaluate(() => {
+      const ed = (
+        window as unknown as {
+          __nw_editor: {
+            state: {
+              doc: {
+                descendants: (
+                  fn: (node: { type: { name: string }; textContent: string; nodeSize: number }, pos: number) => false | void,
+                ) => void;
+              };
+            };
+            commands: { setTextSelection: (range: { from: number; to: number }) => void };
+          };
+        }
+      ).__nw_editor;
+      let from = -1;
+      let to = -1;
+      ed.state.doc.descendants((node, pos) => {
+        if (node.type.name === "heading" && node.textContent === "Sunday") {
+          from = pos + 1;
+          to = pos + node.nodeSize - 1;
+          return false;
+        }
+      });
+      ed.commands.setTextSelection({ from, to });
+    });
+
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+
+    await expect(editor.locator('[data-type="column-list"]').first().locator('[data-type="column"]')).toHaveCount(5);
+    await expect(editor.getByText("Monday", { exact: true })).toBeVisible();
+    await expect(editor.getByText("Thursday", { exact: true })).toBeVisible();
+  });
 });
