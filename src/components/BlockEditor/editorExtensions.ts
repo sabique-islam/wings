@@ -17,6 +17,7 @@ import { Highlight } from "@tiptap/extension-highlight";
 import { FontFamily } from "@tiptap/extension-font-family";
 import { Underline } from "@tiptap/extension-underline";
 import { TrailingNode } from "./TrailingNodeExtension";
+import { MarkdownInput } from "./MarkdownInputExtension";
 import { FloatingImage } from "./FloatingImageExtension";
 import { createSlashCommandExtension } from "./SlashCommandExtension";
 import { Callout } from "./CalloutExtension";
@@ -175,6 +176,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     FontFamily,
     Underline,
     Highlight.configure({ multicolor: true }),
+    MarkdownInput,
     TrailingNode,
     TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] }),
     createSlashCommandExtension({
