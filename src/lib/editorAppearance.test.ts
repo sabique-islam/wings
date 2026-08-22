@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_EDITOR_APPEARANCE,
   clampEditorFontSize,
+  clearEditorAppearance,
   defaultCodeWrap,
   fontStackFor,
   loadEditorAppearance,
@@ -13,8 +14,7 @@ import {
 } from "./editorAppearance";
 
 afterEach(() => {
-  localStorage.clear();
-  resetEditorAppearanceMemory();
+  clearEditorAppearance();
 });
 
 describe("parseEditorAppearance", () => {

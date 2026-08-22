@@ -1,7 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { Editor } from "@tiptap/core";
 import { createBlockEditorExtensions } from "./editorExtensions";
 import { htmlToMarkdown } from "@/lib/markdown";
+import { clearEditorAppearance, patchEditorAppearance } from "@/lib/editorAppearance";
+
+afterEach(() => {
+  clearEditorAppearance();
+});
 
 function makeEditor(content: string | object = "<p></p>") {
   return new Editor({
@@ -30,6 +35,28 @@ describe("code block wrap and collapse", () => {
     expect(spec?.wrap).toBeTruthy();
     expect(spec?.collapsed).toBeTruthy();
     editor.destroy();
+  });
+
+  it("new fences use the wrap preference; loaded fences keep their attr", () => {
+    patchEditorAppearance({ codeWrap: true });
+    const created = makeEditor("<p></p>");
+    created.chain().focus().setCodeBlock().run();
+    expect(findCodeBlock(created)?.attrs.wrap).toBe(true);
+    created.destroy();
+
+    const loaded = makeEditor({
+      type: "doc",
+      content: [
+        {
+          type: "codeBlock",
+          attrs: { language: "javascript" },
+          content: [{ type: "text", text: "const a = 1;" }],
+        },
+      ],
+    });
+    expect(findCodeBlock(loaded)?.attrs.wrap).toBe(false);
+    expect(findCodeBlock(loaded)?.text).toBe("const a = 1;");
+    loaded.destroy();
   });
 
   it("keeps wrap in JSON after a reload", () => {
