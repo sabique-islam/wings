@@ -17,6 +17,7 @@ import { Highlight } from "@tiptap/extension-highlight";
 import { FontFamily } from "@tiptap/extension-font-family";
 import { Underline } from "@tiptap/extension-underline";
 import { TrailingNode } from "./TrailingNodeExtension";
+import { OutlineBlock } from "./OutlineBlock";
 import { MarkdownInput } from "./MarkdownInputExtension";
 import { FloatingImage } from "./FloatingImageExtension";
 import { createSlashCommandExtension } from "./SlashCommandExtension";
@@ -96,7 +97,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
       types: [
         "paragraph", "heading", "blockquote", "codeBlock", "horizontalRule",
         "bulletList", "orderedList", "taskList", "listItem", "taskItem",
-        "callout", "toggleBlock", "columnList", "column", "bookmark", "embed", "pageEmbed",
+        "callout", "toggleBlock", "outlineBlock", "columnList", "column", "bookmark", "embed", "pageEmbed",
         "blockMath", "excalidraw", "database", "syncedBlock",
       ],
       attributeName: "id",
@@ -113,6 +114,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
       underline: false,
       trailingNode: false,
     }),
+    OutlineBlock,
     CodeBlockExtension,
     Placeholder.configure({
       placeholder: ({ node, editor, pos }) => {

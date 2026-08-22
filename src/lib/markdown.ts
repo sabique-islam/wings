@@ -18,6 +18,8 @@ const CUSTOM_BLOCK_TYPES = new Set([
   "inline-math",
   "database",
   "synced-block",
+  "paragraph",
+  "heading",
 ]);
 
 /** Markdown for one custom block, or null when the node is an ordinary element. */
@@ -109,7 +111,7 @@ marked.setOptions({ gfm: true, breaks: false });
  * first), which is where unknown tags and attributes are actually dropped.
  */
 const CUSTOM_BLOCK_HTML =
-  /^\s*<(?:div|span)\s+data-type="(?:callout|toggle|column-list|column|bookmark|embed|page-embed|excalidraw|block-math|inline-math|database|synced-block)"/;
+  /^\s*<(?:div|span)\b(?=[^>]*\bdata-type="(?:callout|toggle|column-list|column|bookmark|embed|page-embed|excalidraw|block-math|inline-math|database|synced-block|paragraph|heading)")/;
 /** Inline custom markup is tokenized open-tag-first, so its close arrives alone. */
 const BARE_CLOSING_TAG = /^\s*<\/(?:div|span)>\s*$/;
 
