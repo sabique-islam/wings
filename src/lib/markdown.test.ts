@@ -160,6 +160,55 @@ describe("attribute-only blocks survive serialization", () => {
   });
 });
 
+describe("ChatGPT / LaTeX dump markdown", () => {
+  it("renders \\( \\) inline and \\[ \\] display", () => {
+    const html = markdownToHtml("Euler \\(e^{i\\pi}+1=0\\) then \\[a^2+b^2\\]");
+    expect(html).toContain('data-type="inline-math"');
+    expect(html).toContain("e^{i\\pi}+1=0");
+    expect(html).toContain('data-type="block-math"');
+    expect(html).toContain("a^2+b^2");
+  });
+
+  it("renders the ChatGPT integration-by-parts paste as two block formulas", () => {
+    const paste = `If you mean an integration-by-parts equation:
+
+[
+\\boxed{\\int u,dv = uv-\\int v,du}
+]
+
+Example:
+
+[
+\\int x e^x,dx = xe^x-\\int e^x,dx = e^x(x-1)+C
+]
+`;
+    const html = markdownToHtml(paste);
+    const blocks = html.match(/data-type="block-math"/g) ?? [];
+    expect(blocks.length).toBe(2);
+    expect(html).toContain("\\boxed{");
+    expect(html).toContain("\\int u\\,dv");
+    expect(html).toContain("e^x\\,dx");
+    expect(html).not.toContain("&lt;div");
+  });
+
+  it("wraps a bare align environment", () => {
+    const html = markdownToHtml("\\begin{align}\na &= b\n\\end{align}");
+    expect(html).toContain('data-type="block-math"');
+    expect(html).toContain("\\begin{align}");
+  });
+
+  it("round-trips a ChatGPT dump through htmlToMarkdown", () => {
+    const paste = "[\n\\boxed{a^2+b^2}\n]";
+    const html = markdownToHtml(paste);
+    const md = htmlToMarkdown(html);
+    expect(md).toContain("$$");
+    expect(md).toContain("\\boxed");
+    const again = markdownToHtml(md);
+    expect(again).toContain('data-type="block-math"');
+    expect(again).toContain("\\boxed");
+  });
+});
+
 describe("page embed round trip", () => {
   const embedHtml = (attrs: string) => `<div data-type="page-embed" ${attrs}></div>`;
 

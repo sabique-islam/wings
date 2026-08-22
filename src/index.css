@@ -639,7 +639,7 @@
   @apply bg-accent/40;
 }
 .math-render-block {
-  @apply text-base;
+  @apply text-base text-center;
 }
 .math-input {
   @apply w-full bg-background border border-border rounded px-2 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring;
@@ -972,12 +972,15 @@
   overflow-x: auto;
   overflow-y: hidden;
   max-width: 100%;
+  text-align: center;
 }
 .math-block .katex {
-  font-size: 1.05em;
+  font-size: 1.18em;
 }
 .math-block .katex-display > .katex {
   white-space: normal;
+  display: inline-block;
+  text-align: initial;
 }
 
 /* Mobile responsive overrides */

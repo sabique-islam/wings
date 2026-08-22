@@ -14,7 +14,7 @@ import { describe, it, expect } from "vitest";
 import { Editor } from "@tiptap/core";
 import { createBlockEditorExtensions } from "./editorExtensions";
 import { slashCommandSuggestionKey, pageMentionSuggestionKey } from "./suggestionPluginKeys";
-import { htmlToMarkdown } from "@/lib/markdown";
+import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 
 function makeEditor(content = "<p>hello</p>") {
   return new Editor({
@@ -321,5 +321,51 @@ describe("BlockEditor wiring", () => {
     });
     expect(filledParagraphs).toHaveLength(1);
     editor.destroy();
+  });
+
+  it("parses ChatGPT-normalized markdown into blockMath nodes", () => {
+    const paste = `If you mean an integration-by-parts equation:
+
+[
+\\boxed{\\int u,dv = uv-\\int v,du}
+]
+
+Example:
+
+[
+\\int x e^x,dx = xe^x-\\int e^x,dx = e^x(x-1)+C
+]
+`;
+    const editor = makeEditor(markdownToHtml(paste));
+    const math: { latex: string }[] = [];
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "blockMath") math.push({ latex: node.attrs.latex });
+    });
+    expect(math).toHaveLength(2);
+    expect(math[0]?.latex).toContain("\\boxed{");
+    expect(math[0]?.latex).toContain("\\int u\\,dv");
+    expect(math[1]?.latex).toContain("e^x\\,dx");
+    expect(htmlToMarkdown(editor.getHTML())).toContain("$$");
+    editor.destroy();
+  });
+
+  it("loads $x^2$ and \\[a^2\\] as math nodes", () => {
+    const inlineEditor = makeEditor(markdownToHtml("an $x^2$ token"));
+    let inline = 0;
+    inlineEditor.state.doc.descendants((node) => {
+      if (node.type.name === "inlineMath" && node.attrs.latex === "x^2") inline += 1;
+    });
+    expect(inline).toBe(1);
+    inlineEditor.destroy();
+
+    const blockEditor = makeEditor(markdownToHtml("\\[a^2\\]"));
+    let block = 0;
+    blockEditor.state.doc.descendants((node) => {
+      if (node.type.name === "blockMath" && node.attrs.latex === "a^2") block += 1;
+    });
+    expect(block).toBe(1);
+    expect(typeof blockEditor.extensionManager.extensions.find((e) => e.name === "blockMath")?.config.addInputRules).toBe("function");
+    expect(typeof blockEditor.extensionManager.extensions.find((e) => e.name === "inlineMath")?.config.addInputRules).toBe("function");
+    blockEditor.destroy();
   });
 });
