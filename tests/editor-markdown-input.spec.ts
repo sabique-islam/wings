@@ -45,7 +45,8 @@ test.describe("Markdown input on space", () => {
   test("type ***hi*** space becomes bold italic", async ({ page }) => {
     const editor = page.locator(".ProseMirror");
     await page.keyboard.type("***hi*** ");
-    await expect(editor.locator("strong em, em strong, strong")).toContainText("hi");
+    await expect(editor.locator("strong")).toContainText("hi");
+    await expect(editor.locator("em")).toContainText("hi");
     await expect(editor).not.toContainText("***");
   });
 
