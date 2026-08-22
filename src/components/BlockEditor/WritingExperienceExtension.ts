@@ -2,6 +2,7 @@ import { Extension } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { turnInto, type TurnIntoType } from "./blockCommands";
 import { caretPosAfterMerge, findTopLevelDepth } from "./blockUtils";
+import { inlineContentSize, inlineTextOf, isInsideTable, liftCurrentBlock, nestCurrentBlock } from "./outlineNest";
 import { openLinkHref } from "./editorLinkClick";
 import { normalizeCodeLanguage } from "./codeLanguages";
 
@@ -22,12 +23,13 @@ function currentTextBlock(editor: any) {
   const { selection } = editor.state;
   const { $from } = selection;
   if (!selection.empty || !$from.parent?.isTextblock) return null;
+  const inlineSize = inlineContentSize($from.parent);
   return {
     node: $from.parent,
-    text: $from.parent.textContent || "",
+    text: inlineTextOf($from.parent),
     offset: $from.parentOffset,
     from: $from.start(),
-    to: $from.end(),
+    to: $from.start() + inlineSize,
     depth: $from.depth,
     typeName: $from.parent.type.name,
   };
@@ -129,70 +131,12 @@ function mergeEmptyBlockUp(editor: any): boolean {
 }
 
 function nestIntoPreviousSibling(editor: any): boolean {
-  const { state, view } = editor;
-  const { $from } = state.selection;
-  const depth = findTopLevelDepth($from);
-  if (depth < 1) return false;
-
-  const indexInParent = $from.index(depth - 1);
-  if (indexInParent === 0) return false;
-
-  const parent = $from.node(depth - 1);
-  const prev = parent.child(indexInParent - 1);
-  const nestable = new Set(["blockquote", "callout", "toggleBlock"]);
-  if (!nestable.has(prev.type.name)) return false;
-
-  const blockPos = $from.before(depth);
-  const block = $from.node(depth);
-  const insertPos = blockPos - prev.nodeSize + prev.nodeSize - 1;
-
-  const tr = state.tr;
-  tr.delete(blockPos, blockPos + block.nodeSize);
-  const mappedInsert = tr.mapping.map(insertPos);
-  tr.insert(mappedInsert, block);
-  tr.setSelection(TextSelection.near(tr.doc.resolve(mappedInsert + 1)));
-  tr.scrollIntoView();
-  view.dispatch(tr);
-  return true;
+  return nestCurrentBlock(editor);
 }
 
 /** Shift+Tab at block start — lift the current textblock out of a container. */
 function liftOutOfContainer(editor: any): boolean {
-  const { state, view } = editor;
-  const { selection } = state;
-  if (!selection.empty) return false;
-  const { $from } = selection;
-  if ($from.parentOffset !== 0) return false;
-
-  for (let d = $from.depth; d > 0; d--) {
-    const node = $from.node(d);
-    if (node.type.name !== "blockquote" && node.type.name !== "callout" && node.type.name !== "toggleBlock") {
-      continue;
-    }
-
-    const textDepth = $from.depth;
-    const blockPos = $from.before(textDepth);
-    const block = $from.node(textDepth);
-    const containerPos = $from.before(d);
-    const containerEnd = $from.after(d);
-
-    const tr = state.tr;
-    tr.insert(containerEnd, block);
-    tr.delete(blockPos, blockPos + block.nodeSize);
-
-    const mappedContainerPos = tr.mapping.map(containerPos);
-    const containerAfter = tr.doc.nodeAt(mappedContainerPos);
-    if (containerAfter && containerAfter.childCount === 0) {
-      tr.delete(mappedContainerPos, mappedContainerPos + containerAfter.nodeSize);
-    }
-
-    const mappedInsert = tr.mapping.map(containerEnd);
-    const caret = Math.min(mappedInsert + 1, tr.doc.content.size);
-    tr.setSelection(TextSelection.near(tr.doc.resolve(caret)));
-    view.dispatch(tr.scrollIntoView());
-    return true;
-  }
-  return false;
+  return liftCurrentBlock(editor);
 }
 
 /** Notion: Enter in a heading always leaves a paragraph, never another heading. */
@@ -339,6 +283,8 @@ export const WritingExperience = Extension.create({
         mergeEmptyBlockUp(this.editor),
 
       Tab: () => {
+        const { $from } = this.editor.state.selection;
+        if (isInsideTable($from)) return false;
         if (this.editor.can().sinkListItem("listItem")) {
           return this.editor.chain().focus().sinkListItem("listItem").run();
         }
@@ -349,6 +295,8 @@ export const WritingExperience = Extension.create({
         return true;
       },
       "Shift-Tab": () => {
+        const { $from } = this.editor.state.selection;
+        if (isInsideTable($from)) return false;
         if (this.editor.can().liftListItem("listItem")) {
           return this.editor.chain().focus().liftListItem("listItem").run();
         }
