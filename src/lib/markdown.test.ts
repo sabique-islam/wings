@@ -98,6 +98,21 @@ describe("markdown <-> html conversion", () => {
     expect(markdownToHtml(md)).toContain('<div data-type="callout"');
   });
 
+  it("preserves nested outline paragraphs as HTML", () => {
+    const blob = '<div data-type="paragraph">hello<p>world</p></div>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain('data-type="paragraph"');
+    expect(markdownToHtml(md)).toContain('data-type="paragraph"');
+  });
+
+  it("preserves nested outline HTML when UniqueID puts id before data-type", () => {
+    const blob = '<div id="abc" data-type="paragraph">hello<p>world</p></div>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain('data-type="paragraph"');
+    expect(markdownToHtml(md)).toContain('data-type="paragraph"');
+    expect(markdownToHtml(md)).toContain("world");
+  });
+
   it("preserves toggle HTML round-trip", () => {
     const blob = '<div data-type="toggle" data-summary="Fold" data-open="true"><p>hidden</p></div>';
     const md = htmlToMarkdown(blob);

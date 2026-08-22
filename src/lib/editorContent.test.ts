@@ -20,6 +20,46 @@ describe("editorContent", () => {
         content: [{ type: "paragraph", content: [{ type: "text", text: "hi" }] }],
       }),
     ).toBe(false);
+    expect(
+      isEmptyDoc({
+        type: "doc",
+        content: [
+          {
+            type: "outlineBlock",
+            content: [{ type: "paragraph" }, { type: "paragraph" }],
+          },
+        ],
+      }),
+    ).toBe(true);
+    expect(
+      isEmptyDoc({
+        type: "doc",
+        content: [
+          {
+            type: "outlineBlock",
+            content: [
+              { type: "paragraph", content: [{ type: "text", text: "hello" }] },
+              { type: "paragraph", content: [{ type: "text", text: "world" }] },
+            ],
+          },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it("loads nested-outline markdown when content_json is an empty nested paragraph", () => {
+    const markdown = '<div data-type="paragraph">hello<p>world</p></div>';
+    const resolved = resolveInitialEditorContent(markdown, {
+      type: "doc",
+      content: [{ type: "outlineBlock", content: [{ type: "paragraph" }] }],
+    });
+    expect(typeof resolved).toBe("string");
+    expect(resolved).toContain("hello");
+    expect(resolved).toContain("world");
+  });
+
+  it("does not treat nested outline markdown as an empty save", () => {
+    expect(shouldBlockEmptySave("x".repeat(25), '<div data-type="paragraph">hello<p>world</p></div>')).toBe(false);
   });
 
   it("prefers markdown when content_json is an empty doc", () => {

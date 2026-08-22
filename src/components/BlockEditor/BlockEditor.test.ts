@@ -16,6 +16,7 @@ import { createBlockEditorExtensions } from "./editorExtensions";
 import { slashCommandSuggestionKey, pageMentionSuggestionKey } from "./suggestionPluginKeys";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { isEmptyDoc, shouldBlockEmptySave } from "@/lib/editorContent";
+import { liftCurrentBlock } from "./outlineNest";
 
 function makeEditor(content = "<p>hello</p>") {
   return new Editor({
@@ -42,6 +43,18 @@ function listItemTexts(editor: Editor): string[] {
     if (node.type.name === "listItem") texts.push(node.textContent);
   });
   return texts;
+}
+
+function placeCursorInParagraph(editor: Editor, text: string) {
+  let pos: number | null = null;
+  editor.state.doc.descendants((node, nodePos) => {
+    if (node.type.name === "paragraph" && node.textContent === text) {
+      pos = nodePos + 1;
+      return false;
+    }
+  });
+  if (pos == null) throw new Error(`paragraph "${text}" not found`);
+  editor.commands.setTextSelection(pos);
 }
 
 function placeCursorInNthListItem(editor: Editor, index: number) {
@@ -78,6 +91,17 @@ describe("BlockEditor wiring", () => {
     const editor = makeEditor();
     const linkCount = editor.extensionManager.extensions.filter((e) => e.name === "link").length;
     expect(linkCount).toBe(1);
+    editor.destroy();
+  });
+
+  it("registers paragraph, heading, and outlineBlock exactly once", () => {
+    const editor = makeEditor();
+    const names = editor.extensionManager.extensions.map((e) => e.name);
+    expect(names.filter((n) => n === "paragraph")).toHaveLength(1);
+    expect(names.filter((n) => n === "heading")).toHaveLength(1);
+    expect(names.filter((n) => n === "outlineBlock")).toHaveLength(1);
+    expect(editor.schema.nodes.paragraph.spec.content).toBe("inline*");
+    expect(editor.schema.nodes.outlineBlock.spec.content).toBe("block+");
     editor.destroy();
   });
 
@@ -444,5 +468,92 @@ Example:
     expect(typeof blockEditor.extensionManager.extensions.find((e) => e.name === "blockMath")?.config.addInputRules).toBe("function");
     expect(typeof blockEditor.extensionManager.extensions.find((e) => e.name === "inlineMath")?.config.addInputRules).toBe("function");
     blockEditor.destroy();
+  });
+
+  it("Tab nests a paragraph under the previous paragraph", () => {
+    const editor = makeEditor("<p>hello</p><p>world</p>");
+    placeCursorInParagraph(editor, "world");
+    expect(editor.commands.keyboardShortcut("Tab")).toBe(true);
+
+    const top = editor.state.doc.firstChild;
+    expect(top?.type.name).toBe("outlineBlock");
+    expect(top?.childCount).toBe(2);
+    expect(top?.firstChild?.textContent).toBe("hello");
+    expect(top?.lastChild?.textContent).toBe("world");
+    expect(editor.getHTML()).toMatch(/data-type="paragraph"/);
+    editor.destroy();
+  });
+
+  it("Shift-Tab lifts a nested paragraph back to the top level", () => {
+    const editor = makeEditor("<p>hello</p><p>world</p>");
+    placeCursorInParagraph(editor, "world");
+    editor.commands.keyboardShortcut("Tab");
+    // keyboardShortcut() replays mapped steps onto a second transaction and can
+    // drop the unwrap step. Call the lift command the keymap uses.
+    expect(liftCurrentBlock(editor)).toBe(true);
+
+    const types: string[] = [];
+    const texts: string[] = [];
+    editor.state.doc.forEach((child) => {
+      types.push(child.type.name);
+      texts.push(child.textContent);
+    });
+    expect(types).not.toContain("outlineBlock");
+    expect(texts).toContain("hello");
+    expect(texts).toContain("world");
+    editor.destroy();
+  });
+
+  it("Tab on a bullet still nests the list item", () => {
+    const editor = makeEditor("<ul><li><p>alpha</p></li><li><p>beta</p></li></ul>");
+    placeCursorInNthListItem(editor, 1);
+    expect(editor.commands.keyboardShortcut("Tab")).toBe(true);
+
+    const list = editor.state.doc.firstChild;
+    expect(list?.type.name).toBe("bulletList");
+    expect(list?.childCount).toBe(1);
+    let nestedLists = 0;
+    list?.descendants((node) => {
+      if (node.type.name === "bulletList") nestedLists += 1;
+    });
+    expect(nestedLists).toBeGreaterThanOrEqual(1);
+    expect(editor.state.doc.textContent).toContain("beta");
+    editor.destroy();
+  });
+
+  it("Tab inside a table does not nest the table under the previous paragraph", () => {
+    const editor = makeEditor("<p>hello</p>");
+    editor.commands.focus("end");
+    editor.commands.insertTable({ rows: 2, cols: 2, withHeaderRow: true });
+    expect(textblockCount(editor, "table")).toBe(1);
+    editor.commands.keyboardShortcut("Tab");
+
+    let tableInsideParagraph = false;
+    editor.state.doc.descendants((node) => {
+      if (node.type.name !== "paragraph") return;
+      node.forEach((child) => {
+        if (child.type.name === "table") tableInsideParagraph = true;
+      });
+    });
+    expect(tableInsideParagraph).toBe(false);
+    expect(textblockCount(editor, "table")).toBe(1);
+    editor.destroy();
+  });
+
+  it("nested paragraphs survive markdown round-trip", () => {
+    const editor = makeEditor("<p>hello</p><p>world</p>");
+    placeCursorInParagraph(editor, "world");
+    editor.commands.keyboardShortcut("Tab");
+    const markdown = htmlToMarkdown(editor.getHTML());
+    expect(markdown).toContain("data-type=\"paragraph\"");
+    expect(shouldBlockEmptySave("hello world is long enough", markdown)).toBe(false);
+
+    const reloaded = makeEditor(markdownToHtml(markdown));
+    const top = reloaded.state.doc.firstChild;
+    expect(top?.type.name).toBe("outlineBlock");
+    expect(top?.textContent).toContain("hello");
+    expect(top?.textContent).toContain("world");
+    reloaded.destroy();
+    editor.destroy();
   });
 });

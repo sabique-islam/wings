@@ -186,4 +186,68 @@ test.describe("Notion parity keyboard and blocks", () => {
     await expect(editor).toContainText("I can prioritize being right");
     await expect(editor).toContainText("I have low tolerance for sloppy thinking");
   });
+
+  test("Tab nests a paragraph under the previous one", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("hello");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("world");
+    await page.keyboard.press("Tab");
+
+    await expect(editor.locator('[data-type="paragraph"]')).toContainText("hello");
+    await expect(editor.locator('[data-type="paragraph"] > p').filter({ hasText: "world" })).toHaveCount(1);
+  });
+
+  test("Shift-Tab lifts a nested paragraph back to the top level", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("hello");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("world");
+    await page.keyboard.press("Tab");
+    await expect(editor.locator('[data-type="paragraph"] > p').filter({ hasText: "world" })).toHaveCount(1);
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(editor.locator('[data-type="paragraph"]')).toHaveCount(0);
+    await expect(editor.locator("p").filter({ hasText: "world" })).toHaveCount(1);
+  });
+
+  test("Tab on a bullet still nests the list", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("- alpha");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("beta");
+    await page.keyboard.press("Tab");
+
+    await expect(editor.locator("ul ul li")).toContainText("beta");
+  });
+
+  test("Tab in a table does not indent the table", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("hello");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("/table");
+    const tableItem = page.getByRole("button", { name: "Table Add a simple table" });
+    await expect(tableItem).toBeVisible();
+    await tableItem.click();
+    await expect(editor.locator("table")).toHaveCount(1);
+
+    await page.keyboard.press("Tab");
+    await expect(editor.locator("table")).toHaveCount(1);
+    await expect(editor.locator('[data-type="paragraph"] table')).toHaveCount(0);
+  });
+
+  test("nested paragraphs survive reload from markdown", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("hello");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("world");
+    await page.keyboard.press("Tab");
+    await expect(editor.locator('[data-type="paragraph"] > p').filter({ hasText: "world" })).toHaveCount(1);
+
+    await page.locator("body").click({ position: { x: 5, y: 5 } });
+    await expect(page.getByTestId("stored-text")).toContainText("data-type=\"paragraph\"");
+
+    await page.getByTestId("reload-from-markdown").click();
+    await expect(page.locator('.ProseMirror [data-type="paragraph"] > p').filter({ hasText: "world" })).toHaveCount(1);
+  });
 });
