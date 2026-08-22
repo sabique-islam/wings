@@ -59,6 +59,20 @@ function placeCursorInNthListItem(editor: Editor, index: number) {
   editor.commands.setTextSelection(pos);
 }
 
+/** Drive InputRules the same way a keypress does. */
+function typeIn(editor: Editor, text: string) {
+  editor.commands.focus();
+  for (const ch of text) {
+    const { from, to } = editor.state.selection;
+    const handled = editor.view.someProp("handleTextInput", (fn) =>
+      fn(editor.view, from, to, ch, () => editor.state.tr.insertText(ch, from, to)),
+    );
+    if (!handled) {
+      editor.view.dispatch(editor.state.tr.insertText(ch, from, to));
+    }
+  }
+}
+
 describe("BlockEditor wiring", () => {
   it("registers Link exactly once (no StarterKit duplicate)", () => {
     const editor = makeEditor();
@@ -178,6 +192,28 @@ describe("BlockEditor wiring", () => {
     expect(editor.extensionManager.extensions.some((e) => e.name === "bulletList" && typeof e.config.addInputRules === "function")).toBe(true);
     expect(editor.extensionManager.extensions.some((e) => e.name === "bold" && typeof e.config.addInputRules === "function")).toBe(true);
     expect(editor.extensionManager.extensions.some((e) => e.name === "codeBlock" && typeof e.config.addInputRules === "function")).toBe(true);
+    expect(editor.extensionManager.extensions.some((e) => e.name === "markdownInput")).toBe(true);
+    editor.destroy();
+  });
+
+  it("turns [ ] space into a task item", () => {
+    const editor = makeEditor("<p></p>");
+    typeIn(editor, "[ ] ");
+    expect(editor.state.schema.nodes.taskItem).toBeTruthy();
+    let tasks = 0;
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "taskItem") tasks += 1;
+    });
+    expect(tasks).toBe(1);
+    editor.destroy();
+  });
+
+  it("turns a fenced language tag plus space into a code block", () => {
+    const editor = makeEditor("<p></p>");
+    typeIn(editor, "```ts ");
+    const code = editor.state.doc.firstChild;
+    expect(code?.type.name).toBe("codeBlock");
+    expect(code?.attrs.language).toBe("typescript");
     editor.destroy();
   });
 
