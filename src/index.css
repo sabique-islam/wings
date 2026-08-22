@@ -551,11 +551,38 @@
 .code-block-toolbar {
   @apply flex items-center justify-between px-3 py-1.5 bg-secondary/80 border-b border-border/40 text-xs;
 }
-.code-lang-select {
-  @apply bg-transparent border-0 text-xs text-muted-foreground outline-none cursor-pointer;
+.code-lang-trigger {
+  @apply inline-flex items-center gap-1 bg-transparent border-0 text-xs text-muted-foreground outline-none cursor-pointer rounded px-1 py-0.5 hover:bg-accent hover:text-foreground disabled:opacity-50 disabled:pointer-events-none;
 }
+.code-block-toolbar-actions {
+  @apply flex items-center gap-0.5;
+}
+.code-toolbar-btn,
 .code-copy-btn {
-  @apply p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground;
+  @apply p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:pointer-events-none;
+}
+.code-toolbar-btn[aria-pressed="true"] {
+  @apply bg-accent text-foreground;
+}
+.code-block-wrapper[data-wrap="true"] pre,
+.code-block-wrapper[data-wrap="true"] .code-block-content {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
+}
+.code-block-wrapper[data-collapsed="true"] pre {
+  max-height: 4.5em;
+  overflow: hidden;
+}
+.code-mermaid-preview {
+  @apply border-t border-border/40 bg-background px-3 py-3 overflow-x-auto text-xs text-muted-foreground;
+}
+.code-mermaid-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+.code-mermaid-error {
+  @apply text-destructive m-0;
 }
 
 /* Horizontal rule */

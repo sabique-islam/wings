@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from "react";
+import { sanitizeSvg } from "@/lib/sanitizeHtml";
 
 type MermaidApi = {
   initialize: (config: Record<string, unknown>) => void;
@@ -53,9 +54,15 @@ export function CodeBlockMermaidPreview({ source }: { source: string }) {
             initializedTheme = theme;
           }
           const rendered = await mermaid.render(diagramId, trimmed);
+          const clean = sanitizeSvg(rendered.svg);
           if (cancelled) return;
+          if (!clean) {
+            setSvg(null);
+            setError("Could not render diagram");
+            return;
+          }
           setError(null);
-          setSvg(rendered.svg);
+          setSvg(clean);
         } catch (cause) {
           if (cancelled) return;
           setSvg(null);

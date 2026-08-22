@@ -24,3 +24,13 @@ export function sanitizeHtml(dirty: string): string {
   const clean = DOMPurify.sanitize(dirty, BASE_CONFIG) as unknown as string;
   return clean;
 }
+
+const SVG_CONFIG: Config = {
+  USE_PROFILES: { svg: true, svgFilters: true },
+  FORBID_TAGS: ["script", "foreignObject", "iframe", "object", "embed"],
+};
+
+/** Sanitize mermaid (and similar) SVG before mounting it in a code-block preview. */
+export function sanitizeSvg(dirty: string): string {
+  return DOMPurify.sanitize(dirty, SVG_CONFIG) as unknown as string;
+}
