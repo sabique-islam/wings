@@ -15,6 +15,8 @@ import { Color } from "@tiptap/extension-color";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { Highlight } from "@tiptap/extension-highlight";
 import { FontFamily } from "@tiptap/extension-font-family";
+import { Underline } from "@tiptap/extension-underline";
+import { TrailingNode } from "./TrailingNodeExtension";
 import { FloatingImage } from "./FloatingImageExtension";
 import { createSlashCommandExtension } from "./SlashCommandExtension";
 import { Callout } from "./CalloutExtension";
@@ -107,6 +109,8 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
         HTMLAttributes: { class: "editor-hr" },
       },
       link: false,
+      underline: false,
+      trailingNode: false,
     }),
     CodeBlockExtension,
     Placeholder.configure({
@@ -169,7 +173,9 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     TextStyle,
     Color,
     FontFamily,
+    Underline,
     Highlight.configure({ multicolor: true }),
+    TrailingNode,
     TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] }),
     createSlashCommandExtension({
       onImageUpload: () => handlers.onImageUpload?.(),
