@@ -58,7 +58,24 @@ export function getSeedExtensions(): Extensions {
     stubBlock("bookmark"),
     stubBlock("embed"),
     stubBlock("column", "block+"),
-    stubBlock("columnList", "column+"),
+    Node.create({
+      name: "columnList",
+      group: "block",
+      content: "column+",
+      defining: true,
+      addAttributes() {
+        return {
+          cols: { default: 2 },
+          widths: { default: null },
+        };
+      },
+      parseHTML: () => [{ tag: 'div[data-type="column-list"]' }],
+      renderHTML: ({ HTMLAttributes }) => [
+        "div",
+        mergeAttributes({ "data-type": "column-list" }, HTMLAttributes),
+        0,
+      ],
+    }),
     stubBlock("blockMath"),
     stubBlock("excalidrawDrawing"),
     stubBlock("database"),
