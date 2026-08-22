@@ -184,7 +184,7 @@ export function BubbleMenuToolbar({ editor, onSetLink }: Props) {
           to,
           linkActive: ed.isActive("link"),
           pageRefActive: ed.isActive("pageRef"),
-          viewFocused: view.hasFocus() || element.contains(document.activeElement),
+          viewFocused: view.hasFocus() || Boolean(element?.contains(document.activeElement)),
         })
       }
     >
