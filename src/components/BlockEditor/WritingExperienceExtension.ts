@@ -1,7 +1,7 @@
 import { Extension } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
 import { turnInto, moveBlock, duplicateBlock, type TurnIntoType } from "./blockCommands";
-import { caretPosAfterMerge, findTopLevelDepth } from "./blockUtils";
+import { caretPosAfterMerge, findColumnDepth, findTopLevelDepth } from "./blockUtils";
 import { collapsedSiblings } from "./headingFold";
 import { indentCurrentBlock, inlineContentSize, inlineTextOf, isInsideTable, outdentCurrentBlock } from "./outlineNest";
 import { openLinkHref } from "./editorLinkClick";
@@ -110,16 +110,25 @@ function mergeEmptyBlockUp(editor: any): boolean {
   const block = currentTextBlock(editor);
   if (!block || block.text.length !== 0 || block.offset !== 0) return false;
 
-  const depth = findTopLevelDepth($from);
+  // Delete this textblock, not the top-level wrapper. findTopLevelDepth inside
+  // a column is the whole columnList, so Backspace used to wipe the week row.
+  const depth = $from.depth;
   if (depth < 1) return false;
-  const indexInParent = $from.index(depth - 1);
-  if (indexInParent === 0) return false;
-
-  const blockPos = $from.before(depth);
-  const blockNode = $from.node(depth);
-  if (LIST_WRAPPER_TYPES.has(blockNode.type.name)) return false;
 
   const parent = $from.node(depth - 1);
+  const indexInParent = $from.index(depth - 1);
+  if (indexInParent === 0) {
+    if (parent.type.name === "doc") return false;
+    // Isolating columns: stay put. Falling through lets selectNodeBackward
+    // grab the columnList, and the next Backspace deletes every day.
+    if (parent.type.spec?.isolating || parent.type.name === "column") return true;
+    return false;
+  }
+
+  const blockPos = $from.before(depth);
+  const blockNode = $from.parent;
+  if (LIST_WRAPPER_TYPES.has(blockNode.type.name)) return false;
+
   const prev = parent.child(indexInParent - 1);
   const prevPos = blockPos - prev.nodeSize;
 
@@ -256,7 +265,8 @@ export const WritingExperience = Extension.create({
       "Mod-a": () => {
         const { selection, doc } = this.editor.state;
         const { $from } = selection;
-        const depth = findTopLevelDepth($from);
+        const columnDepth = findColumnDepth($from);
+        const depth = columnDepth ?? findTopLevelDepth($from);
         if (depth >= 1) {
           const from = $from.before(depth);
           const to = from + $from.node(depth).nodeSize;

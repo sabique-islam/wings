@@ -35,6 +35,14 @@ export function findTopLevelDepth($from: BlockPos): number {
   return depth;
 }
 
+/** Depth of the enclosing column, when the caret is inside one. */
+export function findColumnDepth($from: BlockPos): number | null {
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === "column") return depth;
+  }
+  return null;
+}
+
 export function getTopLevelBlockPos($from: BlockPos): number | null {
   const depth = findTopLevelDepth($from);
   if (depth < 1) return null;
