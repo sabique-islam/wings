@@ -98,6 +98,28 @@ describe("markdown <-> html conversion", () => {
     expect(markdownToHtml(md)).toContain('<div data-type="callout"');
   });
 
+  it("preserves collapsed heading HTML so fold survives markdown load", () => {
+    const blob = '<h2 data-collapsed="true">Folded</h2>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain('data-collapsed="true"');
+    expect(markdownToHtml(md)).toContain('data-collapsed="true"');
+  });
+
+  it("preserves collapsed heading HTML when UniqueID puts id before data-collapsed", () => {
+    const blob = '<h2 id="abc" data-collapsed="true">Folded</h2>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain('data-collapsed="true"');
+    expect(markdownToHtml(md)).toContain('data-collapsed="true"');
+    expect(markdownToHtml(md)).toContain("Folded");
+  });
+
+  it("keeps folded heading body in markdown so reload cannot drop it", () => {
+    const blob = '<h2 data-collapsed="true">Alpha</h2><p>secret body</p>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain("secret body");
+    expect(md).toContain('data-collapsed="true"');
+  });
+
   it("preserves nested outline paragraphs as HTML", () => {
     const blob = '<div data-type="paragraph">hello<p>world</p></div>';
     const md = htmlToMarkdown(blob);

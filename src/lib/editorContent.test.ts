@@ -62,6 +62,18 @@ describe("editorContent", () => {
     expect(shouldBlockEmptySave("x".repeat(25), '<div data-type="paragraph">hello<p>world</p></div>')).toBe(false);
   });
 
+  it("does not treat folded-heading markdown as an empty save", () => {
+    const markdown = '<h2 data-collapsed="true">Alpha</h2>\n\nsecret body';
+    expect(shouldBlockEmptySave("x".repeat(25), markdown)).toBe(false);
+    expect(isEmptyDoc({
+      type: "doc",
+      content: [
+        { type: "heading", attrs: { level: 2, collapsed: true }, content: [{ type: "text", text: "Alpha" }] },
+        { type: "paragraph", content: [{ type: "text", text: "secret body" }] },
+      ],
+    })).toBe(false);
+  });
+
   it("prefers markdown when content_json is an empty doc", () => {
     const resolved = resolveInitialEditorContent("hello world", { type: "doc", content: [] });
     expect(typeof resolved).toBe("string");

@@ -105,11 +105,13 @@ describe("BlockEditor wiring", () => {
     editor.destroy();
   });
 
-  it("registers underline and trailingNode exactly once", () => {
+  it("registers underline, trailingNode, and headingFold exactly once", () => {
     const editor = makeEditor();
     const names = editor.extensionManager.extensions.map((e) => e.name);
     expect(names.filter((n) => n === "underline")).toHaveLength(1);
     expect(names.filter((n) => n === "trailingNode")).toHaveLength(1);
+    expect(names.filter((n) => n === "headingFold")).toHaveLength(1);
+    expect(editor.schema.nodes.heading.spec.attrs?.collapsed).toBeTruthy();
     editor.destroy();
   });
 
@@ -554,6 +556,18 @@ Example:
     expect(top?.textContent).toContain("hello");
     expect(top?.textContent).toContain("world");
     reloaded.destroy();
+    editor.destroy();
+  });
+
+  it("keeps folded heading siblings in JSON", () => {
+    const editor = makeEditor("<h2>Alpha</h2><p>secret body</p><h2>Beta</h2>");
+    editor.commands.setTextSelection(2);
+    editor.commands.updateAttributes("heading", { collapsed: true });
+    const json = JSON.stringify(editor.getJSON());
+    expect(json).toContain("secret body");
+    expect(json).toContain("Beta");
+    expect(json).toMatch(/"collapsed"\s*:\s*true/);
+    expect(isEmptyDoc(editor.getJSON())).toBe(false);
     editor.destroy();
   });
 });
