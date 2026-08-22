@@ -24,6 +24,10 @@ test.describe("weekly planner", () => {
     await page.getByTestId("template-button").click();
     await expect(editor.locator("h2", { hasText: /Week \d+/ })).toHaveCount(2);
     await expect(editor.locator('[data-type="column-list"]')).toHaveCount(4);
+
+    const firstWeek = editor.locator("h2", { hasText: /Week \d+/ }).first();
+    await firstWeek.locator(".nw-heading-fold").click();
+    await expect(editor.getByText("Sunday", { exact: true }).first()).toBeHidden();
   });
 
   test("slash inserts five columns", async ({ page }) => {
@@ -34,5 +38,25 @@ test.describe("weekly planner", () => {
     await item.click();
     await expect(editor.locator('[data-type="column-list"]')).toHaveCount(1);
     await expect(editor.locator('[data-type="column"]')).toHaveCount(5);
+  });
+
+  test(":: grips resize columns", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("/2c");
+    const item = page.locator(".slash-menu button", { hasText: "Two columns" });
+    await expect(item).toBeVisible();
+    await item.click();
+
+    const list = editor.locator('[data-type="column-list"]').first();
+    await list.hover();
+    const gap = list.locator(".nw-col-gap").first();
+    await expect(gap).toBeVisible();
+    const box = await gap.boundingBox();
+    expect(box).toBeTruthy();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box!.x + box!.width / 2 + 80, box!.y + box!.height / 2, { steps: 8 });
+    await page.mouse.up();
+    await expect(list).toHaveAttribute("data-widths", /,/);
   });
 });

@@ -151,6 +151,15 @@ describe("markdown <-> html conversion", () => {
     expect(markdownToHtml(md)).toContain('data-bg="#f1f1ef"');
   });
 
+  it("preserves column widths so resized planner columns survive markdown load", () => {
+    const blob =
+      '<div data-type="column-list" data-cols="2" data-widths="2,1"><div data-type="column"><p>left</p></div><div data-type="column"><p>right</p></div></div>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain('data-widths="2,1"');
+    expect(markdownToHtml(md)).toContain('data-widths="2,1"');
+    expect(markdownToHtml(md)).toContain("left");
+  });
+
   it("preserves template button HTML round-trip", () => {
     const blob = '<div data-type="template-button" data-label="New week" data-kind="weekly-planner"></div>';
     const md = htmlToMarkdown(blob);
