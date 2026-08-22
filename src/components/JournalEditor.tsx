@@ -151,7 +151,9 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
     if (!entry || !canEdit || !isBlankDraftPage(entry)) return;
     const frame = requestAnimationFrame(() => titleRef.current?.focus());
     return () => cancelAnimationFrame(frame);
-  }, [entry, canEdit]);
+    // Only when opening this page — a later entries refresh must not yank
+    // the caret out of the body back into the title.
+  }, [entry?.id, canEdit]);
 
   const handlePromoteConfirm = useCallback(async () => {
     if (!entry || !onPromoteToCloud) return;
