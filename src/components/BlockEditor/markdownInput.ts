@@ -1,6 +1,6 @@
 import type { InputRuleMatch } from "@tiptap/core";
 import type { EditorState, PluginKey } from "@tiptap/pm/state";
-import { CALLOUT_ICON_OPTIONS } from "@/lib/calloutIcons";
+import { calloutEmojiFromToken } from "@/lib/calloutMarkdown";
 import {
   pageMentionSuggestionKey,
   slashCommandSuggestionKey,
@@ -9,6 +9,8 @@ import {
   wikiLinkSuggestionKey,
 } from "./suggestionPluginKeys";
 
+export { calloutEmojiFromToken };
+
 const SUGGESTION_KEYS: PluginKey[] = [
   slashCommandSuggestionKey,
   pageMentionSuggestionKey,
@@ -16,39 +18,6 @@ const SUGGESTION_KEYS: PluginKey[] = [
   wikiLinkFullwidthSuggestionKey,
   wikiEmbedSuggestionKey,
 ];
-
-const CALLOUT_TOKEN_EMOJI: Record<string, string> = {
-  note: "💬",
-  info: "💡",
-  tip: "💡",
-  hint: "💡",
-  idea: "💡",
-  warning: "⚠️",
-  caution: "⚠️",
-  success: "✅",
-  check: "✅",
-  done: "✅",
-  danger: "❌",
-  error: "❌",
-  failure: "❌",
-  blocked: "❌",
-  important: "🔥",
-  fire: "🔥",
-  pin: "📌",
-  goal: "🎯",
-  star: "⭐",
-  write: "📝",
-  question: "💬",
-  faq: "💬",
-};
-
-/** Map Obsidian/GFM `[!note]` / `[!💡]` to a Wings callout emoji. */
-export function calloutEmojiFromToken(token: string): string {
-  const trimmed = token.trim();
-  if (!trimmed) return "💡";
-  if (CALLOUT_ICON_OPTIONS.some((opt) => opt.emoji === trimmed)) return trimmed;
-  return CALLOUT_TOKEN_EMOJI[trimmed.toLowerCase()] ?? "💡";
-}
 
 export function isMarkdownSuggestionOpen(state: EditorState): boolean {
   return SUGGESTION_KEYS.some((key) => {
@@ -88,9 +57,9 @@ export function isInsideNode(state: EditorState, name: string): boolean {
 }
 
 /**
- * AFFiNE-style: `**word** ` / `***x*** ` — convert on the trailing space,
- * not on the closing delimiter. Inner text may contain spaces but must not
- * start or end with whitespace.
+ * Convert `**word** ` / `***x*** ` on the trailing space, not on the
+ * closing delimiter. Inner text may contain spaces but must not start
+ * or end with whitespace.
  */
 export function matchDelimited(text: string, delim: string): InputRuleMatch | null {
   if (!text.endsWith(" ") || delim.length === 0) return null;

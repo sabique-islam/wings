@@ -10,7 +10,7 @@ import {
 } from "./markdownInput";
 
 /**
- * Convert markdown when the user types space, the way AFFiNE does.
+ * Convert markdown when the user types space.
  *
  * StarterKit already turns `# `, `- `, `1. `, `> `, and closing `**` / `*`
  * into structure. This fills the holes: `[ ] `, fences, 3+ HR, `***`,

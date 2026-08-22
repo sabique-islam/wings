@@ -1,19 +1,22 @@
 import { Extension } from "@tiptap/core";
 import { NodeSelection, Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+import { dropPlacement } from "./blockDrop";
+import { nestBlockUnder } from "./outlineNest";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BlockHandle — Notion-style gutter (Domternal / Notion parity patterns).
 //
 // • Hover bridge: gutter zone + handle container keep handles visible while
 //   moving from block text → +/grip buttons (hideDelay 250ms).
-// • Grip: click → block menu, drag → reorder with drop line indicator.
+// • Grip: click → block menu, drag → reorder; right-half drop nests.
 // • + : insert below and open slash menu (Alt+click inserts above).
 // ─────────────────────────────────────────────────────────────────────────────
 
 const key = new PluginKey("blockHandle");
 
 const GUTTER_PX = 52;
+const NEST_INDENT_PX = 28;
 const HIDE_DELAY_MS = 250;
 const AUTO_SCROLL_EDGE = 48;
 const AUTO_SCROLL_MAX = 16;
@@ -51,19 +54,13 @@ function findTopLevelBlockAt(view: EditorView, clientX: number, clientY: number)
   return { pos, node, dom };
 }
 
-function findDropPos(view: EditorView, clientY: number): number | null {
-  const editorRoot = view.dom.closest(".block-editor-wrapper") as HTMLElement | null;
-  const rootRect = editorRoot?.getBoundingClientRect();
-  const probeX = rootRect ? rootRect.left + GUTTER_PX + 16 : view.dom.getBoundingClientRect().left + 16;
-  const hit = findTopLevelBlockAt(view, probeX, clientY);
-  if (!hit) {
-    const end = view.state.doc.content.size;
-    return end;
-  }
-  const blockRect = hit.dom.getBoundingClientRect();
-  const mid = blockRect.top + blockRect.height / 2;
-  if (clientY < mid) return hit.pos;
-  return hit.pos + hit.node.nodeSize;
+function probeXForY(view: EditorView, editorRoot: HTMLElement | null): number {
+  const rootRect = editorRoot?.getBoundingClientRect() ?? view.dom.getBoundingClientRect();
+  return rootRect.left + GUTTER_PX + 16;
+}
+
+function hitAtPoint(view: EditorView, editorRoot: HTMLElement | null, clientX: number, clientY: number): BlockHit | null {
+  return findTopLevelBlockAt(view, clientX, clientY) ?? findTopLevelBlockAt(view, probeXForY(view, editorRoot), clientY);
 }
 
 function createHandleDom(): HandleState {
@@ -119,9 +116,33 @@ export const BlockHandle = Extension.create({
   name: "blockHandle",
 
   addProseMirrorPlugins() {
+    const editor = this.editor;
+    let dragFromPos: number | null = null;
+
     return [
       new Plugin({
         key,
+        props: {
+          handleDrop(view, event) {
+            if (dragFromPos == null) return false;
+            if (event.dataTransfer?.files?.length) return false;
+            const editorRoot =
+              (view.dom.closest(".block-editor-wrapper") as HTMLElement | null) ??
+              (view.dom.parentElement as HTMLElement | null);
+            const hit = hitAtPoint(view, editorRoot, event.clientX, event.clientY);
+            if (!hit) return false;
+            const placement = dropPlacement(hit.dom.getBoundingClientRect(), {
+              x: event.clientX,
+              y: event.clientY,
+            });
+            if (placement !== "nest") return false;
+            const fromPos = dragFromPos;
+            if (!nestBlockUnder(editor, fromPos, hit.pos)) return false;
+            event.preventDefault();
+            (view as { dragging: unknown }).dragging = null;
+            return true;
+          },
+        },
         view(view) {
           const editorRoot =
             (view.dom.closest(".block-editor-wrapper") as HTMLElement | null) ??
@@ -270,15 +291,34 @@ export const BlockHandle = Extension.create({
             openBlockMenu(e);
           };
 
-          const positionDropLine = (clientY: number) => {
-            const dropPos = findDropPos(view, clientY);
-            if (dropPos == null) return;
-            const coords = view.coordsAtPos(Math.min(dropPos, view.state.doc.content.size));
+          const positionDropLine = (clientX: number, clientY: number) => {
+            const hit = hitAtPoint(view, editorRoot, clientX, clientY);
             const rootRect = editorRoot.getBoundingClientRect();
             state.dropLine.style.display = "block";
-            state.dropLine.style.top = `${coords.top - rootRect.top - 1}px`;
+            if (!hit) {
+              state.dropLine.classList.remove("is-nest");
+              const coords = view.coordsAtPos(view.state.doc.content.size);
+              state.dropLine.style.top = `${coords.top - rootRect.top - 1}px`;
+              state.dropLine.style.left = `${GUTTER_PX}px`;
+              state.dropLine.style.right = "0";
+              return;
+            }
+            const rect = hit.dom.getBoundingClientRect();
+            const placement = dropPlacement(rect, { x: clientX, y: clientY });
+            if (placement === "nest") {
+              state.dropLine.classList.add("is-nest");
+              state.dropLine.style.top = `${rect.bottom - rootRect.top - 1}px`;
+              state.dropLine.style.left = `${GUTTER_PX + NEST_INDENT_PX}px`;
+              state.dropLine.style.right = "8px";
+              return;
+            }
+            state.dropLine.classList.remove("is-nest");
             state.dropLine.style.left = `${GUTTER_PX}px`;
             state.dropLine.style.right = "0";
+            state.dropLine.style.top =
+              placement === "before"
+                ? `${rect.top - rootRect.top - 1}px`
+                : `${rect.bottom - rootRect.top - 1}px`;
           };
 
           const stopAutoScroll = () => {
@@ -314,6 +354,7 @@ export const BlockHandle = Extension.create({
             duplicateOnDrop = e.altKey;
             dragging = true;
             didDrag = true;
+            dragFromPos = state.targetPos;
             show();
             const slice = view.state.doc.slice(state.targetPos, state.targetPos + node.nodeSize);
             const tr = view.state.tr.setSelection(NodeSelection.create(view.state.doc, state.targetPos));
@@ -330,6 +371,7 @@ export const BlockHandle = Extension.create({
 
           const onDragEnd = () => {
             dragging = false;
+            dragFromPos = null;
             if (duplicateOnDrop && state.targetPos != null) {
               const node = view.state.doc.nodeAt(state.targetPos);
               if (node) {
@@ -339,8 +381,9 @@ export const BlockHandle = Extension.create({
               }
             }
             duplicateOnDrop = false;
-            (view as any).dragging = null;
+            (view as { dragging: unknown }).dragging = null;
             state.dropLine.style.display = "none";
+            state.dropLine.classList.remove("is-nest");
             stopAutoScroll();
             setTimeout(() => {
               didDrag = false;
@@ -352,7 +395,7 @@ export const BlockHandle = Extension.create({
             if (!(view as any).dragging) return;
             e.preventDefault();
             if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-            positionDropLine(e.clientY);
+            positionDropLine(e.clientX, e.clientY);
             startAutoScroll(e.clientY);
           };
 
