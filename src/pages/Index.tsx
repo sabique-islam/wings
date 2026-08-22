@@ -2,9 +2,17 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchEntries, syncWorkspaceEntries, updateEntry, updateEntryTitle, moveEntry, saveEntryOrder, deleteEntry, togglePin, getBreadcrumbTrail, Entry, getEntryTitle, findReusableBlankDraft, ShareRole } from "@/lib/journal";
+import type { CollectionInfo } from "@/lib/collections";
+import {
+  addPagesToCollection,
+  createCollection,
+  deleteCollection,
+  fetchCollections,
+  updateCollection,
+} from "@/lib/collectionStore";
 import { reorderSiblings, type DropPlacement } from "@/lib/pageOrder";
 import { saveDraft, saveDraftThrottled, getDraft, clearDraft, queuePendingWrite, getPendingWrites, clearPendingWrite, hydrateDraftCache } from "@/lib/draftCache";
-import { readCachedEntries, readWorkspaceMeta, mergeCachedEntries, putCachedEntry, putWorkspaceMeta } from "@/lib/localStore";
+import { readCachedEntries, readWorkspaceMeta, mergeCachedEntries, putCachedEntry, putWorkspaceMeta, readCachedCollections } from "@/lib/localStore";
 import { forgetLinkIndex, hydrateLinkIndex, reindexEntries, scheduleLinkIndex } from "@/lib/linkIndex";
 import { mirrorEntryToVault } from "@/lib/vault/write";
 import { appendMarkdown, payloadFromMarkdown } from "@/lib/entryContent";
@@ -36,6 +44,9 @@ import { JournalSidebar } from "@/components/JournalSidebar";
 import { JournalEditor } from "@/components/JournalEditor";
 import { QuickSwitcher } from "@/components/QuickSwitcher";
 import { CommandPalette } from "@/components/CommandPalette";
+import { CollectionEditorDialog } from "@/components/CollectionEditorDialog";
+import { CollectionView } from "@/components/CollectionView";
+import { TrashView } from "@/components/TrashView";
 import { KeyboardPalette } from "@/components/KeyboardPalette";
 import { GraphView } from "@/components/GraphView";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -104,9 +115,16 @@ export default function Index() {
   const userId = user?.id;
   const navigate = useNavigate();
   const location = useLocation();
-  const { id: routeId, username } = useParams<{ id?: string; username?: string }>();
+  const { id: routeId, username, collectionId } = useParams<{
+    id?: string;
+    username?: string;
+    collectionId?: string;
+  }>();
   const basePath = username ? `/${username}` : location.pathname.startsWith("/app") ? "/app" : "";
+  const isTrashRoute = location.pathname === `${basePath}/trash` || location.pathname === "/trash";
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [collections, setCollections] = useState<CollectionInfo[]>([]);
+  const [collectionDraft, setCollectionDraft] = useState<CollectionInfo | null>(null);
   const [roleMap, setRoleMap] = useState<Record<string, ShareRole>>({});
   const [activeId, setActiveIdRaw] = useState<string | null>(routeId ?? null);
   const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== "undefined" ? window.innerWidth >= 768 : true);
@@ -131,9 +149,9 @@ export default function Index() {
     }
   }, [sidebarCollapsed]);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const titleDebounceRef = useRef<ReturnType<typeof setTimeout>>();
-  const savedFlashRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const titleDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const savedFlashRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const creatingRef = useRef(false);
   const pendingPayloadRef = useRef<EditorChangePayload | null>(null);
   const [sharedEntryIds, setSharedEntryIds] = useState<Set<string>>(() => new Set());
@@ -157,9 +175,23 @@ export default function Index() {
     navigate(id ? `${basePath}/n/${id}` : basePath || "/app");
   }, [navigate, basePath]);
 
+  const openTrash = useCallback(() => {
+    setActiveIdRaw(null);
+    navigate(`${basePath}/trash`);
+  }, [navigate, basePath]);
+
+  const openCollection = useCallback((id: string) => {
+    setActiveIdRaw(null);
+    navigate(`${basePath}/c/${id}`);
+  }, [navigate, basePath]);
+
   useEffect(() => {
+    if (isTrashRoute || collectionId) {
+      setActiveIdRaw(null);
+      return;
+    }
     setActiveIdRaw(routeId ?? null);
-  }, [routeId]);
+  }, [routeId, collectionId, isTrashRoute]);
 
   useEffect(() => {
     if (!userId) return;
@@ -243,6 +275,12 @@ export default function Index() {
     reindexEntries(hydrated);
   }, [userId]);
 
+  const loadCollections = useCallback(async () => {
+    if (!userId) return;
+    const next = await fetchCollections(userId);
+    setCollections(next);
+  }, [userId]);
+
   // Paint from the IndexedDB mirror before the network answers, then reconcile.
   // Share state comes from the same snapshot so the editor knows whether to
   // mount collaboratively without waiting on Supabase.
@@ -251,11 +289,13 @@ export default function Index() {
     let cancelled = false;
     void (async () => {
       await Promise.all([hydrateDraftCache(), hydrateLinkIndex()]);
-      const [cached, meta] = await Promise.all([
+      const [cached, meta, cachedCollections] = await Promise.all([
         readCachedEntries(userId),
         readWorkspaceMeta(userId),
+        readCachedCollections(userId),
       ]);
       if (cancelled) return;
+      if (cachedCollections.length > 0) setCollections(cachedCollections);
       if (cached.length > 0 && meta) {
         setEntries(cached.map((e) => applyDraftToEntry(e, getDraft(e.id))));
         setRoleMap(meta.roleMap);
@@ -264,6 +304,7 @@ export default function Index() {
       }
       try {
         await loadEntries();
+        await loadCollections();
       } catch (err) {
         console.error("Failed to fetch entries:", err);
         toast.error("Couldn't load pages", { description: entryErrorMessage(err) });
@@ -277,7 +318,7 @@ export default function Index() {
     return () => {
       cancelled = true;
     };
-  }, [userId, loadEntries]);
+  }, [userId, loadEntries, loadCollections]);
 
   // Refresh the mirror off the typing path so the next open is instant.
   useEffect(() => {
@@ -327,10 +368,11 @@ export default function Index() {
   // Redirect when URL points to a missing/deleted page
   useEffect(() => {
     if (!serverSynced || !activeId) return;
+    if (isTrashRoute || collectionId) return;
     if (activeEntry) return;
     setActiveIdRaw(null);
     navigate(basePath || "/app", { replace: true });
-  }, [serverSynced, activeId, activeEntry, basePath, navigate]);
+  }, [serverSynced, activeId, activeEntry, basePath, navigate, isTrashRoute, collectionId]);
 
   const addCreatedEntry = useCallback((entry: Entry, ownerId: string) => {
     setEntries((prev) => [entry, ...prev]);
@@ -852,12 +894,12 @@ export default function Index() {
       collect(id);
       removed.forEach(forgetLinkIndex);
       setEntries((prev) => prev.filter((e) => !removed.has(e.id)));
-      setActiveId(null);
+      if (activeId && removed.has(activeId)) setActiveId(null);
     } catch (err) {
       console.error("Failed to delete page:", err);
       toast.error("Couldn't delete page", { description: entryErrorMessage(err) });
     }
-  }, [setActiveId]);
+  }, [activeId, setActiveId]);
 
   const handleTogglePin = useCallback(async (id: string, pinned: boolean) => {
     try {
@@ -868,6 +910,56 @@ export default function Index() {
       toast.error("Couldn't update pin", { description: entryErrorMessage(err) });
     }
   }, []);
+
+  const handleSaveCollection = useCallback(async (info: CollectionInfo) => {
+    if (!userId) return;
+    try {
+      const saved = info.id
+        ? await updateCollection(userId, info.id, {
+            name: info.name,
+            rules: info.rules,
+            allowList: info.allowList,
+          })
+        : await createCollection(userId, {
+            name: info.name,
+            rules: info.rules,
+            allowList: info.allowList,
+          });
+      setCollections((prev) => {
+        if (prev.some((row) => row.id === saved.id)) {
+          return prev.map((row) => (row.id === saved.id ? saved : row));
+        }
+        return [...prev, saved];
+      });
+      setCollectionDraft(null);
+      if (!info.id) openCollection(saved.id);
+    } catch (err) {
+      toast.error("Couldn't save collection", { description: entryErrorMessage(err) });
+    }
+  }, [userId, openCollection]);
+
+  const handleDeleteCollection = useCallback(async (id: string) => {
+    if (!userId) return;
+    try {
+      await deleteCollection(userId, id);
+      setCollections((prev) => prev.filter((row) => row.id !== id));
+      if (collectionId === id) navigate(basePath || "/app");
+    } catch (err) {
+      toast.error("Couldn't delete collection", { description: entryErrorMessage(err) });
+    }
+  }, [userId, collectionId, navigate, basePath]);
+
+  const handleAddToCollection = useCallback(async (id: string, entryId: string) => {
+    if (!userId) return;
+    const current = collections.find((row) => row.id === id);
+    if (!current) return;
+    try {
+      const saved = await addPagesToCollection(userId, current, [entryId]);
+      setCollections((prev) => prev.map((row) => (row.id === saved.id ? saved : row)));
+    } catch (err) {
+      toast.error("Couldn't add to collection", { description: entryErrorMessage(err) });
+    }
+  }, [userId, collections]);
 
   const handleUpdateEntry = useCallback((updated: Entry) => {
     setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
@@ -949,8 +1041,23 @@ export default function Index() {
 
   const openAI = useCallback(() => setAiOpen(true), []);
 
-  const tabTitle = activeEntry ? getEntryTitle(activeEntry) : "workspace";
-  const tabPath = activeId ? `${basePath}/n/${activeId}` : basePath || "/app";
+  const tabTitle = isTrashRoute
+    ? "trash"
+    : collectionId
+      ? (collections.find((row) => row.id === collectionId)?.name || "collection")
+      : activeEntry
+        ? getEntryTitle(activeEntry)
+        : "workspace";
+  const tabPath = isTrashRoute
+    ? `${basePath}/trash`
+    : collectionId
+      ? `${basePath}/c/${collectionId}`
+      : activeId
+        ? `${basePath}/n/${activeId}`
+        : basePath || "/app";
+  const activeCollection = collectionId
+    ? collections.find((row) => row.id === collectionId) ?? null
+    : null;
 
   if (loading) {
     return <LoadingScreen variant="gyro" />;
@@ -977,7 +1084,35 @@ export default function Index() {
         onMove={handleMovePage}
         onDelete={handleDelete}
         onTogglePin={handleTogglePin}
+        collections={collections}
+        activeCollectionId={collectionId ?? null}
+        trashActive={isTrashRoute}
+        overviewActive={!activeId && !collectionId && !isTrashRoute}
+        onOpenTrash={openTrash}
+        onOpenCollection={openCollection}
+        onCreateCollection={() => setCollectionDraft({ id: "", name: "", rules: { filters: [] }, allowList: [] })}
+        onEditCollection={(id) => {
+          const current = collections.find((row) => row.id === id);
+          if (current) setCollectionDraft(current);
+        }}
+        onDeleteCollection={handleDeleteCollection}
+        onAddToCollection={handleAddToCollection}
       />
+      {isTrashRoute ? (
+        <TrashView
+          userId={user?.id || ""}
+          onToggleSidebar={toggleSidebar}
+          onRestored={() => void loadEntries({ refreshShares: true })}
+        />
+      ) : activeCollection ? (
+        <CollectionView
+          collection={activeCollection}
+          entries={entries}
+          onToggleSidebar={toggleSidebar}
+          onSelect={setActiveId}
+          onEdit={() => setCollectionDraft(activeCollection)}
+        />
+      ) : (
       <JournalEditor
         entry={activeEntry}
         allEntries={entries}
@@ -1003,6 +1138,7 @@ export default function Index() {
         saveStatus={saveStatus}
         collabEnabled={collabEnabled}
       />
+      )}
       <QuickSwitcher
         entries={entries}
         userId={userId}
@@ -1013,7 +1149,10 @@ export default function Index() {
       />
       <CommandPalette
         entries={entries}
+        collections={collections}
         onSelect={setActiveId}
+        onSelectCollection={openCollection}
+        onOpenTrash={openTrash}
         onNew={handleNew}
         onToggleSidebar={toggleSidebar}
       />
@@ -1027,6 +1166,13 @@ export default function Index() {
         allEntries={entries}
         onCreateEntry={handleEntryCreated}
         onNavigate={setActiveId}
+      />
+      <CollectionEditorDialog
+        open={collectionDraft != null}
+        draft={collectionDraft}
+        entries={entries}
+        onOpenChange={(open) => { if (!open) setCollectionDraft(null); }}
+        onSave={(info) => void handleSaveCollection(info)}
       />
       <StorageChoiceDialog
         open={storageDialogOpen}

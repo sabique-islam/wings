@@ -86,6 +86,36 @@ export type Database = {
           },
         ]
       }
+      collections: {
+        Row: {
+          allow_list: string[]
+          created_at: string
+          id: string
+          name: string
+          rules: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allow_list?: string[]
+          created_at?: string
+          id?: string
+          name: string
+          rules?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allow_list?: string[]
+          created_at?: string
+          id?: string
+          name?: string
+          rules?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       entry_comments: {
         Row: {
           author_id: string
