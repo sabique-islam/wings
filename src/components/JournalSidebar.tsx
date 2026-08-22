@@ -8,12 +8,13 @@ import {
   ChevronRight,
   Settings,
   Trash2,
-  RotateCcw,
-  Loader2,
   LayoutGrid,
+  LayoutList,
   MoreHorizontal,
   PinOff,
   Lock,
+  Folder,
+  FolderOpen,
 } from "@/lib/icons";
 import {
   Sidebar,
@@ -38,15 +39,22 @@ import {
   getRootEntries,
   groupByMonth,
   getPinnedEntries,
-  fetchTrash,
-  restoreEntry,
-  permanentlyDeleteEntry,
 } from "@/lib/journal";
+import { matchCollection, type CollectionInfo } from "@/lib/collections";
 import { isLocalEntry } from "@/lib/localContent";
 import { isDescendantOf, type DropPlacement } from "@/lib/pageOrder";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const EASE = "cubic-bezier(0.165,0.85,0.45,1)";
 const DURATION = 300;
@@ -70,6 +78,16 @@ interface Props {
   onMove?: (draggedId: string, parentId: string | null) => void;
   onDelete?: (id: string) => void;
   onTogglePin?: (id: string, pinned: boolean) => void;
+  collections?: CollectionInfo[];
+  activeCollectionId?: string | null;
+  trashActive?: boolean;
+  overviewActive?: boolean;
+  onOpenTrash?: () => void;
+  onOpenCollection?: (id: string) => void;
+  onCreateCollection?: () => void;
+  onEditCollection?: (id: string) => void;
+  onDeleteCollection?: (id: string) => void;
+  onAddToCollection?: (collectionId: string, entryId: string) => void;
 }
 
 type DropZone = DropPlacement | "inside";
@@ -82,6 +100,11 @@ type NavItem = {
   shortcut?: string;
   onClick: () => void;
   active?: boolean;
+  droppable?: boolean;
+  dropActive?: boolean;
+  onDragOver?: (event: React.DragEvent<HTMLButtonElement>) => void;
+  onDragLeave?: () => void;
+  onDrop?: (event: React.DragEvent<HTMLButtonElement>) => void;
 };
 
 function dropZoneAt(event: React.DragEvent<HTMLElement>): DropZone {
@@ -109,6 +132,16 @@ export const JournalSidebar = memo(function JournalSidebar({
   onMove,
   onDelete,
   onTogglePin,
+  collections = [],
+  activeCollectionId = null,
+  trashActive = false,
+  overviewActive = false,
+  onOpenTrash,
+  onOpenCollection,
+  onCreateCollection,
+  onEditCollection,
+  onDeleteCollection,
+  onAddToCollection,
 }: Props) {
   const isMobile = useIsMobile();
   const railCollapsed = !isMobile && collapsed;
@@ -118,9 +151,8 @@ export const JournalSidebar = memo(function JournalSidebar({
   const [search, setSearch] = useState("");
   const [searching, setSearching] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [trashOpen, setTrashOpen] = useState(false);
-  const [trash, setTrash] = useState<Entry[]>([]);
-  const [trashLoading, setTrashLoading] = useState(false);
+  const [pendingTrashId, setPendingTrashId] = useState<string | null>(null);
+  const [trashDropActive, setTrashDropActive] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const isShared = useCallback(
@@ -137,49 +169,9 @@ export const JournalSidebar = memo(function JournalSidebar({
     if (searching && searchRef.current) searchRef.current.focus();
   }, [searching]);
 
-  useEffect(() => {
-    const handler = () => {
-      if (railCollapsed) onCollapsedChange(false);
-      setSearching(true);
-      searchRef.current?.focus();
-    };
-    window.addEventListener("nw:search", handler);
-    return () => window.removeEventListener("nw:search", handler);
-  }, [railCollapsed, onCollapsedChange]);
-
-  const loadTrash = useCallback(() => {
-    if (!userId) return;
-    setTrashLoading(true);
-    fetchTrash(userId)
-      .then(setTrash)
-      .catch(() => setTrash([]))
-      .finally(() => setTrashLoading(false));
-  }, [userId]);
-
-  const toggleTrash = () => {
-    const next = !trashOpen;
-    setTrashOpen(next);
-    if (next) loadTrash();
-  };
-
-  const handleRestore = async (id: string) => {
-    try {
-      await restoreEntry(id);
-      setTrash((t) => t.filter((e) => e.id !== id));
-      onRefetch();
-    } catch (err) {
-      toast.error("Couldn't restore page", { description: (err as Error).message });
-    }
-  };
-
-  const handlePurge = async (id: string) => {
-    try {
-      await permanentlyDeleteEntry(id);
-      setTrash((t) => t.filter((e) => e.id !== id));
-    } catch (err) {
-      toast.error("Couldn't delete page", { description: (err as Error).message });
-    }
-  };
+  const pendingTrash = pendingTrashId
+    ? allEntries.find((entry) => entry.id === pendingTrashId) ?? null
+    : null;
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
@@ -192,8 +184,7 @@ export const JournalSidebar = memo(function JournalSidebar({
 
   const openSearch = () => {
     if (railCollapsed) onCollapsedChange(false);
-    setSearching(true);
-    requestAnimationFrame(() => searchRef.current?.focus());
+    window.dispatchEvent(new CustomEvent("nw:search"));
   };
 
   const navItems: NavItem[] = [
@@ -204,14 +195,30 @@ export const JournalSidebar = memo(function JournalSidebar({
       label: "Overview",
       icon: <LayoutGrid className="h-4 w-4" />,
       onClick: () => onHome?.(),
-      active: activeId == null,
+      active: overviewActive,
     },
     {
       id: "trash",
       label: "Trash",
       icon: <Trash2 className="h-4 w-4" />,
-      onClick: toggleTrash,
-      active: trashOpen,
+      onClick: () => onOpenTrash?.(),
+      active: trashActive || trashDropActive,
+      droppable: true,
+      dropActive: trashDropActive,
+      onDragOver: (event) => {
+        if (!dragging) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setTrashDropActive(true);
+      },
+      onDragLeave: () => setTrashDropActive(false),
+      onDrop: (event) => {
+        event.preventDefault();
+        setTrashDropActive(false);
+        if (dragging) setPendingTrashId(dragging);
+        setDragging(null);
+        setDropTarget(null);
+      },
     },
     {
       id: "settings",
@@ -300,6 +307,8 @@ export const JournalSidebar = memo(function JournalSidebar({
             active={isActive}
             pinned={entry.pinned}
             isLocal={isLocalEntry(entry)}
+            hasChildren={hasChildren}
+            expanded={isExpanded}
             canManage={canManage}
             onClick={() => onSelect(entry.id)}
             onTogglePin={canManage ? () => onTogglePin?.(entry.id, !entry.pinned) : undefined}
