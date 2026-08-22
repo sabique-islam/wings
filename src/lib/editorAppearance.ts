@@ -89,6 +89,14 @@ export function resetEditorAppearanceMemory(): void {
   memory = null;
 }
 
+export function clearEditorAppearance(): void {
+  memory = null;
+  if (typeof localStorage !== "undefined") {
+    localStorage.removeItem(EDITOR_APPEARANCE_KEY);
+  }
+  applyEditorAppearanceCss(DEFAULT_EDITOR_APPEARANCE);
+}
+
 /** New fences only. Existing blocks keep their wrap attr. */
 export function defaultCodeWrap(): boolean {
   return loadEditorAppearance().codeWrap;
@@ -102,4 +110,8 @@ export function applyEditorAppearanceCss(settings: EditorAppearance): void {
   root.dataset.editorFont = settings.fontFamily;
   root.dataset.editorFullWidth = settings.fullWidth ? "true" : "false";
   root.dataset.editorCodeWrap = settings.codeWrap ? "true" : "false";
+}
+
+if (typeof document !== "undefined") {
+  applyEditorAppearanceCss(loadEditorAppearance());
 }

@@ -5,6 +5,8 @@ import {
   type IconProps,
 } from "@/lib/icons";
 import { useTheme } from "./ThemeProvider";
+import { useEditorAppearance } from "./EditorAppearanceProvider";
+import { EDITOR_FONT_STACKS, type EditorFontFamily } from "@/lib/editorAppearance";
 import { Slider } from "@/components/ui/slider";
 import { SURFACE_SHIFT_MAX, SURFACE_SHIFT_MIN } from "@/lib/themeSurfaceShift";
 import { supabase } from "@/integrations/supabase/client";
@@ -64,6 +66,102 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputCls =
   "w-full bg-background border border-border rounded px-3 py-1.5 text-sm text-foreground placeholder:text-ink-3 focus:outline-none focus:ring-1 focus:ring-ring font-mono";
+
+function appearanceOptionClass(active: boolean) {
+  return cn(
+    "flex-1 flex items-center justify-center px-3 py-2 rounded border text-xs font-mono transition-colors",
+    active ? "border-accent-strong bg-accent-soft text-accent-strong" : "border-border-subtle text-ink-2 hover:bg-accent/50",
+  );
+}
+
+function EditorAppearanceFields() {
+  const { appearance, patch } = useEditorAppearance();
+  const fonts: Array<{ id: EditorFontFamily; label: string }> = [
+    { id: "sans", label: "sans" },
+    { id: "serif", label: "serif" },
+    { id: "mono", label: "mono" },
+  ];
+
+  return (
+    <>
+      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-ink-2 pt-1">editor</p>
+      <Field label="font">
+        <div className="flex gap-2">
+          {fonts.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              data-testid={`editor-font-${id}`}
+              style={{ fontFamily: EDITOR_FONT_STACKS[id] }}
+              onClick={() => patch({ fontFamily: id })}
+              className={appearanceOptionClass(appearance.fontFamily === id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Field label="size">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-mono text-ink-3 w-8 shrink-0">12</span>
+            <Slider
+              min={12}
+              max={24}
+              step={1}
+              value={[appearance.fontSize]}
+              onValueChange={([next]) => patch({ fontSize: next ?? appearance.fontSize })}
+              className="flex-1"
+              data-testid="editor-font-size"
+            />
+            <span className="text-[10px] font-mono text-ink-3 w-8 shrink-0 text-right">24</span>
+          </div>
+          <span className="text-[10px] font-mono text-ink-2 tabular-nums">{appearance.fontSize}px</span>
+        </div>
+      </Field>
+      <Field label="page width">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            data-testid="editor-width-standard"
+            onClick={() => patch({ fullWidth: false })}
+            className={appearanceOptionClass(!appearance.fullWidth)}
+          >
+            standard
+          </button>
+          <button
+            type="button"
+            data-testid="editor-width-full"
+            onClick={() => patch({ fullWidth: true })}
+            className={appearanceOptionClass(appearance.fullWidth)}
+          >
+            full
+          </button>
+        </div>
+      </Field>
+      <Field label="code wrap">
+        <div className="flex gap-2">
+          <button
+            type="button"
+            data-testid="editor-code-wrap-off"
+            onClick={() => patch({ codeWrap: false })}
+            className={appearanceOptionClass(!appearance.codeWrap)}
+          >
+            off
+          </button>
+          <button
+            type="button"
+            data-testid="editor-code-wrap-on"
+            onClick={() => patch({ codeWrap: true })}
+            className={appearanceOptionClass(appearance.codeWrap)}
+          >
+            new fences
+          </button>
+        </div>
+      </Field>
+    </>
+  );
+}
 
 function SurfaceBrightnessField({
   label,
@@ -479,6 +577,8 @@ export function SettingsPanel() {
                     </label>
                   </div>
                 </Field>
+
+                <EditorAppearanceFields />
 
                 {/* Live preview */}
                 <Field label="preview">

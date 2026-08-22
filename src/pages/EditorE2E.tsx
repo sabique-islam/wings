@@ -3,6 +3,7 @@ import { BlockEditor } from "@/components/BlockEditor/BlockEditor";
 import { PagePeekHost } from "@/components/PagePeekHost";
 import { htmlToMarkdown } from "@/lib/markdown";
 import { requestEditorSerialize, type EditorChangePayload } from "@/lib/editorPayload";
+import { patchEditorAppearance } from "@/lib/editorAppearance";
 
 const ENTRY_ID = "e2e-harness";
 
@@ -75,6 +76,15 @@ export default function EditorE2E() {
       </div>
       <button type="button" data-testid="reload-from-markdown" onClick={() => setMount((m) => m + 1)}>
         reload from markdown
+      </button>
+      <button type="button" data-testid="appearance-serif" onClick={() => patchEditorAppearance({ fontFamily: "serif" })}>
+        serif
+      </button>
+      <button type="button" data-testid="appearance-size-20" onClick={() => patchEditorAppearance({ fontSize: 20 })}>
+        size 20
+      </button>
+      <button type="button" data-testid="appearance-code-wrap" onClick={() => patchEditorAppearance({ codeWrap: true })}>
+        wrap new fences
       </button>
       <button
         type="button"

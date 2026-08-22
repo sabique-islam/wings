@@ -193,6 +193,10 @@ export const CodeBlockExtension = CodeBlockLowlight.extend({
         (attributes) =>
         ({ commands }) =>
           commands.setNode(this.name, { wrap: defaultCodeWrap(), ...attributes }),
+      toggleCodeBlock:
+        (attributes) =>
+        ({ commands }) =>
+          commands.toggleNode(this.name, "paragraph", { wrap: defaultCodeWrap(), ...attributes }),
     };
   },
 

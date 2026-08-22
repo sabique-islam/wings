@@ -24,6 +24,8 @@ import { uploadImage } from "@/lib/imageUpload";
 import { InlineAIMenu } from "@/components/InlineAIMenu";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { PagePeekHost } from "@/components/PagePeekHost";
+import { useEditorAppearance } from "@/components/EditorAppearanceProvider";
+import { pageEditorWidthClass } from "@/lib/editorAppearance";
 import { rememberDrawingSnapshot } from "@/lib/ai/excalidrawContext";
 import { countWords, countWordsInDoc, readingTime } from "@/lib/documentStats";
 import { Check, CloudOff } from "@/lib/icons";
@@ -68,6 +70,7 @@ function canEditRole(role: ShareRole): boolean {
 
 export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, onChange, onTitleChange, onDelete, onTogglePin, sidebarOpen, onToggleSidebar, breadcrumbTrail, onNavigate, onNewSubpage, onUpdateEntry, userRole, onNewSubpageWithTitle, onRestoreVersion, onOpenAI, onImported, onNew, onPromoteToCloud, saveStatus = "idle", collabEnabled = false }: Props) {
   const { user } = useAuth();
+  const { appearance } = useEditorAppearance();
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleImport = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -431,7 +434,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
           )
         ) : (
           <div className="page-editor-viewport">
-          <div className="page-editor-body w-full max-w-[708px] mx-auto px-6 md:px-10 pt-6">
+          <div className={`page-editor-body w-full ${pageEditorWidthClass(appearance.fullWidth)} mx-auto px-6 md:px-10 pt-6`}>
             <textarea
               ref={titleRef}
               key={`title-${entry.id}`}

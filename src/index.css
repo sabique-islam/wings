@@ -498,10 +498,12 @@
 
 /* Lists — match body size (Notion) */
 .block-editor-content ul {
-  @apply list-disc pl-6 text-base;
+  @apply list-disc pl-6;
+  font-size: 1em;
 }
 .block-editor-content ol {
-  @apply list-decimal pl-6 text-base;
+  @apply list-decimal pl-6;
+  font-size: 1em;
 }
 .block-editor-content li {
   @apply mb-0.5;
@@ -700,7 +702,8 @@
 
 /* Callout — Notion soft */
 .callout-block {
-  @apply flex items-start gap-3 rounded-md p-3 my-1 text-base;
+  @apply flex items-start gap-3 rounded-md p-3 my-1;
+  font-size: 1em;
   background: rgba(135, 131, 120, 0.15);
 }
 .callout-emoji {
@@ -721,7 +724,8 @@
   @apply p-0.5 mt-0.5 rounded hover:bg-accent/50 bg-transparent border-0 cursor-pointer text-muted-foreground shrink-0;
 }
 .toggle-summary {
-  @apply flex-1 text-base font-medium outline-none cursor-text;
+  @apply flex-1 font-medium outline-none cursor-text;
+  font-size: 1em;
 }
 .toggle-content {
   @apply pl-6 pt-1;
@@ -949,6 +953,7 @@
 }
 @media (min-width: 1600px) {
   .block-editor-wrapper { max-width: 708px; }
+  .page-editor-body.max-w-none .block-editor-wrapper { max-width: none; }
 }
 .block-editor-content h1 {
   @apply text-[1.875rem] font-semibold tracking-tight text-foreground mb-1;
@@ -969,7 +974,8 @@
   @apply text-xl font-semibold text-foreground mt-4 mb-1;
 }
 .block-editor-content p {
-  @apply text-foreground/90 text-base;
+  @apply text-foreground/90;
+  font-size: 1em;
 }
 .block-editor-content blockquote {
   @apply border-l-[3px] pl-4 my-1;
@@ -1180,7 +1186,6 @@
     max-width: 100% !important;
   }
   .block-editor-content {
-    font-size: 14px;
     line-height: 1.7;
     letter-spacing: 0;
   }
@@ -1253,7 +1258,6 @@
     padding-left: 0.625rem !important;
     margin-left: 0 !important;
   }
-  .block-editor-content { font-size: 13.5px; }
 }
 
 
@@ -1363,6 +1367,9 @@
 
 .page-editor-body {
   overflow: visible;
+}
+.page-editor-body.max-w-none .block-editor-wrapper {
+  max-width: none;
 }
 
 .page-editor-blank {
