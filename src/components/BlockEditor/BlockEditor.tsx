@@ -18,6 +18,12 @@ import { applyEditorLinkAction, resolveEditorLinkAction } from "./editorLinkClic
 import { fetchLinkPreview } from "@/lib/linkPreview";
 import type { EditorChangePayload, FullEditorChangePayload } from "@/lib/editorPayload";
 import { resolveInitialEditorContent, shouldSyncEditorFromProps } from "@/lib/editorContent";
+import {
+  pageLinkClickAction,
+  requestPagePeek,
+  shouldEmitEditorChange,
+  shouldHostEditorGlobals,
+} from "@/lib/pagePeek";
 import { expandFoldedHeadingsOverPos, findBlockPosById } from "./headingFold";
 import { createCollabExtensions } from "@/lib/collab/collabExtensions";
 import type { CollabSession } from "@/lib/collab/useCollabProvider";
@@ -38,7 +44,7 @@ interface Props {
   entryId: string;
   content: string;
   contentJson?: JSONContent | null;
-  onChange: (payload: EditorChangePayload) => void;
+  onChange?: (payload: EditorChangePayload) => void;
   onImageUpload?: (file?: File) => void;
   onLinkPage?: () => void;
   onEmbedPage?: () => void;
@@ -48,6 +54,8 @@ interface Props {
   getPagePreview?: (pageId: string) => PagePreview | null;
   editable?: boolean;
   collabSession?: CollabSession | null;
+  /** Read-only overlay. Must not claim window globals or emit into the save pipeline. */
+  peek?: boolean;
 }
 
 function resolveInitialContent(
@@ -92,9 +100,15 @@ export const BlockEditor = memo(function BlockEditor({
   getPagePreview,
   editable = true,
   collabSession = null,
+  peek = false,
 }: Props) {
+  const isPeek = Boolean(peek);
+  const canEdit = isPeek ? false : editable;
+  const liveCollab = isPeek ? null : collabSession;
   const pagesRef = useRef(pages);
   pagesRef.current = pages;
+  const peekRef = useRef(isPeek);
+  peekRef.current = isPeek;
   /** Recovers the page id for `![[Title]]` embeds authored outside the editor. */
   const resolvePageIdByTitle = useCallback((title: string) => {
     const wanted = title.trim().toLowerCase();
@@ -127,27 +141,28 @@ export const BlockEditor = memo(function BlockEditor({
 
   const extraExtensions = useMemo(
     () =>
-      collabSession
-        ? createCollabExtensions(collabSession.ydoc, collabSession.provider, collabSession.user)
+      liveCollab
+        ? createCollabExtensions(liveCollab.ydoc, liveCollab.provider, liveCollab.user)
         : [],
-    [collabSession],
+    [liveCollab],
   );
 
   const extensions = useMemo(
     () =>
       createBlockEditorExtensions({
-        onImageUpload,
-        onLinkPage,
-        onEmbedPage,
-        onNewPage,
-        onAskAI,
+        onImageUpload: isPeek ? undefined : onImageUpload,
+        onLinkPage: isPeek ? undefined : onLinkPage,
+        onEmbedPage: isPeek ? undefined : onEmbedPage,
+        onNewPage: isPeek ? undefined : onNewPage,
+        onAskAI: isPeek ? undefined : onAskAI,
         getPages: pages.length > 0 ? () => pagesRef.current : undefined,
         getPagePreview: (pageId) => getPagePreviewRef.current?.(pageId) ?? null,
-        collab: !!collabSession,
+        collab: !!liveCollab,
         extraExtensions,
       }),
     [
-      collabSession,
+      isPeek,
+      liveCollab,
       extraExtensions,
       onAskAI,
       onImageUpload,
@@ -178,37 +193,43 @@ export const BlockEditor = memo(function BlockEditor({
     lastEmittedMarkdown.current = markdown;
     lastEmittedJson.current = json;
     markdownVersion.current = localVersion.current;
-    (window as any).__nw_currentMarkdown = markdown;
+    if (shouldHostEditorGlobals(peekRef.current)) {
+      (window as any).__nw_currentMarkdown = markdown;
+    }
     return { markdown, json };
   }, []);
 
   const emitFull = useCallback((editor: MountedEditor) => {
-    onChangeRef.current(serializeFull(editor));
+    if (!shouldEmitEditorChange(peekRef.current)) return;
+    onChangeRef.current?.(serializeFull(editor));
   }, [serializeFull]);
 
   /** Typing path — JSON only, so keystrokes never wait on markdown rendering. */
   const scheduleJsonEmit = useCallback((editor: MountedEditor) => {
+    if (!shouldEmitEditorChange(peekRef.current)) return;
     if (serializeTimer.current) clearTimeout(serializeTimer.current);
     serializeTimer.current = setTimeout(() => {
+      if (!shouldEmitEditorChange(peekRef.current)) return;
       const json = editor.getJSON();
       lastEmittedJson.current = json;
       // Typing updates JSON ahead of markdown (`serializeFull` is deferred).
       // Invalidate the markdown cache so the next full serialize re-renders HTML.
       markdownVersion.current = -1;
-      onChangeRef.current({ json });
+      onChangeRef.current?.({ json });
     }, SERIALIZE_DEBOUNCE_MS);
   }, []);
 
   const editor = useEditor({
     extensions,
     content: resolvedContent,
-    editable,
+    editable: canEdit,
     shouldRerenderOnTransaction: false,
     editorProps: {
       attributes: {
         class: "block-editor-content focus:outline-none",
       },
       handleDrop: (view, event) => {
+        if (isPeek) return true;
         const files = event.dataTransfer?.files;
         if (files?.length) {
           const imageFiles = Array.from(files).filter((f) => f.type.startsWith("image/"));
@@ -221,6 +242,7 @@ export const BlockEditor = memo(function BlockEditor({
         return false;
       },
       handlePaste: (view, event) => {
+        if (isPeek) return true;
         const items = Array.from(event.clipboardData?.items || []);
         const imageItems = items.filter((item) => item.type.startsWith("image/"));
         if (imageItems.length) {
@@ -318,14 +340,15 @@ export const BlockEditor = memo(function BlockEditor({
       },
     },
     onUpdate: ({ editor: ed, transaction }) => {
-      if (!transaction.docChanged) return;
+      if (isPeek || !transaction.docChanged) return;
       localVersion.current += 1;
       scheduleJsonEmit(ed);
     },
     onBlur: ({ editor: ed }) => {
+      if (isPeek) return;
       emitFull(ed);
     },
-  }, [collabSession, entryId]);
+  }, [liveCollab, entryId]);
 
   useEffect(() => {
     if (loadedEntryId.current === entryId) return;
@@ -340,8 +363,8 @@ export const BlockEditor = memo(function BlockEditor({
   }, [entryId, content, contentJson, editor, resolvedContent]);
 
   useEffect(() => {
-    if (editor && editor.isEditable !== editable) editor.setEditable(editable);
-  }, [editable, editor]);
+    if (editor && editor.isEditable !== canEdit) editor.setEditable(canEdit);
+  }, [canEdit, editor]);
 
   const pageTitleKey = pages.map((page) => `${page.id}:${page.title}`).join("|");
   useEffect(() => {
@@ -349,7 +372,7 @@ export const BlockEditor = memo(function BlockEditor({
   }, [pageTitleKey]);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || isPeek) return;
     const openFind = () => editor.commands.findOpen({ seedFromSelection: true });
     const onKey = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
@@ -363,11 +386,11 @@ export const BlockEditor = memo(function BlockEditor({
       window.removeEventListener("nw:find", openFind);
       window.removeEventListener("keydown", onKey, true);
     };
-  }, [editor]);
+  }, [editor, isPeek]);
 
   /** Resolve a `#block=<id>` permalink once the document has rendered. */
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || isPeek) return;
     const blockId = window.location.hash.startsWith("#block=")
       ? window.location.hash.slice("#block=".length)
       : "";
@@ -382,10 +405,10 @@ export const BlockEditor = memo(function BlockEditor({
       setTimeout(() => target.classList.remove("nw-block-flash"), 1600);
     }, 150);
     return () => clearTimeout(timer);
-  }, [editor, entryId]);
+  }, [editor, entryId, isPeek]);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || isPeek) return;
     if (editor.isFocused) return;
     // External entry state changed (fetch, draft merge, version restore).
     // See `shouldSyncEditorFromProps` — markdown alone is not enough while typing
@@ -409,7 +432,7 @@ export const BlockEditor = memo(function BlockEditor({
     // unchanged and can no longer vouch for the cached markdown.
     markdownVersion.current = -1;
     acceptedVersion.current = localVersion.current;
-  }, [content, contentJson, editor, resolvePageIdByTitle]);
+  }, [content, contentJson, editor, resolvePageIdByTitle, isPeek]);
 
   const setLink = useCallback(async () => {
     if (!editor) return;
@@ -429,7 +452,7 @@ export const BlockEditor = memo(function BlockEditor({
   }, [editor]);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || isPeek) return;
     const copy = (kind: "markdown" | "plaintext" | "page") => {
       const ok =
         kind === "plaintext"
@@ -481,7 +504,7 @@ export const BlockEditor = memo(function BlockEditor({
       window.removeEventListener("nw:copy-plaintext", onCopyPlaintext);
       window.removeEventListener("nw:copy-page-markdown", onCopyPage);
     };
-  }, [editor, setLink]);
+  }, [editor, setLink, isPeek]);
 
   const insertImage = useCallback((url: string) => {
     if (!editor) return;
@@ -491,6 +514,11 @@ export const BlockEditor = memo(function BlockEditor({
   useEffect(() => {
     if (!editor) return;
     editorRef.current = editor;
+    if (!shouldHostEditorGlobals(isPeek)) {
+      return () => {
+        editorRef.current = null;
+      };
+    }
     (window as any).__nw_insertImage = insertImage;
     (window as any).__nw_editor = editor;
     (window as any).__nw_getMarkdown = () => htmlToMarkdown(editor.getHTML());
@@ -544,14 +572,15 @@ export const BlockEditor = memo(function BlockEditor({
         emitFull(editor);
       }
     };
-  }, [insertImage, editor, serializeFull, emitFull, onNewPage, entryId]);
+  }, [insertImage, editor, serializeFull, emitFull, onNewPage, entryId, isPeek]);
 
   if (!editor) return null;
 
   return (
     <div
       className="block-editor-wrapper w-full min-w-0"
-      data-keyboard-toolbar={showKeyboardToolbar && editable ? "true" : undefined}
+      data-peek={isPeek ? "true" : undefined}
+      data-keyboard-toolbar={showKeyboardToolbar && canEdit ? "true" : undefined}
       onClickCapture={(e) => {
         // Capture so ProseMirror / node views cannot swallow the click before we open.
         const anchor = (e.target as HTMLElement).closest("a");
@@ -561,13 +590,20 @@ export const BlockEditor = memo(function BlockEditor({
         const href = anchor.getAttribute("href");
         const action = resolveEditorLinkAction({
           href,
-          editable,
+          editable: canEdit,
           modKey: e.metaKey || e.ctrlKey,
           middleClick: false,
         });
         if (action.type === "ignore") return;
         e.preventDefault();
         e.stopPropagation();
+        if (
+          action.type === "navigatePage" &&
+          pageLinkClickAction({ peekEditor: isPeek, shiftKey: e.shiftKey }) === "peek"
+        ) {
+          requestPagePeek(action.pageId);
+          return;
+        }
         applyEditorLinkAction(action);
       }}
       onAuxClickCapture={(e) => {
@@ -578,21 +614,25 @@ export const BlockEditor = memo(function BlockEditor({
         const href = anchor.getAttribute("href");
         const action = resolveEditorLinkAction({
           href,
-          editable,
+          editable: canEdit,
           modKey: false,
           middleClick: true,
         });
         if (action.type === "ignore") return;
         e.preventDefault();
         e.stopPropagation();
+        if (action.type === "navigatePage" && isPeek) {
+          requestPagePeek(action.pageId);
+          return;
+        }
         applyEditorLinkAction(action);
       }}
     >
-      <EditorPopoverInput />
-      <BlockMenu editor={editor} />
-      <BlockActionMenu editor={editor} />
-      {editable && <BlockContextMenu editor={editor} />}
-      {editor && editable && (
+      {!isPeek && <EditorPopoverInput />}
+      {!isPeek && <BlockMenu editor={editor} />}
+      {!isPeek && <BlockActionMenu editor={editor} />}
+      {canEdit && <BlockContextMenu editor={editor} />}
+      {editor && canEdit && (
         <>
           {showKeyboardToolbar ? (
             <MobileKeyboardToolbar editor={editor} onSetLink={setLink} />
@@ -602,7 +642,7 @@ export const BlockEditor = memo(function BlockEditor({
           <TableMenu editor={editor} />
         </>
       )}
-      <FindReplaceBar editor={editor} editable={editable} />
+      {!isPeek && <FindReplaceBar editor={editor} editable={canEdit} />}
       <EditorContent editor={editor} className="w-full min-w-0" />
     </div>
   );

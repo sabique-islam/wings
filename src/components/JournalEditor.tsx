@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { uploadImage } from "@/lib/imageUpload";
 import { InlineAIMenu } from "@/components/InlineAIMenu";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
+import { PagePeekHost } from "@/components/PagePeekHost";
 import { rememberDrawingSnapshot } from "@/lib/ai/excalidrawContext";
 import { countWords, countWordsInDoc, readingTime } from "@/lib/documentStats";
 import { Check, CloudOff } from "@/lib/icons";
@@ -540,6 +541,12 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
           }}
         />
       )}
+      <PagePeekHost
+        entries={allEntries}
+        pages={pages}
+        getPagePreview={getPagePreview}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }

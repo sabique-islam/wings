@@ -85,7 +85,10 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
           createWikiEmbedExtension(resolvePages, createPage),
         ]
       : [];
-  const pageRefExtension = createPageRefExtension(resolvePages);
+  const pageRefExtension = createPageRefExtension(
+    resolvePages,
+    (pageId) => handlers.getPagePreview?.(pageId) ?? null,
+  );
   const findReplaceExtension = createFindReplaceExtension(resolvePages);
   const pageEmbedExtension = createPageEmbedExtension(
     (pageId) => handlers.getPagePreview?.(pageId) ?? null,

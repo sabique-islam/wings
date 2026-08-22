@@ -2,7 +2,10 @@ import { useSyncExternalStore } from "react";
 import { Node, mergeAttributes } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { PAGE_HREF_PREFIX } from "@/lib/linkExtraction";
+import { requestPagePeek } from "@/lib/pagePeek";
+import type { PagePreview } from "./PageEmbedExtension";
 import {
   PAGE_REF_NODE,
   displayTitleForPage,
@@ -42,27 +45,71 @@ declare module "@tiptap/core" {
 function PageRefView({
   node,
   getPages,
-}: NodeViewProps & { getPages: () => Array<{ id: string; title: string }> }) {
+  getPagePreview,
+}: NodeViewProps & {
+  getPages: () => Array<{ id: string; title: string }>;
+  getPagePreview?: (pageId: string) => PagePreview | null;
+}) {
   useSyncExternalStore(subscribePageRefs, readPageRefRevision, readPageRefRevision);
   const pageId = String(node.attrs.pageId ?? "");
   const { title, missing } = displayTitleForPage(pageId, getPages());
+  const preview = pageId ? getPagePreview?.(pageId) ?? null : null;
+  const previewTitle = preview?.title || title;
+  const previewBody = preview?.preview?.trim() ?? "";
 
   return (
     <NodeViewWrapper as="span" className="page-ref-wrap">
-      <a
-        href={pageRefHref(pageId)}
-        className={`editor-link page-link page-ref${missing ? " page-ref-missing" : ""}`}
-        data-type="page-ref"
-        data-page-id={pageId}
-        contentEditable={false}
-      >
-        {title}
-      </a>
+      <HoverCard openDelay={280} closeDelay={160}>
+        <HoverCardTrigger asChild>
+          <a
+            href={pageRefHref(pageId)}
+            className={`editor-link page-link page-ref${missing ? " page-ref-missing" : ""}`}
+            data-type="page-ref"
+            data-page-id={pageId}
+            contentEditable={false}
+          >
+            {title}
+          </a>
+        </HoverCardTrigger>
+        <HoverCardContent
+          className="page-ref-preview z-[80] w-72 p-3"
+          data-testid="page-ref-preview"
+          sideOffset={8}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <p className="truncate text-sm font-medium">{previewTitle}</p>
+          {missing ? (
+            <p className="mt-1 text-xs text-muted-foreground">Page not found</p>
+          ) : previewBody ? (
+            <p className="mt-1 line-clamp-4 text-xs text-muted-foreground">{previewBody}</p>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">No preview</p>
+          )}
+          {!missing && pageId ? (
+            <button
+              type="button"
+              className="page-ref-peek mt-2 text-xs font-medium text-foreground underline-offset-2 hover:underline"
+              data-testid="page-ref-peek"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                requestPagePeek(pageId);
+              }}
+            >
+              Peek
+            </button>
+          ) : null}
+        </HoverCardContent>
+      </HoverCard>
     </NodeViewWrapper>
   );
 }
 
-export function createPageRefExtension(getPages: () => Array<{ id: string; title: string }>) {
+export function createPageRefExtension(
+  getPages: () => Array<{ id: string; title: string }>,
+  getPagePreview?: (pageId: string) => PagePreview | null,
+) {
   return Node.create({
     name: PAGE_REF_NODE,
     group: "inline",
@@ -72,7 +119,7 @@ export function createPageRefExtension(getPages: () => Array<{ id: string; title
     draggable: false,
 
     addOptions() {
-      return { getPages };
+      return { getPages, getPagePreview };
     },
 
     addAttributes() {
@@ -120,7 +167,10 @@ export function createPageRefExtension(getPages: () => Array<{ id: string; title
 
     addNodeView() {
       const resolvePages = getPages;
-      return ReactNodeViewRenderer((props) => <PageRefView {...props} getPages={resolvePages} />);
+      const resolvePreview = getPagePreview;
+      return ReactNodeViewRenderer((props) => (
+        <PageRefView {...props} getPages={resolvePages} getPagePreview={resolvePreview} />
+      ));
     },
 
     addCommands() {

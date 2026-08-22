@@ -8,7 +8,7 @@ import { getTopLevelBlockPos, type BlockPos } from "./blockUtils";
 import { normalizeExternalHref, openLinkHref } from "./editorLinkClick";
 import { displayTitleForPage, PAGE_REF_NODE, pageRefHref } from "./pageRef";
 
-export type LinkToolbarAction = "open" | "copy" | "edit" | "unlink" | "bookmark" | "embed";
+export type LinkToolbarAction = "open" | "peek" | "copy" | "edit" | "unlink" | "bookmark" | "embed";
 
 export type ActiveLinkTarget =
   | { kind: "page"; href: string; pageId: string }
@@ -52,7 +52,7 @@ export function activeLinkTarget(editor: Editor): ActiveLinkTarget | null {
 
 export function linkToolbarActions(target: ActiveLinkTarget | null): LinkToolbarAction[] {
   if (!target) return [];
-  if (target.kind === "page") return ["open", "copy", "unlink"];
+  if (target.kind === "page") return ["open", "peek", "copy", "unlink"];
   if (!target.safeHref) return ["edit", "unlink"];
   const actions: LinkToolbarAction[] = ["open", "copy", "edit", "unlink"];
   if (isSafeHttpUrl(target.safeHref)) actions.push("bookmark");

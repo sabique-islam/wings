@@ -4,8 +4,9 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import {
   Bold, Italic, Strikethrough, Underline, Code, Link as LinkIcon, Sparkles,
   AlignLeft, AlignCenter, AlignRight, Type, ExternalLink, Copy, Pencil, Link2Off,
-  Globe, Monitor,
+  Globe, Monitor, Eye,
 } from "@/lib/icons";
+import { requestPagePeek } from "@/lib/pagePeek";
 import { toast } from "sonner";
 import { TurnIntoDropdown, ColorDropdown } from "./ColorMenu";
 import {
@@ -74,6 +75,7 @@ function LinkActions({
   const preview = hrefPreview(target);
   const run = (action: LinkToolbarAction) => {
     if (action === "open") openActiveLink(editor);
+    else if (action === "peek" && target.kind === "page") requestPagePeek(target.pageId);
     else if (action === "copy") copyLinkHref(target);
     else if (action === "edit") onSetLink();
     else if (action === "unlink") unlinkActiveLink(editor);
@@ -91,6 +93,11 @@ function LinkActions({
       {actions.has("open") ? (
         <button type="button" className="bubble-btn" title="Open" aria-label="Open" onClick={() => run("open")}>
           <ExternalLink className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+      {actions.has("peek") ? (
+        <button type="button" className="bubble-btn" title="Peek" aria-label="Peek" onClick={() => run("peek")}>
+          <Eye className="h-3.5 w-3.5" />
         </button>
       ) : null}
       {actions.has("copy") ? (
