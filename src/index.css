@@ -616,6 +616,18 @@
   text-decoration-style: dashed;
 }
 
+.page-ref-peek {
+  @apply text-xs font-medium;
+}
+
+.page-peek-modal .block-editor-wrapper {
+  pointer-events: auto;
+}
+
+.page-peek-modal .ProseMirror {
+  min-height: 8rem;
+}
+
 /* Images */
 .block-editor-content .editor-image,
 .block-editor-content img {

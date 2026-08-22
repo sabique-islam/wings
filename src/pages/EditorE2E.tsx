@@ -1,5 +1,6 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { BlockEditor } from "@/components/BlockEditor/BlockEditor";
+import { PagePeekHost } from "@/components/PagePeekHost";
 import { htmlToMarkdown } from "@/lib/markdown";
 import { requestEditorSerialize, type EditorChangePayload } from "@/lib/editorPayload";
 
@@ -28,6 +29,18 @@ export default function EditorE2E() {
   const [pages, setPages] = useState(INITIAL_PAGES);
   /** Bumped to remount the editor from markdown alone, as a cold load would. */
   const [mount, setMount] = useState(0);
+  const [peekNavigated, setPeekNavigated] = useState("");
+
+  const peekEntries = useMemo(
+    () =>
+      pages.map((page) => ({
+        id: page.id,
+        title: page.title,
+        content: PREVIEWS[page.id]?.preview ?? "",
+        content_json: null,
+      })),
+    [pages],
+  );
 
   const handleChange = useCallback((payload: EditorChangePayload) => {
     // Mirror the app's save path: typing emits JSON, markdown comes from a
@@ -52,6 +65,12 @@ export default function EditorE2E() {
           pages={pages}
           getPagePreview={getE2EPagePreview}
           onNewPage={setRequestedPage}
+        />
+        <PagePeekHost
+          entries={peekEntries}
+          pages={pages}
+          getPagePreview={getE2EPagePreview}
+          onNavigate={setPeekNavigated}
         />
       </div>
       <button type="button" data-testid="reload-from-markdown" onClick={() => setMount((m) => m + 1)}>
@@ -79,6 +98,7 @@ export default function EditorE2E() {
         <pre data-testid="markdown-preview">{preview}</pre>
         <pre data-testid="ai-request-text">{aiText}</pre>
         <pre data-testid="requested-page">{requestedPage}</pre>
+        <pre data-testid="peek-navigated">{peekNavigated}</pre>
       </section>
     </main>
   );
