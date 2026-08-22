@@ -1,7 +1,14 @@
 import type { Editor } from "@tiptap/core";
-import { markdownToHtml } from "@/lib/markdown";
+import { DOMSerializer } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
+import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { isAllowedEmbedUrl, isSafeHttpUrl } from "@/lib/safeUrl";
-import { getTopLevelBlockPos, type BlockPos } from "./blockUtils";
+import {
+  deleteBlocksAtPositions,
+  findTopLevelDepth,
+  getTopLevelBlockPos,
+  type BlockPos,
+} from "./blockUtils";
 
 export interface BookmarkMeta {
   title?: string;
@@ -231,6 +238,103 @@ export function insertEmbed(editor: Editor, url: string): boolean {
 
 export function insertTemplateMarkdown(editor: Editor, markdown: string): void {
   editor.chain().focus().insertContent(markdownToHtml(markdown)).run();
+}
+
+/** Move the current top-level block one slot among its siblings. */
+export function moveBlock(editor: Editor, direction: "up" | "down"): boolean {
+  const { state, view } = editor;
+  const { $from } = state.selection;
+  const depth = findTopLevelDepth($from as BlockPos);
+  if (depth < 1) return false;
+
+  const parent = $from.node(depth - 1);
+  const indexInParent = $from.index(depth - 1);
+  const targetIndex = direction === "up" ? indexInParent - 1 : indexInParent + 1;
+  if (targetIndex < 0 || targetIndex >= parent.childCount) return false;
+
+  const blockPos = $from.before(depth);
+  const block = parent.child(indexInParent);
+  const sibling = parent.child(targetIndex);
+
+  const tr = state.tr;
+  if (direction === "up") {
+    const siblingPos = blockPos - sibling.nodeSize;
+    tr.delete(blockPos, blockPos + block.nodeSize);
+    tr.insert(siblingPos, block);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(siblingPos + 1)));
+  } else {
+    const afterSiblingPos = blockPos + block.nodeSize + sibling.nodeSize;
+    tr.insert(afterSiblingPos, block);
+    tr.delete(blockPos, blockPos + block.nodeSize);
+    const finalPos = blockPos + sibling.nodeSize;
+    tr.setSelection(TextSelection.near(tr.doc.resolve(finalPos + 1)));
+  }
+  tr.scrollIntoView();
+  view.dispatch(tr);
+  return true;
+}
+
+/** Insert a copy of the current top-level block immediately after it. */
+export function duplicateBlock(editor: Editor): boolean {
+  const { state, view } = editor;
+  const { $from } = state.selection;
+  const depth = findTopLevelDepth($from as BlockPos);
+  if (depth < 1) return false;
+
+  const blockPos = $from.before(depth);
+  const block = $from.node(depth);
+  const insertPos = blockPos + block.nodeSize;
+
+  const tr = state.tr.insert(insertPos, block.copy(block.content));
+  tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)));
+  tr.scrollIntoView();
+  view.dispatch(tr);
+  return true;
+}
+
+/** Delete the current top-level block. TrailingNode keeps a last paragraph. */
+export function deleteCurrentBlock(editor: Editor): boolean {
+  const pos = getTopLevelBlockPos(editor.state.selection.$from as BlockPos);
+  if (pos == null) return false;
+  return deleteBlocksAtPositions(editor, [pos]);
+}
+
+/** Copy the current top-level block as markdown (and HTML when the clipboard allows). */
+export function copyCurrentBlock(editor: Editor): boolean {
+  const pos = getTopLevelBlockPos(editor.state.selection.$from as BlockPos);
+  if (pos == null) return false;
+  const node = editor.state.doc.nodeAt(pos);
+  if (!node) return false;
+
+  let html = "";
+  try {
+    const serializer = DOMSerializer.fromSchema(editor.schema);
+    const wrap = document.createElement("div");
+    wrap.appendChild(serializer.serializeNode(node as never));
+    html = wrap.innerHTML;
+  } catch {
+    html = "";
+  }
+  const markdown = html ? htmlToMarkdown(html) : node.textContent;
+  void writeBlockClipboard(markdown, html);
+  return true;
+}
+
+function writeBlockClipboard(plain: string, html: string): void {
+  if (typeof navigator === "undefined" || !navigator.clipboard) return;
+  const fallback = () => {
+    if (!navigator.clipboard.writeText) return;
+    void navigator.clipboard.writeText(plain).catch(() => undefined);
+  };
+  if (html && typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
+    const item = new ClipboardItem({
+      "text/plain": new Blob([plain], { type: "text/plain" }),
+      "text/html": new Blob([html], { type: "text/html" }),
+    });
+    void navigator.clipboard.write([item]).catch(fallback);
+    return;
+  }
+  fallback();
 }
 
 /** Simple fuzzy score — higher is better. */

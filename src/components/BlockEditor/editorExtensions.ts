@@ -39,6 +39,7 @@ import { createWikiEmbedExtension } from "./WikiEmbedExtension";
 import { createPageEmbedExtension } from "./PageEmbedExtension";
 import { createPageRefExtension } from "./PageRefExtension";
 import { createFindReplaceExtension } from "./FindReplaceExtension";
+import { createSelectionWrapExtension } from "./SelectionWrapExtension";
 import type { PagePreview } from "./PageEmbedExtension";
 import { Database } from "./DatabaseExtension";
 import { SyncedBlock } from "./SyncedBlockExtension";
@@ -191,6 +192,10 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     Highlight.configure({ multicolor: true }),
     MarkdownInput,
     findReplaceExtension,
+    createSelectionWrapExtension({
+      getPages: resolvePages,
+      onNewPage: createPage,
+    }),
     TrailingNode,
     TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] }),
     createSlashCommandExtension({

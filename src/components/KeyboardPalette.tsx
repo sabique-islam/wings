@@ -22,7 +22,7 @@ const shortcuts = [
   { keys: "⌘ ⌥ 0–8", desc: "Turn into (text, h1–h3, lists, toggle, code)" },
   { keys: "Tab / ⇧Tab", desc: "Indent / outdent list" },
   { keys: "Esc", desc: "Select block" },
-  { keys: "/", desc: "Slash commands" },
+  { keys: "/", desc: "Slash commands (insert, dates, duplicate)" },
 ];
 
 export function KeyboardPalette() {

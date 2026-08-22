@@ -12,12 +12,21 @@ import {
 } from "react";
 import {
   Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Quote, Minus,
-  Code2, Image, Type, AlertCircle, ChevronRight, FileText, Table,
-  Link as LinkIcon, ExternalLink, Columns, Sigma, Calculator, Calendar,
+  Code2, Image, Type, AlertCircle, ChevronRight, ChevronUp, ChevronDown, FileText, Table,
+  Link as LinkIcon, ExternalLink, Columns, Sigma, Calculator, Calendar, CalendarCheck,
   Sparkles, FilePlus2, Layout, PenLine, BookOpen, Table2, RefreshCw,
+  Copy, Trash2, Bold, Italic, Underline,
 } from "@/lib/icons";
 import { TEMPLATES } from "@/lib/templates";
-import { fuzzyMatch, insertTemplateMarkdown } from "./blockCommands";
+import {
+  copyCurrentBlock,
+  deleteCurrentBlock,
+  duplicateBlock,
+  fuzzyMatch,
+  insertTemplateMarkdown,
+  moveBlock,
+} from "./blockCommands";
+import { slashDateText } from "./slashDates";
 
 export interface CommandItem {
   title: string;
@@ -36,6 +45,24 @@ interface SlashHandlers {
   onAskAI?: () => void;
 }
 
+function insertSlashDate(editor: { chain: () => any }, range: { from: number; to: number }, kind: "today" | "tomorrow" | "yesterday" | "now") {
+  editor.chain().focus().deleteRange(range).insertContent(slashDateText(kind)).run();
+}
+
+function toggleSlashMark(
+  editor: any,
+  range: { from: number; to: number },
+  mark: "toggleBold" | "toggleItalic" | "toggleUnderline",
+) {
+  editor.chain().focus().deleteRange(range).run();
+  const { $from } = editor.state.selection;
+  if ($from.parent?.isTextblock && $from.parent.content.size > 0) {
+    editor.chain().setTextSelection({ from: $from.start(), to: $from.end() })[mark]().run();
+    return;
+  }
+  editor.chain()[mark]().run();
+}
+
 const getSuggestionItems = (h: SlashHandlers = {}): CommandItem[] => [
   {
     title: "Ask AI",
@@ -46,6 +73,81 @@ const getSuggestionItems = (h: SlashHandlers = {}): CommandItem[] => [
       editor.chain().focus().deleteRange(range).run();
       h.onAskAI?.();
     },
+  },
+  {
+    title: "Duplicate",
+    description: "Copy this block below",
+    icon: Copy,
+    category: "Actions",
+    aliases: ["dup", "duplicate"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      duplicateBlock(editor);
+    },
+  },
+  {
+    title: "Move up",
+    description: "Swap with the block above",
+    icon: ChevronUp,
+    category: "Actions",
+    aliases: ["move up"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      moveBlock(editor, "up");
+    },
+  },
+  {
+    title: "Move down",
+    description: "Swap with the block below",
+    icon: ChevronDown,
+    category: "Actions",
+    aliases: ["move down"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      moveBlock(editor, "down");
+    },
+  },
+  {
+    title: "Copy",
+    description: "Copy this block to the clipboard",
+    icon: Copy,
+    category: "Actions",
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      copyCurrentBlock(editor);
+    },
+  },
+  {
+    title: "Delete",
+    description: "Remove this block",
+    icon: Trash2,
+    category: "Actions",
+    aliases: ["remove", "del", "delete"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      deleteCurrentBlock(editor);
+    },
+  },
+  {
+    title: "Bold",
+    description: "Bold the current block",
+    icon: Bold,
+    category: "Format",
+    command: ({ editor, range }) => toggleSlashMark(editor, range, "toggleBold"),
+  },
+  {
+    title: "Italic",
+    description: "Italicize the current block",
+    icon: Italic,
+    category: "Format",
+    command: ({ editor, range }) => toggleSlashMark(editor, range, "toggleItalic"),
+  },
+  {
+    title: "Underline",
+    description: "Underline the current block",
+    icon: Underline,
+    category: "Format",
+    command: ({ editor, range }) => toggleSlashMark(editor, range, "toggleUnderline"),
   },
   {
     title: "Text",
@@ -220,14 +322,35 @@ const getSuggestionItems = (h: SlashHandlers = {}): CommandItem[] => [
     },
   },
   {
-    title: "Date",
+    title: "Today",
     description: "Insert today's date",
+    icon: CalendarCheck,
+    category: "Date",
+    aliases: ["date", "today"],
+    command: ({ editor, range }) => insertSlashDate(editor, range, "today"),
+  },
+  {
+    title: "Tomorrow",
+    description: "Insert tomorrow's date",
     icon: Calendar,
-    category: "Inline",
-    command: ({ editor, range }) => {
-      const today = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-      editor.chain().focus().deleteRange(range).insertContent(today).run();
-    },
+    category: "Date",
+    aliases: ["tomorr", "tomorrow"],
+    command: ({ editor, range }) => insertSlashDate(editor, range, "tomorrow"),
+  },
+  {
+    title: "Yesterday",
+    description: "Insert yesterday's date",
+    icon: Calendar,
+    category: "Date",
+    command: ({ editor, range }) => insertSlashDate(editor, range, "yesterday"),
+  },
+  {
+    title: "Now",
+    description: "Insert the current time",
+    icon: Calendar,
+    category: "Date",
+    aliases: ["time"],
+    command: ({ editor, range }) => insertSlashDate(editor, range, "now"),
   },
   {
     title: "Two columns",

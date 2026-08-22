@@ -1,6 +1,6 @@
 import { Extension } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
-import { turnInto, type TurnIntoType } from "./blockCommands";
+import { turnInto, moveBlock, duplicateBlock, type TurnIntoType } from "./blockCommands";
 import { caretPosAfterMerge, findTopLevelDepth } from "./blockUtils";
 import { collapsedSiblings } from "./headingFold";
 import { inlineContentSize, inlineTextOf, isInsideTable, liftCurrentBlock, nestCurrentBlock } from "./outlineNest";
@@ -167,56 +167,6 @@ function exitHeadingOnEnter(editor: any): boolean {
 
   if (!editor.commands.splitBlock({ keepMarks: true })) return false;
   return editor.chain().setParagraph().run();
-}
-
-function moveBlock(editor: any, direction: "up" | "down"): boolean {
-  const { state, view } = editor;
-  const { $from } = state.selection;
-  const depth = findTopLevelDepth($from);
-  if (depth < 1) return false;
-
-  const parent = $from.node(depth - 1);
-  const indexInParent = $from.index(depth - 1);
-  const targetIndex = direction === "up" ? indexInParent - 1 : indexInParent + 1;
-  if (targetIndex < 0 || targetIndex >= parent.childCount) return false;
-
-  const blockPos = $from.before(depth);
-  const block = parent.child(indexInParent);
-  const sibling = parent.child(targetIndex);
-
-  const tr = state.tr;
-  if (direction === "up") {
-    const siblingPos = blockPos - sibling.nodeSize;
-    tr.delete(blockPos, blockPos + block.nodeSize);
-    tr.insert(siblingPos, block);
-    tr.setSelection(TextSelection.near(tr.doc.resolve(siblingPos + 1)));
-  } else {
-    const afterSiblingPos = blockPos + block.nodeSize + sibling.nodeSize;
-    tr.insert(afterSiblingPos, block);
-    tr.delete(blockPos, blockPos + block.nodeSize);
-    const finalPos = blockPos + sibling.nodeSize;
-    tr.setSelection(TextSelection.near(tr.doc.resolve(finalPos + 1)));
-  }
-  tr.scrollIntoView();
-  view.dispatch(tr);
-  return true;
-}
-
-function duplicateBlock(editor: any): boolean {
-  const { state, view } = editor;
-  const { $from } = state.selection;
-  const depth = findTopLevelDepth($from);
-  if (depth < 1) return false;
-
-  const blockPos = $from.before(depth);
-  const block = $from.node(depth);
-  const insertPos = blockPos + block.nodeSize;
-
-  const tr = state.tr.insert(insertPos, block.copy(block.content));
-  tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)));
-  tr.scrollIntoView();
-  view.dispatch(tr);
-  return true;
 }
 
 /** Cmd+Enter — toggle todo, toggle block, or open page link. */
