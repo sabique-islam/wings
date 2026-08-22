@@ -59,8 +59,9 @@ test.describe("Link toolbar", () => {
     await insertLinkAtCaret(page, "hello", "https://example.com");
     await expect(page.getByTestId("link-toolbar")).toBeVisible();
     await page.getByRole("button", { name: "Copy URL" }).click();
-    const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied).toMatch(/^https:\/\/example\.com\/?$/);
+    await expect
+      .poll(async () => (await page.evaluate(() => navigator.clipboard.readText())).trim())
+      .toMatch(/^https:\/\/example\.com\/?$/);
   });
 
   test("Turn into bookmark replaces the link", async ({ page }) => {

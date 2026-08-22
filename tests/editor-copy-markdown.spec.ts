@@ -14,8 +14,10 @@ test.describe("Copy as markdown", () => {
     await page.keyboard.type("world");
     await page.keyboard.press("Meta+Shift+c");
 
+    await expect
+      .poll(async () => (await page.evaluate(() => navigator.clipboard.readText())).trim())
+      .toBe("world");
     const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied.trim()).toBe("world");
     expect(copied).not.toContain("hello");
     await expect(page.locator(".ProseMirror")).toContainText("hello");
     await expect(page.locator(".ProseMirror")).toContainText("world");
@@ -29,8 +31,10 @@ test.describe("Copy as markdown", () => {
     });
     await page.keyboard.press("Meta+Shift+c");
 
+    await expect
+      .poll(async () => (await page.evaluate(() => navigator.clipboard.readText())).trim())
+      .toBe("world");
     const copied = await page.evaluate(() => navigator.clipboard.readText());
-    expect(copied.trim()).toBe("world");
     expect(copied).not.toContain("hello");
   });
 
