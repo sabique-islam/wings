@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Keyboard, X } from "@/lib/icons";
 
 const shortcuts = [
+  { keys: "⌘ F", desc: "Find in this page" },
   { keys: "⌘ K", desc: "Command palette (outside editor)" },
   { keys: "⌘ K", desc: "Insert link (in editor)" },
   { keys: "⌘ N", desc: "New page" },

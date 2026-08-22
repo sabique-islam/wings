@@ -38,6 +38,7 @@ import { createWikiLinkExtension } from "./WikiLinkExtension";
 import { createWikiEmbedExtension } from "./WikiEmbedExtension";
 import { createPageEmbedExtension } from "./PageEmbedExtension";
 import { createPageRefExtension } from "./PageRefExtension";
+import { createFindReplaceExtension } from "./FindReplaceExtension";
 import type { PagePreview } from "./PageEmbedExtension";
 import { Database } from "./DatabaseExtension";
 import { SyncedBlock } from "./SyncedBlockExtension";
@@ -84,6 +85,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
         ]
       : [];
   const pageRefExtension = createPageRefExtension(resolvePages);
+  const findReplaceExtension = createFindReplaceExtension(resolvePages);
   const pageEmbedExtension = createPageEmbedExtension(
     (pageId) => handlers.getPagePreview?.(pageId) ?? null,
   );
@@ -188,6 +190,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     Underline,
     Highlight.configure({ multicolor: true }),
     MarkdownInput,
+    findReplaceExtension,
     TrailingNode,
     TextAlign.configure({ types: ["heading", "paragraph"], alignments: ["left", "center", "right", "justify"] }),
     createSlashCommandExtension({

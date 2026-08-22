@@ -22,6 +22,7 @@ import type { CollabSession } from "@/lib/collab/useCollabProvider";
 import type { PageOption } from "./PageMentionExtension";
 import type { PagePreview } from "./PageEmbedExtension";
 import { refreshPageRefs } from "./PageRefExtension";
+import { FindReplaceBar } from "@/components/FindReplaceBar";
 import { toast } from "sonner";
 import { isSelectionInCodeBlock } from "./blockUtils";
 import { shouldPasteAsMarkdown } from "./pasteDecision";
@@ -330,6 +331,23 @@ export const BlockEditor = memo(function BlockEditor({
     refreshPageRefs();
   }, [pageTitleKey]);
 
+  useEffect(() => {
+    if (!editor) return;
+    const openFind = () => editor.commands.findOpen({ seedFromSelection: true });
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
+      if (event.key.toLowerCase() !== "f") return;
+      event.preventDefault();
+      openFind();
+    };
+    window.addEventListener("nw:find", openFind);
+    window.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("nw:find", openFind);
+      window.removeEventListener("keydown", onKey, true);
+    };
+  }, [editor]);
+
   /** Resolve a `#block=<id>` permalink once the document has rendered. */
   useEffect(() => {
     if (!editor) return;
@@ -530,6 +548,7 @@ export const BlockEditor = memo(function BlockEditor({
           <TableMenu editor={editor} />
         </>
       )}
+      <FindReplaceBar editor={editor} editable={editable} />
       <EditorContent editor={editor} className="w-full min-w-0" />
     </div>
   );
