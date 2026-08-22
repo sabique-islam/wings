@@ -24,7 +24,7 @@ function countTags(html: string, tag: string): number {
 }
 
 /** GitHub file view uses a <table> for line numbers — not a content table. */
-function hasContentTable(html: string): boolean {
+export function hasContentTable(html: string): boolean {
   if (!/<table\b/i.test(html)) return false;
   if (/\b(?:blob-num|js-file-line|data-line-number)\b/i.test(html)) return false;
   return true;
@@ -75,4 +75,38 @@ export function shouldPasteAsMarkdown(text: string, html: string): boolean {
   if (!text || !looksLikeMarkdown(text)) return false;
   if (!html) return true;
   return markdownWinsOverHtml(html, text);
+}
+
+function isMarkdownPipeTable(text: string): boolean {
+  return /^\s*\|.+\|\s*$/m.test(text) && /^\s*\|?\s*:?-{3,}/m.test(text);
+}
+
+/**
+ * Spreadsheet clipboard: tab-separated columns, one row per line.
+ * Pipe markdown tables are not TSV even if they look grid-like.
+ */
+export function parseTsv(text: string): string[][] | null {
+  const raw = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  if (!raw.includes("\t") || isMarkdownPipeTable(raw)) return null;
+  const lines = raw.split("\n");
+  while (lines.length > 0 && lines[lines.length - 1] === "") lines.pop();
+  if (lines.length === 0) return null;
+  const rows = lines.map((line) => line.split("\t"));
+  const width = Math.max(...rows.map((row) => row.length));
+  if (width < 2) return null;
+  return rows.map((row) => {
+    const next = row.slice();
+    while (next.length < width) next.push("");
+    return next;
+  });
+}
+
+export type TsvPasteMode = "fill" | "insert" | "none";
+
+/** Fill when the caret is already in a table. Insert only when HTML is not a real table. */
+export function tsvPasteMode(text: string, html: string, inTable: boolean): TsvPasteMode {
+  if (!parseTsv(text)) return "none";
+  if (inTable) return "fill";
+  if (hasContentTable(html)) return "none";
+  return "insert";
 }

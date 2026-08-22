@@ -26,8 +26,10 @@ import type { PagePreview } from "./PageEmbedExtension";
 import { refreshPageRefs } from "./PageRefExtension";
 import { FindReplaceBar } from "@/components/FindReplaceBar";
 import { toast } from "sonner";
-import { isSelectionInCodeBlock } from "./blockUtils";
-import { shouldPasteAsMarkdown } from "./pasteDecision";
+import { isSelectionInCodeBlock, type BlockPos } from "./blockUtils";
+import { parseTsv, shouldPasteAsMarkdown, tsvPasteMode } from "./pasteDecision";
+import { isInsideTable } from "./outlineNest";
+import { applyTsvPaste } from "./tableTsv";
 
 const SERIALIZE_DEBOUNCE_MS = 200;
 const URL_ONLY = /^https?:\/\/[^\s]+$/i;
@@ -231,7 +233,8 @@ export const BlockEditor = memo(function BlockEditor({
         }
 
         const html = event.clipboardData?.getData("text/html")?.trim() ?? "";
-        const text = event.clipboardData?.getData("text/plain")?.trim() ?? "";
+        const rawText = event.clipboardData?.getData("text/plain") ?? "";
+        const text = rawText.trim();
 
         // Multi-line / HTML / markdown paste handlers create paragraph nodes, which
         // break code blocks. Keep clipboard content as plain text inside fences.
@@ -280,6 +283,17 @@ export const BlockEditor = memo(function BlockEditor({
           event.preventDefault();
           view.pasteHTML(mathFromHtml);
           return true;
+        }
+
+        const ed = editorRef.current;
+        const inTable = isInsideTable(view.state.selection.$from as BlockPos);
+        const tsvMode = tsvPasteMode(rawText, html, inTable);
+        if (tsvMode !== "none" && ed) {
+          const grid = parseTsv(rawText);
+          if (grid && applyTsvPaste(ed, grid, tsvMode)) {
+            event.preventDefault();
+            return true;
+          }
         }
 
         if (shouldPasteAsMarkdown(text, html)) {
