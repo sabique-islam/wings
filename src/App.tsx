@@ -153,9 +153,15 @@ function AppRoutes() {
       {/* Authenticated app */}
       <Route path="/app" element={<RequireAuth><Index /></RequireAuth>} />
       <Route path="/app/n/:id" element={<RequireAuth><Index /></RequireAuth>} />
+      <Route path="/app/c/:collectionId" element={<RequireAuth><Index /></RequireAuth>} />
+      <Route path="/app/trash" element={<RequireAuth><Index /></RequireAuth>} />
       <Route path="/n/:id" element={<RequireAuth><Index /></RequireAuth>} />
+      <Route path="/c/:collectionId" element={<RequireAuth><Index /></RequireAuth>} />
+      <Route path="/trash" element={<RequireAuth><Index /></RequireAuth>} />
       <Route path="/:username" element={<UsernameGate />} />
       <Route path="/:username/n/:id" element={<UsernameGate />} />
+      <Route path="/:username/c/:collectionId" element={<UsernameGate />} />
+      <Route path="/:username/trash" element={<UsernameGate />} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
