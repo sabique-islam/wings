@@ -3,7 +3,6 @@ import { htmlToMarkdown } from "@/lib/markdown";
 import { getTopLevelBlockPos, type BlockPos } from "./blockUtils";
 
 export type CopyScope = "auto" | "block" | "page";
-export type CopyFormat = "markdown" | "plaintext";
 
 export type CopyRange = {
   from: number;
