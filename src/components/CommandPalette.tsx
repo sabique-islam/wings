@@ -58,7 +58,7 @@ export function CommandPalette({
 
   const live = entries.filter((entry) => !entry.deleted_at);
   const pinned = live.filter((e) => e.pinned).slice(0, 6);
-  const pages = searchLocalEntries(live, "", 40);
+  const pages = searchLocalEntries(live, "", 80);
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>

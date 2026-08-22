@@ -118,7 +118,7 @@ function dropZoneAt(event: React.DragEvent<HTMLElement>): DropZone {
 export const JournalSidebar = memo(function JournalSidebar({
   allEntries,
   roleMap,
-  userId,
+  userId: _userId,
   activeId,
   onSelect,
   onNew,
@@ -126,7 +126,7 @@ export const JournalSidebar = memo(function JournalSidebar({
   onToggle,
   collapsed,
   onCollapsedChange,
-  onRefetch,
+  onRefetch: _onRefetch,
   onHome,
   onReorder,
   onMove,
