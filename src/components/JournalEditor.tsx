@@ -16,6 +16,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 import { PromoteToCloudDialog } from "@/components/StorageChoiceDialog";
 import { isLocalEntry } from "@/lib/localContent";
 import { requestEditorSerialize } from "@/lib/editorPayload";
+import { focusEndOfPage } from "@/components/BlockEditor/focusEndOfPage";
 import { exportSingleEntry, exportSingleAsJson, importFile } from "@/lib/export";
 import { importNotionFiles } from "@/lib/notionImport";
 import { toast } from "sonner";
@@ -411,7 +412,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
         )}
       </header>
 
-      <div className={`flex-1 overflow-y-auto relative w-full min-w-0 ${showLineNumbers ? "nw-line-numbers" : ""}`}>
+      <div className={`flex-1 min-h-0 overflow-y-auto relative w-full min-w-0 ${showLineNumbers ? "nw-line-numbers" : ""}`}>
         {!entry ? (
           allEntries.length > 0 ? (
             <DashboardHome
@@ -428,7 +429,8 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
             </div>
           )
         ) : (
-          <div className="page-editor-body w-full max-w-[708px] mx-auto px-6 md:px-10 py-6">
+          <div className="page-editor-viewport">
+          <div className="page-editor-body w-full max-w-[708px] mx-auto px-6 md:px-10 pt-6">
             <textarea
               ref={titleRef}
               key={`title-${entry.id}`}
@@ -484,6 +486,14 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
               className="hidden"
               onChange={handleFileChange}
             />
+          </div>
+            {canEdit && (
+              <div
+                className="page-editor-blank"
+                data-testid="page-editor-blank"
+                onClick={() => focusEndOfPage((window as any).__nw_editor)}
+              />
+            )}
           </div>
         )}
       </div>

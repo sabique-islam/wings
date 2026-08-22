@@ -22,7 +22,6 @@ import type { CollabSession } from "@/lib/collab/useCollabProvider";
 import type { PageOption } from "./PageMentionExtension";
 import type { PagePreview } from "./PageEmbedExtension";
 import { toast } from "sonner";
-import { EditorOutline } from "@/components/EditorOutline";
 import { isSelectionInCodeBlock } from "./blockUtils";
 import { shouldPasteAsMarkdown } from "./pasteDecision";
 
@@ -477,9 +476,8 @@ export const BlockEditor = memo(function BlockEditor({
   if (!editor) return null;
 
   return (
-    <div className="block-editor-shell">
-      <div
-        className="block-editor-wrapper w-full min-w-0"
+    <div
+      className="block-editor-wrapper w-full min-w-0"
       onClickCapture={(e) => {
         // Capture so ProseMirror / node views cannot swallow the click before we open.
         const anchor = (e.target as HTMLElement).closest("a");
@@ -527,8 +525,6 @@ export const BlockEditor = memo(function BlockEditor({
         </>
       )}
       <EditorContent editor={editor} className="w-full min-w-0" />
-      </div>
-      <EditorOutline editor={editor} />
     </div>
   );
 });
