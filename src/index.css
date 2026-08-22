@@ -751,6 +751,10 @@
 
 .table-menu {
   @apply flex items-center gap-0.5;
+}
+
+/* Table */
+.block-editor-content table {
   @apply w-full border-collapse my-3;
 }
 .block-editor-content th,
