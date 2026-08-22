@@ -196,6 +196,44 @@ function unwrapSingletonOutline(tr: any, pos: number) {
   tr.replaceWith(pos, pos + node.nodeSize, node.firstChild.copy(node.firstChild.content));
 }
 
+type OutlineEditor = {
+  state: any;
+  view: { dispatch: (tr: any) => void };
+  can?: () => { sinkListItem: (name: string) => boolean; liftListItem: (name: string) => boolean };
+  chain?: () => {
+    focus: () => {
+      sinkListItem: (name: string) => { run: () => boolean };
+      liftListItem: (name: string) => { run: () => boolean };
+    };
+  };
+};
+
+/** Tab from the keymap or the mobile toolbar: nest a list item, else nest the block. */
+export function indentCurrentBlock(editor: OutlineEditor): boolean {
+  const { $from } = editor.state.selection;
+  if (isInsideTable($from)) return false;
+  if (editor.can?.().sinkListItem("listItem")) {
+    return editor.chain!().focus().sinkListItem("listItem").run();
+  }
+  if (editor.can?.().sinkListItem("taskItem")) {
+    return editor.chain!().focus().sinkListItem("taskItem").run();
+  }
+  return nestCurrentBlock(editor);
+}
+
+/** Shift-Tab from the keymap or the mobile toolbar. */
+export function outdentCurrentBlock(editor: OutlineEditor): boolean {
+  const { $from } = editor.state.selection;
+  if (isInsideTable($from)) return false;
+  if (editor.can?.().liftListItem("listItem")) {
+    return editor.chain!().focus().liftListItem("listItem").run();
+  }
+  if (editor.can?.().liftListItem("taskItem")) {
+    return editor.chain!().focus().liftListItem("taskItem").run();
+  }
+  return liftCurrentBlock(editor);
+}
+
 /** Lift the current text block to sit after its nestable parent. */
 export function liftCurrentBlock(editor: {
   state: any;

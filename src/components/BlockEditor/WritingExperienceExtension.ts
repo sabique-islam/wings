@@ -3,7 +3,7 @@ import { TextSelection } from "@tiptap/pm/state";
 import { turnInto, moveBlock, duplicateBlock, type TurnIntoType } from "./blockCommands";
 import { caretPosAfterMerge, findTopLevelDepth } from "./blockUtils";
 import { collapsedSiblings } from "./headingFold";
-import { inlineContentSize, inlineTextOf, isInsideTable, liftCurrentBlock, nestCurrentBlock } from "./outlineNest";
+import { indentCurrentBlock, inlineContentSize, inlineTextOf, isInsideTable, outdentCurrentBlock } from "./outlineNest";
 import { openLinkHref } from "./editorLinkClick";
 import { normalizeCodeLanguage } from "./codeLanguages";
 
@@ -131,15 +131,6 @@ function mergeEmptyBlockUp(editor: any): boolean {
   return true;
 }
 
-function nestIntoPreviousSibling(editor: any): boolean {
-  return nestCurrentBlock(editor);
-}
-
-/** Shift+Tab at block start — lift the current textblock out of a container. */
-function liftOutOfContainer(editor: any): boolean {
-  return liftCurrentBlock(editor);
-}
-
 /** Notion: Enter in a heading always leaves a paragraph, never another heading. */
 function exitHeadingOnEnter(editor: any): boolean {
   const block = currentTextBlock(editor);
@@ -252,27 +243,13 @@ export const WritingExperience = Extension.create({
         mergeEmptyBlockUp(this.editor),
 
       Tab: () => {
-        const { $from } = this.editor.state.selection;
-        if (isInsideTable($from)) return false;
-        if (this.editor.can().sinkListItem("listItem")) {
-          return this.editor.chain().focus().sinkListItem("listItem").run();
-        }
-        if (this.editor.can().sinkListItem("taskItem")) {
-          return this.editor.chain().focus().sinkListItem("taskItem").run();
-        }
-        nestIntoPreviousSibling(this.editor);
+        if (isInsideTable(this.editor.state.selection.$from)) return false;
+        indentCurrentBlock(this.editor);
         return true;
       },
       "Shift-Tab": () => {
-        const { $from } = this.editor.state.selection;
-        if (isInsideTable($from)) return false;
-        if (this.editor.can().liftListItem("listItem")) {
-          return this.editor.chain().focus().liftListItem("listItem").run();
-        }
-        if (this.editor.can().liftListItem("taskItem")) {
-          return this.editor.chain().focus().liftListItem("taskItem").run();
-        }
-        liftOutOfContainer(this.editor);
+        if (isInsideTable(this.editor.state.selection.$from)) return false;
+        outdentCurrentBlock(this.editor);
         return true;
       },
 

@@ -9,6 +9,7 @@ import { BlockMenu } from "./BlockMenu";
 import { BlockContextMenu } from "./BlockContextMenu";
 import { BlockActionMenu } from "./BlockActionMenu";
 import { BubbleMenuToolbar } from "./BubbleMenuToolbar";
+import { MobileKeyboardToolbar, useShowKeyboardToolbar } from "./MobileKeyboardToolbar";
 import { TableMenu } from "./TableMenu";
 import { EditorPopoverInput, promptEditorInput } from "./EditorPopoverInput";
 import { isSafeHttpUrl } from "@/lib/safeUrl";
@@ -113,6 +114,7 @@ export const BlockEditor = memo(function BlockEditor({
    */
   const markdownVersion = useRef(-1);
   const loadedEntryId = useRef(entryId);
+  const showKeyboardToolbar = useShowKeyboardToolbar();
   const serializeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const editorRef = useRef<MountedEditor | null>(null);
   const onChangeRef = useRef(onChange);
@@ -502,6 +504,7 @@ export const BlockEditor = memo(function BlockEditor({
   return (
     <div
       className="block-editor-wrapper w-full min-w-0"
+      data-keyboard-toolbar={showKeyboardToolbar && editable ? "true" : undefined}
       onClickCapture={(e) => {
         // Capture so ProseMirror / node views cannot swallow the click before we open.
         const anchor = (e.target as HTMLElement).closest("a");
@@ -544,7 +547,11 @@ export const BlockEditor = memo(function BlockEditor({
       {editable && <BlockContextMenu editor={editor} />}
       {editor && editable && (
         <>
-          <BubbleMenuToolbar editor={editor} onSetLink={setLink} />
+          {showKeyboardToolbar ? (
+            <MobileKeyboardToolbar editor={editor} onSetLink={setLink} />
+          ) : (
+            <BubbleMenuToolbar editor={editor} onSetLink={setLink} />
+          )}
           <TableMenu editor={editor} />
         </>
       )}
