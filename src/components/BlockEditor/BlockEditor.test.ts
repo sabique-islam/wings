@@ -15,6 +15,7 @@ import { Editor } from "@tiptap/core";
 import { createBlockEditorExtensions } from "./editorExtensions";
 import { slashCommandSuggestionKey, pageMentionSuggestionKey } from "./suggestionPluginKeys";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
+import { isEmptyDoc, shouldBlockEmptySave } from "@/lib/editorContent";
 
 function makeEditor(content = "<p>hello</p>") {
   return new Editor({
@@ -63,6 +64,14 @@ describe("BlockEditor wiring", () => {
     const editor = makeEditor();
     const linkCount = editor.extensionManager.extensions.filter((e) => e.name === "link").length;
     expect(linkCount).toBe(1);
+    editor.destroy();
+  });
+
+  it("registers underline and trailingNode exactly once", () => {
+    const editor = makeEditor();
+    const names = editor.extensionManager.extensions.map((e) => e.name);
+    expect(names.filter((n) => n === "underline")).toHaveLength(1);
+    expect(names.filter((n) => n === "trailingNode")).toHaveLength(1);
     editor.destroy();
   });
 
@@ -214,6 +223,38 @@ describe("BlockEditor wiring", () => {
     editor.commands.toggleUnderline();
     editor.commands.insertContent("under");
     expect(editor.getHTML()).toMatch(/<u>under<\/u>/);
+    editor.destroy();
+  });
+
+  it("appends one empty paragraph after a non-paragraph last block", () => {
+    const editor = makeEditor("<p></p>");
+    editor.commands.setContent({
+      type: "doc",
+      content: [
+        {
+          type: "codeBlock",
+          attrs: { language: "typescript" },
+          content: [{ type: "text", text: "const x = 1;" }],
+        },
+      ],
+    });
+    expect(editor.state.doc.lastChild?.type.name).toBe("paragraph");
+    expect(editor.state.doc.childCount).toBe(2);
+    editor.commands.updateAttributes("codeBlock", { language: "javascript" });
+    expect(editor.state.doc.childCount).toBe(2);
+    const markdown = htmlToMarkdown(editor.getHTML());
+    expect(markdown).toContain("const x = 1;");
+    expect(shouldBlockEmptySave("x".repeat(25), markdown)).toBe(false);
+    editor.destroy();
+  });
+
+  it("does not let a trailing paragraph turn an empty doc into a saveable body", () => {
+    const editor = makeEditor("<p></p>");
+    expect(editor.state.doc.childCount).toBe(1);
+    expect(isEmptyDoc(editor.getJSON())).toBe(true);
+    const markdown = htmlToMarkdown(editor.getHTML());
+    expect(markdown.trim().length).toBe(0);
+    expect(shouldBlockEmptySave("x".repeat(25), markdown)).toBe(true);
     editor.destroy();
   });
 

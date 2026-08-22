@@ -79,6 +79,11 @@ describe("markdown <-> html conversion", () => {
   it("is empty-safe", () => {
     expect(markdownToHtml("")).toBe("");
     expect(htmlToMarkdown("")).toBe("");
+    expect(htmlToMarkdown("<p></p>").trim()).toBe("");
+  });
+
+  it("keeps underline through turndown", () => {
+    expect(htmlToMarkdown("<p><u>under</u></p>")).toContain("<u>under</u>");
   });
 
   it("escapes html in code fences via marked", () => {

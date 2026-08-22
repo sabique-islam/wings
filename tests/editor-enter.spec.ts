@@ -157,3 +157,29 @@ test("Backspace at start of a heading collapses it to a paragraph", async ({ pag
   await expect(editor.locator("h1")).toHaveCount(0);
   await expect(editor.locator("p").first()).toContainText("Title");
 });
+
+test("a trailing paragraph sits below a code fence so you can type after it", async ({ page }) => {
+  await page.goto("/__editor-e2e");
+  const editor = await focusEditor(page);
+
+  await page.keyboard.type("```ts");
+  await page.keyboard.press("Enter");
+  await expect(editor.locator("pre .code-block-content")).toBeVisible();
+  await page.keyboard.type("const x = 1;");
+
+  const lastType = await page.evaluate(() => {
+    const ed = (window as unknown as { __nw_editor: { state: { doc: { lastChild: { type: { name: string } } | null } } } }).__nw_editor;
+    return ed.state.doc.lastChild?.type.name ?? "";
+  });
+  expect(lastType).toBe("paragraph");
+
+  await page.evaluate(() => {
+    const ed = (window as any).__nw_editor;
+    ed.commands.focus("end");
+  });
+  await page.keyboard.type("hello");
+
+  await expect(editor.locator("p").filter({ hasText: "hello" })).toHaveCount(1);
+  await expect(editor.locator("pre .code-block-content")).toContainText("const x = 1;");
+  await expectParity(page);
+});
