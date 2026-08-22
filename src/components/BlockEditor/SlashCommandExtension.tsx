@@ -15,7 +15,7 @@ import {
   Code2, Image, Type, AlertCircle, ChevronRight, ChevronUp, ChevronDown, FileText, Table,
   Link as LinkIcon, ExternalLink, Columns, Sigma, Calculator, Calendar, CalendarCheck,
   Sparkles, FilePlus2, Layout, PenLine, BookOpen, Table2, RefreshCw,
-  Copy, Trash2, Bold, Italic, Underline,
+  Copy, Trash2, Bold, Italic, Underline, Plus,
 } from "@/lib/icons";
 import { TEMPLATES } from "@/lib/templates";
 import {
@@ -27,6 +27,7 @@ import {
   moveBlock,
 } from "./blockCommands";
 import { slashDateText } from "./slashDates";
+import { insertWeeklyPlanner } from "./templateButton";
 
 export interface CommandItem {
   title: string;
@@ -373,6 +374,36 @@ const getSuggestionItems = (h: SlashHandlers = {}): CommandItem[] => [
     },
   },
   {
+    title: "Four columns",
+    description: "Four-column layout",
+    icon: Columns,
+    category: "Advanced",
+    aliases: ["4c", "four columns", "4col"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertColumnList(4).run();
+    },
+  },
+  {
+    title: "Five columns",
+    description: "Five-column layout",
+    icon: Columns,
+    category: "Advanced",
+    aliases: ["5c", "five columns", "5col"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertColumnList(5).run();
+    },
+  },
+  {
+    title: "Button",
+    description: "Insert a copy of blocks on click",
+    icon: Plus,
+    category: "Advanced",
+    aliases: ["template button", "new week"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).insertTemplateButton({ label: "Insert" }).run();
+    },
+  },
+  {
     title: "New sub-page",
     description: "Create a new page nested here",
     icon: FilePlus2,
@@ -454,8 +485,13 @@ const getSuggestionItems = (h: SlashHandlers = {}): CommandItem[] => [
     description: tpl.description,
     icon: tpl.icon,
     category: "Templates",
+    aliases: tpl.id === "weekly" ? ["weekly", "planner", "week"] : undefined,
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
+      if (tpl.id === "weekly") {
+        insertWeeklyPlanner(editor);
+        return;
+      }
       insertTemplateMarkdown(editor, tpl.content);
     },
   })),

@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import { turnInto, TURN_INTO_ITEMS, TEXT_COLORS, BG_COLORS } from "./blockCommands";
+import { turnInto, TURN_INTO_ITEMS, TEXT_COLORS, BG_COLORS, applyBackgroundColor } from "./blockCommands";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,8 +69,7 @@ export function ColorDropdown({ editor }: { editor: Editor }) {
               style={{ background: c.value || "transparent" }}
               title={c.label}
               onClick={() => {
-                if (c.value) editor.chain().focus().toggleHighlight({ color: c.value }).run();
-                else editor.chain().focus().unsetHighlight().run();
+                applyBackgroundColor(editor, c.value);
               }}
             />
           ))}

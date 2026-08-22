@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import type { Editor } from "@tiptap/core";
 import { NodeSelection } from "@tiptap/pm/state";
-import { turnInto, TURN_INTO_ITEMS, TEXT_COLORS, BG_COLORS } from "./blockCommands";
+import { turnInto, TURN_INTO_ITEMS, TEXT_COLORS, BG_COLORS, applyBackgroundColor } from "./blockCommands";
 import { Trash2, Copy, ChevronRight } from "@/lib/icons";
 
 const TURN_INTO = TURN_INTO_ITEMS;
@@ -148,8 +148,7 @@ export function BlockMenu({ editor, onDeleteBlock }: Props) {
                 style={{ background: c.value || "transparent" }}
                 title={c.label}
                 onClick={() => {
-                  if (c.value) editor.chain().focus().toggleHighlight({ color: c.value }).run();
-                  else editor.chain().focus().unsetHighlight().run();
+                  applyBackgroundColor(editor, c.value);
                   setOpen(false);
                   window.dispatchEvent(new CustomEvent("nw:blockMenu:close"));
                 }}

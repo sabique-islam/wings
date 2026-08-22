@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { Editor } from "@tiptap/core";
 import { toast } from "sonner";
-import { turnInto, TURN_INTO_ITEMS, TEXT_COLORS, BG_COLORS, type TurnIntoType } from "./blockCommands";
+import { turnInto, TURN_INTO_ITEMS, TEXT_COLORS, BG_COLORS, applyBackgroundColor, type TurnIntoType } from "./blockCommands";
 import { deleteBlocksAtPositions, duplicateBlocksAtPositions } from "./blockUtils";
 import { blockIdAt, blockLink, blocksToMarkdown, blocksToTitle } from "./blockTransfer";
 import { fuzzyMatch } from "./blockCommands";
@@ -184,8 +184,7 @@ export function BlockActionMenu({ editor }: Props) {
               style={{ background: c.value || "transparent" }}
               title={c.label}
               onClick={() => {
-                if (c.value) editor.chain().focus().toggleHighlight({ color: c.value }).run();
-                else editor.chain().focus().unsetHighlight().run();
+                applyBackgroundColor(editor, c.value);
                 close();
               }}
             />
