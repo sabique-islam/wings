@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { Editor } from "@tiptap/core";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { createBlockEditorExtensions } from "./editorExtensions";
-import { toggleHeadingCollapsedAt } from "./headingFold";
+import { collapsedSiblings, toggleHeadingCollapsedAt } from "./headingFold";
 
 function makeEditor(content = "<p></p>") {
   return new Editor({
@@ -50,6 +50,11 @@ describe("column list widths", () => {
     toggleHeadingCollapsedAt(editor, sunday);
     const sundayNode = editor.state.doc.nodeAt(sunday);
     expect(sundayNode?.attrs.collapsed).toBe(true);
+    const range = collapsedSiblings(editor.state.doc as never, sunday);
+    expect(range).not.toBeNull();
+    const hidden = editor.state.doc.textBetween(range!.from, range!.to);
+    expect(hidden).toContain("todo");
+    expect(hidden).not.toContain("Monday");
     editor.destroy();
   });
 });

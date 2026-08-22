@@ -42,7 +42,7 @@ test.describe("weekly planner", () => {
 
   test(":: grips resize columns", async ({ page }) => {
     const editor = page.locator(".ProseMirror");
-    await page.keyboard.type("/2c");
+    await page.keyboard.type("/2col");
     const item = page.locator(".slash-menu button", { hasText: "Two columns" });
     await expect(item).toBeVisible();
     await item.click();
