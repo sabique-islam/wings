@@ -1,5 +1,5 @@
 import { Extension } from "@tiptap/core";
-import { TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { turnInto, moveBlock, duplicateBlock, type TurnIntoType } from "./blockCommands";
 import { caretPosAfterMerge, findColumnDepth, findTopLevelDepth } from "./blockUtils";
 import { collapsedSiblings } from "./headingFold";
@@ -93,6 +93,28 @@ function ancestorTypeName(
     if (types.has(name)) return name;
   }
   return null;
+}
+
+/** Text selection over a block. Node endpoints are not valid TextSelection anchors. */
+function selectionCoveringNode(doc: { resolve: (pos: number) => unknown }, pos: number, node: {
+  isTextblock: boolean;
+  nodeSize: number;
+  descendants: (fn: (child: { isTextblock: boolean; nodeSize: number }, childPos: number) => void) => void;
+}) {
+  if (node.isTextblock) {
+    return TextSelection.create(doc as never, pos + 1, Math.max(pos + 1, pos + node.nodeSize - 1));
+  }
+  let from: number | null = null;
+  let to: number | null = null;
+  node.descendants((child, childPos) => {
+    if (!child.isTextblock) return;
+    const start = pos + 1 + childPos + 1;
+    const end = pos + 1 + childPos + child.nodeSize - 1;
+    if (from == null) from = start;
+    to = end;
+  });
+  if (from == null || to == null) return NodeSelection.create(doc as never, pos);
+  return TextSelection.create(doc as never, from, to);
 }
 
 /** Backspace on empty block merges/deletes upward (Notion merge-up). */
@@ -268,13 +290,10 @@ export const WritingExperience = Extension.create({
         const columnDepth = findColumnDepth($from);
         const depth = columnDepth ?? findTopLevelDepth($from);
         if (depth >= 1) {
-          const from = $from.before(depth);
-          const to = from + $from.node(depth).nodeSize;
-          if (selection.from !== from || selection.to !== to) {
-            const tr = this.editor.state.tr.setSelection(
-              TextSelection.create(doc, from, Math.min(to, doc.content.size)),
-            );
-            this.editor.view.dispatch(tr);
+          const pos = $from.before(depth);
+          const next = selectionCoveringNode(doc, pos, $from.node(depth));
+          if (selection.from !== next.from || selection.to !== next.to) {
+            this.editor.view.dispatch(this.editor.state.tr.setSelection(next));
             return true;
           }
         }
