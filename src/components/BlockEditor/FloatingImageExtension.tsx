@@ -2,6 +2,7 @@ import Image from "@tiptap/extension-image";
 import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { AlignCenter, AlignLeft, AlignRight, Maximize2 } from "@/lib/icons";
 import { useCallback, useRef, useState } from "react";
+import { requestOpenImageLightbox, shouldOpenImageLightbox } from "@/lib/imageLightbox";
 
 const ALIGNMENTS = [
   { value: "left", label: "Align left", icon: AlignLeft },
@@ -20,9 +21,10 @@ function ImageView({ node, updateAttributes, selected, editor }: NodeViewProps) 
     caption: string;
   };
   const [dragging, setDragging] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const figureRef = useRef<HTMLDivElement>(null);
   const editable = editor.isEditable;
-  const showChrome = editable && (selected || dragging);
+  const showChrome = editable && (selected || dragging || hovered);
 
   const startResize = useCallback(
     (event: React.MouseEvent) => {
@@ -46,14 +48,34 @@ function ImageView({ node, updateAttributes, selected, editor }: NodeViewProps) 
     [updateAttributes],
   );
 
+  const openLightbox = (event: React.MouseEvent) => {
+    if (!shouldOpenImageLightbox(event.target)) return;
+    if (!requestOpenImageLightbox({ src, alt: alt ?? "", caption: caption ?? "" })) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   return (
     <NodeViewWrapper
       className="editor-image-block"
       data-align={align}
       data-selected={selected ? "true" : undefined}
     >
-      <div className="editor-image-figure" ref={figureRef} contentEditable={false}>
-        <img src={src} alt={alt ?? caption ?? ""} style={width ? { width } : undefined} draggable={false} />
+      <div
+        className="editor-image-figure"
+        ref={figureRef}
+        contentEditable={false}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={openLightbox}
+      >
+        <img
+          src={src}
+          alt={alt ?? caption ?? ""}
+          style={width ? { width } : undefined}
+          draggable={false}
+          data-testid="editor-image"
+        />
         {editable && (
           <span
             className="editor-image-resize"
