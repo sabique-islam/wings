@@ -504,6 +504,17 @@
   @apply decoration-accent-foreground;
 }
 
+.block-editor-content .page-ref {
+  border-radius: 4px;
+  padding: 0 0.2em;
+  background: hsl(var(--accent-soft) / 0.45);
+}
+.block-editor-content .page-ref-missing {
+  font-style: italic;
+  opacity: 0.75;
+  text-decoration-style: dashed;
+}
+
 /* Images */
 .block-editor-content .editor-image,
 .block-editor-content img {

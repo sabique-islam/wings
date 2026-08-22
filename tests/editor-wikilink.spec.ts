@@ -18,8 +18,38 @@ test.describe("Wikilinks", () => {
     const link = editor.locator('a[href="#page:page-reading-list"]');
     await expect(link).toHaveCount(1);
     await expect(link).toHaveText("Reading List");
+    await expect(editor.locator('[data-type="page-ref"]')).toHaveCount(1);
     // The trigger text is consumed, not left behind next to the link.
     await expect(editor).not.toContainText("[[");
+  });
+
+  test("renaming a page updates the chip without rewriting the stored id", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("see [[Reading");
+    await page.getByRole("button", { name: "Reading List" }).click();
+    await expect(editor.locator('[data-type="page-ref"]')).toHaveText("Reading List");
+
+    await page.getByTestId("rename-reading-list").click();
+    await expect(editor.locator('[data-type="page-ref"]')).toHaveText("Bookshelf");
+
+    const json = await page.evaluate(() => {
+      const ed = (window as unknown as { __nw_editor: { getJSON: () => unknown } }).__nw_editor;
+      return JSON.stringify(ed.getJSON());
+    });
+    expect(json).toContain("page-reading-list");
+    expect(json).not.toContain("Bookshelf");
+    expect(json).not.toContain("Reading List");
+  });
+
+  test("loading markdown with a stale title shows the current page name", async ({ page }) => {
+    await page.keyboard.type("[[Reading");
+    await page.getByRole("button", { name: "Reading List" }).click();
+    await page.locator("body").click({ position: { x: 5, y: 5 } });
+    await expect(page.getByTestId("stored-text")).toContainText("[Reading List](#page:page-reading-list)");
+
+    await page.getByTestId("rename-reading-list").click();
+    await page.getByTestId("reload-from-markdown").click();
+    await expect(page.locator(".ProseMirror").locator('[data-type="page-ref"]')).toHaveText("Bookshelf");
   });
 
   test("[[ offers to create a page that does not exist yet", async ({ page }) => {

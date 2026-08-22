@@ -296,3 +296,17 @@ describe("page embed round trip", () => {
     expect(html).toContain("<img");
   });
 });
+
+describe("page ref round trip", () => {
+  it("keeps the page id when serializing an inline page link", () => {
+    const html = '<a href="#page:page-x" data-type="page-ref" data-page-id="page-x">Roadmap</a>';
+    expect(htmlToMarkdown(html)).toBe("[Roadmap](#page:page-x)");
+  });
+
+  it("parses a markdown page link back into an anchor the editor can lift", () => {
+    const html = markdownToHtml("see [Old](#page:page-x) later");
+    expect(html).toContain('href="#page:page-x"');
+    expect(html).toContain("Old");
+    expect(htmlToMarkdown(html)).toContain("[Old](#page:page-x)");
+  });
+});

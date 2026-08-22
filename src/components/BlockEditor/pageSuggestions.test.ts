@@ -33,4 +33,8 @@ describe("wikiLinkQuery", () => {
   it("handles the alias form", () => {
     expect(wikiLinkQuery("Ideas|shortname]]")).toBe("Ideas|shortname");
   });
+
+  it("stops at fullwidth closing brackets", () => {
+    expect(wikiLinkQuery("Ideas】】 and more")).toBe("Ideas");
+  });
 });

@@ -109,6 +109,19 @@ describe("extractLinks", () => {
     expect(extractLinks(doc).outgoing).toEqual(["page-x"]);
   });
 
+  it("counts live page ref nodes as outgoing links", () => {
+    const doc: JSONContent = {
+      type: "doc",
+      content: [
+        paragraph(
+          { type: "text", text: "see " },
+          { type: "pageRef", attrs: { pageId: "page-a" } },
+        ),
+      ],
+    };
+    expect(extractLinks(doc).outgoing).toEqual(["page-a"]);
+  });
+
   it("keeps the sentence a link was written in, for backlink snippets", () => {
     const doc: JSONContent = {
       type: "doc",

@@ -17,7 +17,9 @@ describe("editorContent", () => {
     expect(
       isEmptyDoc({
         type: "doc",
-        content: [{ type: "paragraph", content: [{ type: "text", text: "hi" }] }],
+        content: [
+          { type: "paragraph", content: [{ type: "pageRef", attrs: { pageId: "page-a" } }] },
+        ],
       }),
     ).toBe(false);
     expect(

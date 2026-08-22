@@ -115,6 +115,14 @@ describe("BlockEditor wiring", () => {
     editor.destroy();
   });
 
+  it("registers the pageRef inline node", () => {
+    const editor = makeEditor();
+    expect(editor.schema.nodes.pageRef).toBeTruthy();
+    expect(editor.schema.nodes.pageRef.isAtom).toBe(true);
+    expect(editor.schema.nodes.pageRef.isInline).toBe(true);
+    editor.destroy();
+  });
+
   it("has paragraph + hardBreak + heading nodes wired up (needed for Enter)", () => {
     const editor = makeEditor();
     const schema = editor.schema;

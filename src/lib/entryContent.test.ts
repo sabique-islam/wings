@@ -33,6 +33,13 @@ describe("payloadFromMarkdown", () => {
     expect(JSON.stringify(json)).toContain("Some body text.");
   });
 
+  it("parses inline page links as pageRef nodes keyed by id", () => {
+    const { json } = payloadFromMarkdown("see [Notes](#page:abc-123)");
+    expect(JSON.stringify(json)).toContain('"type":"pageRef"');
+    expect(JSON.stringify(json)).toContain("abc-123");
+    expect(JSON.stringify(json)).not.toContain("Notes");
+  });
+
   it("round-trips back to the same document through the load resolver", () => {
     const payload = payloadFromMarkdown("- one\n- two");
 
