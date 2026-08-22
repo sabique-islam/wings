@@ -13,6 +13,9 @@ export default defineConfig({
     },
   },
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    include: ["mermaid"],
+  },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),

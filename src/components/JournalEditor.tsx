@@ -130,7 +130,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
   // `entry.content` only catches up after a save lands, so it reads stale for as
   // long as someone keeps typing. Fall back to it only until the first emit.
   const [liveWords, setLiveWords] = useState<number | null>(null);
-  const wordCountTimer = useRef<ReturnType<typeof setTimeout>>();
+  const wordCountTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const words = liveWords ?? (entry ? countWords(entry.content) : 0);
   const canEdit = canEditRole(userRole);
   const { session: collabSession, connecting: collabConnecting } = useCollabProvider(

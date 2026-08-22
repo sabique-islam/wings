@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { sanitizeSvg } from "@/lib/sanitizeHtml";
 
 type MermaidApi = {
@@ -8,6 +8,7 @@ type MermaidApi = {
 
 let mermaidModule: Promise<MermaidApi> | null = null;
 let initializedTheme: string | null = null;
+let mermaidRenderSeq = 0;
 
 function documentTheme(): "dark" | "default" {
   return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "default";
@@ -20,13 +21,27 @@ function loadMermaid(): Promise<MermaidApi> {
   return mermaidModule;
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (cause) => {
+        window.clearTimeout(timer);
+        reject(cause);
+      },
+    );
+  });
+}
+
 /**
  * SVG preview for a mermaid fence. The source stays in the document; a failed
  * render never calls setContent or otherwise rewrites the block.
  */
 export function CodeBlockMermaidPreview({ source }: { source: string }) {
-  const rawId = useId();
-  const diagramId = `nwmermaid${rawId.replace(/[^a-zA-Z0-9]/g, "")}`;
   const [svg, setSvg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +54,7 @@ export function CodeBlockMermaidPreview({ source }: { source: string }) {
     }
 
     let cancelled = false;
+    const renderId = `nwmermaid${++mermaidRenderSeq}`;
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
@@ -53,7 +69,11 @@ export function CodeBlockMermaidPreview({ source }: { source: string }) {
             });
             initializedTheme = theme;
           }
-          const rendered = await mermaid.render(diagramId, trimmed);
+          const rendered = await withTimeout(
+            mermaid.render(renderId, trimmed),
+            8000,
+            "Diagram preview timed out",
+          );
           const clean = sanitizeSvg(rendered.svg);
           if (cancelled) return;
           if (!clean) {
@@ -69,13 +89,13 @@ export function CodeBlockMermaidPreview({ source }: { source: string }) {
           setError(cause instanceof Error ? cause.message : "Could not render diagram");
         }
       })();
-    }, 150);
+    }, 250);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [source, diagramId]);
+  }, [source]);
 
   if (!source.trim()) return null;
 

@@ -1,21 +1,39 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { focusEditor } from "./editor-helpers";
 
-async function codeBlockState(page: import("@playwright/test").Page) {
-  return page.evaluate(() => {
-    const editor = (window as unknown as {
-      __nw_editor: {
-        state: {
-          doc: {
-            descendants: (fn: (node: { type: { name: string }; attrs: Record<string, unknown>; textContent: string }) => boolean | void) => void;
+type CodeBlockState = {
+  wrap: boolean;
+  collapsed: boolean;
+  text: string;
+};
+
+async function codeBlockState(page: Page): Promise<CodeBlockState | null> {
+  return page.evaluate((): CodeBlockState | null => {
+    const editor = (
+      window as unknown as {
+        __nw_editor: {
+          state: {
+            doc: {
+              descendants: (
+                fn: (node: {
+                  type: { name: string };
+                  attrs: { wrap?: boolean; collapsed?: boolean };
+                  textContent: string;
+                }) => boolean | void,
+              ) => void;
+            };
           };
         };
-      };
-    }).__nw_editor;
-    let found: { attrs: Record<string, unknown>; text: string } | null = null;
+      }
+    ).__nw_editor;
+    let found: CodeBlockState | null = null;
     editor.state.doc.descendants((node) => {
       if (node.type.name === "codeBlock") {
-        found = { attrs: node.attrs, text: node.textContent };
+        found = {
+          wrap: node.attrs.wrap === true,
+          collapsed: node.attrs.collapsed === true,
+          text: node.textContent,
+        };
         return false;
       }
     });
@@ -37,7 +55,7 @@ test.describe("Code blocks", () => {
     await wrap.click();
     await expect(page.locator(".code-block-wrapper")).toHaveAttribute("data-wrap", "true");
     const state = await codeBlockState(page);
-    expect(state?.attrs.wrap).toBe(true);
+    expect(state?.wrap).toBe(true);
     expect(state?.text).toContain("const a = 1;");
   });
 
@@ -53,7 +71,7 @@ test.describe("Code blocks", () => {
     await page.getByTestId("code-collapse").click();
     await expect(page.locator(".code-block-wrapper")).toHaveAttribute("data-collapsed", "true");
     const state = await codeBlockState(page);
-    expect(state?.attrs.collapsed).toBe(true);
+    expect(state?.collapsed).toBe(true);
     expect(state?.text).toContain("line1");
     expect(state?.text).toContain("line4");
   });
@@ -85,7 +103,9 @@ test.describe("Code blocks", () => {
     await page.keyboard.press("Enter");
     await page.keyboard.type("A-->B");
     await expect(page.getByTestId("code-mermaid-preview")).toBeVisible();
-    await expect(page.locator(".code-mermaid-svg svg, [data-testid='code-mermaid-error']")).toHaveCount(1);
+    await expect(page.locator(".code-mermaid-svg svg, [data-testid='code-mermaid-error']")).toBeVisible({
+      timeout: 15000,
+    });
     await expect(page.getByTestId("stored-text")).toContainText("```mermaid");
     await expect(page.getByTestId("stored-text")).toContainText("A-->B");
   });

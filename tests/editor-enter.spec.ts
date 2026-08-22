@@ -2,14 +2,17 @@ import { expect, test } from "@playwright/test";
 import { focusEditor } from "./editor-helpers";
 
 async function expectParity(page: import("@playwright/test").Page) {
-  const [stored, preview, aiText] = await Promise.all([
-    page.getByTestId("stored-text").innerText(),
-    page.getByTestId("markdown-preview").innerText(),
-    page.getByTestId("ai-request-text").innerText(),
-  ]);
-
-  expect(preview).toBe(stored);
-  expect(aiText).toBe(stored);
+  await expect
+    .poll(async () => {
+      return page.evaluate(() => {
+        const text = (id: string) => document.querySelector(`[data-testid="${id}"]`)?.textContent ?? "";
+        const stored = text("stored-text");
+        const preview = text("markdown-preview");
+        const aiText = text("ai-request-text");
+        return stored === preview && stored === aiText;
+      });
+    }, { timeout: 3000 })
+    .toBe(true);
 }
 
 test("Enter, Shift+Enter, Markdown rendering, and AI parity survive the full editor stack", async ({ page }) => {
