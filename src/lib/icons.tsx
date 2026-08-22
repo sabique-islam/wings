@@ -3,7 +3,7 @@
 import { forwardRef, type ComponentType } from "react";
 import type { LucideProps } from "lucide-react";
 import * as Animated from "@animateicons/react/lucide";
-import { Circle, Columns, Columns3, Cookie, Dot, Eraser, GripVertical, Hash, Maximize2, Palette, PanelLeft, Scissors, Sigma, Square } from "lucide-react";
+import { ChevronsDownUp, Circle, Columns, Columns3, Cookie, Dot, Eraser, GripVertical, Hash, Maximize2, Palette, PanelLeft, Scissors, Sigma, Square, WrapText } from "lucide-react";
 
 /** AnimateIcons wrap a div; LucideProps.ref is SVGSVGElement. Drop ref so the types match. */
 export type IconProps = Omit<LucideProps, "ref">;
@@ -146,6 +146,7 @@ export const Table2 = wrapIcon(Animated.FileSpreadsheet);
 export const Unplug = wrapIcon(Animated.PlugZap);
 export const Wand2 = wrapIcon(Animated.Sparkles);
 
+export { ChevronsDownUp };
 export { Circle };
 export { Columns };
 export { Columns3 };
@@ -160,5 +161,6 @@ export { PanelLeft };
 export { Scissors };
 export { Sigma };
 export { Square };
+export { WrapText };
 
 export type { LucideProps };
