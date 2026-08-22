@@ -352,6 +352,10 @@
   scroll-margin-bottom: 30px;
 }
 
+.block-editor-wrapper[data-keyboard-toolbar="true"] .ProseMirror {
+  padding-bottom: calc(3.25rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Free-canvas floating block toolbar buttons */
 .nw-tb-btn {
   @apply inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors;
@@ -1159,6 +1163,61 @@
   .bubble-menu { flex-wrap: wrap; max-width: 92vw; }
   .tableWrapper { -webkit-overflow-scrolling: touch; }
 }
+
+.mobile-keyboard-toolbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 8px;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid hsl(var(--border));
+  background: hsl(var(--background) / 0.96);
+  backdrop-filter: blur(10px);
+  color: hsl(var(--foreground));
+}
+.mobile-kb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  color: hsl(var(--muted-foreground));
+}
+.mobile-kb-btn:disabled {
+  opacity: 0.35;
+}
+.mobile-kb-btn.is-active,
+.mobile-kb-btn[aria-pressed="true"] {
+  color: hsl(var(--foreground));
+  background: hsl(var(--accent));
+}
+.mobile-kb-turn {
+  gap: 2px;
+  min-width: auto;
+  padding: 0 8px;
+  font-size: 12px;
+}
+.mobile-kb-char {
+  font-size: 16px;
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.mobile-kb-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  flex: 0 0 auto;
+  background: hsl(var(--border));
+}
+
 @media (max-width: 480px) {
   .block-editor-wrapper {
     padding: 0.75rem 0.625rem !important;
