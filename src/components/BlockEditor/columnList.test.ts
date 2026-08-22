@@ -3,6 +3,7 @@ import { Editor } from "@tiptap/core";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { createBlockEditorExtensions } from "./editorExtensions";
 import { collapsedSiblings, toggleHeadingCollapsedAt } from "./headingFold";
+import { findColumnDepth, selectionCoveringNode } from "./blockUtils";
 
 function makeEditor(content = "<p></p>") {
   return new Editor({
@@ -181,11 +182,12 @@ describe("column backspace containment", () => {
   it("selects only the active column on the first Mod-a", () => {
     const editor = makeEditor(FIVE_DAY_ROW);
     placeCursorInHeading(editor, "Sunday");
-    editor.commands.keyboardShortcut("Mod-a");
-    const selected = editor.state.doc.textBetween(
-      editor.state.selection.from,
-      editor.state.selection.to,
-    );
+    const $from = editor.state.selection.$from;
+    const depth = findColumnDepth($from as never);
+    expect(depth).not.toBeNull();
+    const pos = $from.before(depth!);
+    const next = selectionCoveringNode(editor.state.doc, pos, $from.node(depth!));
+    const selected = editor.state.doc.textBetween(next.from, next.to);
     expect(selected).toContain("Sunday");
     expect(selected).toContain("sun-todo");
     expect(selected).not.toContain("Monday");

@@ -103,4 +103,51 @@ test.describe("weekly planner", () => {
     await expect(editor.getByText("Monday", { exact: true })).toBeVisible();
     await expect(editor.getByText("Thursday", { exact: true })).toBeVisible();
   });
+
+  test("Cmd+A inside Sunday does not select the rest of the week row", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("/weekly");
+    const item = page.locator(".slash-menu button", { hasText: "Weekly planner" });
+    await expect(item).toBeVisible();
+    await item.click();
+    await expect(editor.getByText("Monday", { exact: true })).toBeVisible();
+
+    await page.evaluate(() => {
+      const ed = (
+        window as unknown as {
+          __nw_editor: {
+            state: {
+              doc: {
+                descendants: (
+                  fn: (node: { type: { name: string }; textContent: string }, pos: number) => false | void,
+                ) => void;
+              };
+            };
+            commands: { setTextSelection: (pos: number) => void; focus: () => void };
+          };
+        }
+      ).__nw_editor;
+      let pos = -1;
+      ed.state.doc.descendants((node, nodePos) => {
+        if (node.type.name === "heading" && node.textContent === "Sunday") {
+          pos = nodePos + 1;
+          return false;
+        }
+      });
+      ed.commands.focus();
+      ed.commands.setTextSelection(pos);
+    });
+    await page.keyboard.press("ControlOrMeta+a");
+
+    const selected = await page.evaluate(() => {
+      const ed = (
+        window as unknown as {
+          __nw_editor: { state: { selection: { from: number; to: number }; doc: { textBetween: (from: number, to: number) => string } } };
+        }
+      ).__nw_editor;
+      return ed.state.doc.textBetween(ed.state.selection.from, ed.state.selection.to);
+    });
+    expect(selected).toContain("Sunday");
+    expect(selected).not.toContain("Monday");
+  });
 });
