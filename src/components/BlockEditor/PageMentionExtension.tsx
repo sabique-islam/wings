@@ -3,13 +3,17 @@ import Suggestion from "@tiptap/suggestion";
 import { pageMentionSuggestionKey } from "./suggestionPluginKeys";
 import { renderPageSuggestions } from "./PageSuggestionList";
 import { matchPages } from "./pageSuggestions";
+import { insertPageRefAtRange } from "./pageRef";
 
 export interface PageOption {
   id: string;
   title: string;
 }
 
-export function createPageMentionExtension(getPages: () => PageOption[]) {
+export function createPageMentionExtension(
+  getPages: () => PageOption[],
+  onCreatePage?: (title: string) => void,
+) {
   return Extension.create({
     name: "pageMention",
     // Above WritingExperience (200) so Enter and the arrow keys reach the open
@@ -21,26 +25,26 @@ export function createPageMentionExtension(getPages: () => PageOption[]) {
           char: "@",
           allowSpaces: true,
           command: ({ editor, range, props }: any) => {
-            const page = props as PageOption;
-            editor
-              .chain()
-              .focus()
-              .deleteRange(range)
-              .insertContent({
-                type: "text",
-                marks: [
-                  {
-                    type: "link",
-                    attrs: { href: `#page:${page.id}`, class: "editor-link page-link" },
-                  },
-                ],
-                text: page.title || "Untitled",
-              })
-              .insertContent(" ")
-              .run();
+            insertPageRefAtRange(editor, range, (props as PageOption).id);
           },
           items: ({ query }: { query: string }) => matchPages(getPages(), query),
-          render: renderPageSuggestions,
+          render: () => {
+            const renderer = renderPageSuggestions();
+            const withCreate = (props: any) => ({
+              ...props,
+              onCreate: onCreatePage
+                ? (title: string) => {
+                    props.editor.chain().focus().deleteRange(props.range).run();
+                    onCreatePage(title);
+                  }
+                : undefined,
+            });
+            return {
+              ...renderer,
+              onStart: (props: any) => renderer.onStart(withCreate(props)),
+              onUpdate: (props: any) => renderer.onUpdate(withCreate(props)),
+            };
+          },
         },
       };
     },

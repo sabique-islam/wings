@@ -21,6 +21,7 @@ import { createCollabExtensions } from "@/lib/collab/collabExtensions";
 import type { CollabSession } from "@/lib/collab/useCollabProvider";
 import type { PageOption } from "./PageMentionExtension";
 import type { PagePreview } from "./PageEmbedExtension";
+import { refreshPageRefs } from "./PageRefExtension";
 import { toast } from "sonner";
 import { isSelectionInCodeBlock } from "./blockUtils";
 import { shouldPasteAsMarkdown } from "./pasteDecision";
@@ -323,6 +324,11 @@ export const BlockEditor = memo(function BlockEditor({
   useEffect(() => {
     if (editor && editor.isEditable !== editable) editor.setEditable(editable);
   }, [editable, editor]);
+
+  const pageTitleKey = pages.map((page) => `${page.id}:${page.title}`).join("|");
+  useEffect(() => {
+    refreshPageRefs();
+  }, [pageTitleKey]);
 
   /** Resolve a `#block=<id>` permalink once the document has rendered. */
   useEffect(() => {

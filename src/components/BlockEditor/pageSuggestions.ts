@@ -21,6 +21,6 @@ export function matchPages(pages: PageSuggestion[], query: string): PageSuggesti
  * `Ideas]] more text`.
  */
 export function wikiLinkQuery(raw: string): string {
-  const closed = raw.indexOf("]]");
+  const closed = raw.search(/\]\]|】】/);
   return (closed === -1 ? raw : raw.slice(0, closed)).trim();
 }

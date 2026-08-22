@@ -90,6 +90,7 @@ const CONTEXT_BLOCKS = new Set(["paragraph", "heading", "listItem", "taskItem", 
 
 function plainText(node: JSONContent): string {
   if (typeof node.text === "string") return node.text;
+  if (node.type === "pageRef") return "";
   return (node.content ?? []).map(plainText).join("");
 }
 
@@ -130,9 +131,12 @@ export function extractLinks(
 
   const visit = (node: JSONContent, block: JSONContent | null) => {
     const enclosing = node.type != null && CONTEXT_BLOCKS.has(node.type) ? node : block;
-    if (node.type === "pageEmbed") {
+    if (node.type === "pageEmbed" || node.type === "pageRef") {
       const pageId = node.attrs?.pageId as string | undefined;
-      if (pageId) outgoing.add(pageId);
+      if (pageId) {
+        outgoing.add(pageId);
+        if (enclosing) addContext(pageId, plainText(enclosing));
+      }
     }
     for (const mark of node.marks ?? []) {
       if (mark.type !== "link") continue;

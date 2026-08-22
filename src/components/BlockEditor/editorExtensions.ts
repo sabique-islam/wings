@@ -37,6 +37,7 @@ import { createPageMentionExtension, type PageOption } from "./PageMentionExtens
 import { createWikiLinkExtension } from "./WikiLinkExtension";
 import { createWikiEmbedExtension } from "./WikiEmbedExtension";
 import { createPageEmbedExtension } from "./PageEmbedExtension";
+import { createPageRefExtension } from "./PageRefExtension";
 import type { PagePreview } from "./PageEmbedExtension";
 import { Database } from "./DatabaseExtension";
 import { SyncedBlock } from "./SyncedBlockExtension";
@@ -72,20 +73,17 @@ const PLACEHOLDER_BY_NODE: Record<string, string> = {
 
 export function createBlockEditorExtensions(handlers: BlockEditorExtensionOptions = {}) {
   const { collab = false, extraExtensions = [] } = handlers;
+  const resolvePages = () => handlers.getPages?.() ?? [];
+  const createPage = handlers.onNewPage ? (title: string) => handlers.onNewPage?.(title) : undefined;
   const pageSuggestions =
     handlers.getPages != null
       ? [
-          createPageMentionExtension(() => handlers.getPages?.() ?? []),
-          createWikiLinkExtension(
-            () => handlers.getPages?.() ?? [],
-            handlers.onNewPage ? (title) => handlers.onNewPage?.(title) : undefined,
-          ),
-          createWikiEmbedExtension(
-            () => handlers.getPages?.() ?? [],
-            handlers.onNewPage ? (title) => handlers.onNewPage?.(title) : undefined,
-          ),
+          createPageMentionExtension(resolvePages, createPage),
+          createWikiLinkExtension(resolvePages, createPage),
+          createWikiEmbedExtension(resolvePages, createPage),
         ]
       : [];
+  const pageRefExtension = createPageRefExtension(resolvePages);
   const pageEmbedExtension = createPageEmbedExtension(
     (pageId) => handlers.getPagePreview?.(pageId) ?? null,
   );
@@ -148,7 +146,15 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
       HTMLAttributes: { class: "editor-image" },
       allowBase64: true,
     }),
-    Link.configure({
+    Link.extend({
+      parseHTML() {
+        return [
+          {
+            tag: 'a[href]:not([href *= "javascript:" i]):not([href^="#page:"]):not([data-type="page-ref"])',
+          },
+        ];
+      },
+    }).configure({
       openOnClick: false,
       autolink: true,
       linkOnPaste: false,
@@ -169,6 +175,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     ToggleBlock,
     Bookmark,
     Embed,
+    pageRefExtension,
     pageEmbedExtension,
     Database,
     SyncedBlock,

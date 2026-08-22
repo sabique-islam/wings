@@ -5,6 +5,7 @@ import {
   pageMentionSuggestionKey,
   slashCommandSuggestionKey,
   wikiEmbedSuggestionKey,
+  wikiLinkFullwidthSuggestionKey,
   wikiLinkSuggestionKey,
 } from "./suggestionPluginKeys";
 
@@ -12,6 +13,7 @@ const SUGGESTION_KEYS: PluginKey[] = [
   slashCommandSuggestionKey,
   pageMentionSuggestionKey,
   wikiLinkSuggestionKey,
+  wikiLinkFullwidthSuggestionKey,
   wikiEmbedSuggestionKey,
 ];
 

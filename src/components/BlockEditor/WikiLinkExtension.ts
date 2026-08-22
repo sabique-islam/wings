@@ -1,17 +1,57 @@
 import { Extension } from "@tiptap/core";
 import type { EditorState } from "@tiptap/pm/state";
 import Suggestion from "@tiptap/suggestion";
-import { wikiLinkSuggestionKey } from "./suggestionPluginKeys";
+import { wikiLinkFullwidthSuggestionKey, wikiLinkSuggestionKey } from "./suggestionPluginKeys";
 import { renderPageSuggestions } from "./PageSuggestionList";
 import { matchPages, wikiLinkQuery } from "./pageSuggestions";
+import { insertPageRefAtRange } from "./pageRef";
 import type { PageOption } from "./PageMentionExtension";
 
+function wikiLinkSuggestion(
+  char: string,
+  getPages: () => PageOption[],
+  onCreatePage?: (title: string) => void,
+) {
+  return {
+    char,
+    allowSpaces: true,
+    allowedPrefixes: null as string[] | null,
+    allow:
+      char === "[["
+        ? ({ state, range }: { state: EditorState; range: { from: number } }) =>
+            state.doc.textBetween(Math.max(0, range.from - 1), range.from) !== "!"
+        : undefined,
+    command: ({ editor, range, props }: any) => {
+      insertPageRefAtRange(editor, range, (props as PageOption).id);
+    },
+    items: ({ query }: { query: string }) => matchPages(getPages(), wikiLinkQuery(query)),
+    render: () => {
+      const renderer = renderPageSuggestions();
+      const withCreate = (props: any) => ({
+        ...props,
+        query: wikiLinkQuery(props.query ?? ""),
+        onCreate: onCreatePage
+          ? (title: string) => {
+              props.editor.chain().focus().deleteRange(props.range).run();
+              onCreatePage(title);
+            }
+          : undefined,
+      });
+      return {
+        ...renderer,
+        onStart: (props: any) => renderer.onStart(withCreate(props)),
+        onUpdate: (props: any) => renderer.onUpdate(withCreate(props)),
+      };
+    },
+  };
+}
+
 /**
- * Obsidian-style `[[` page linking.
+ * `[[` and `【【` page linking.
  *
- * The chosen page is inserted as an ordinary `#page:id` link mark rather than a
- * node of its own, so wikilinks reuse the existing markdown round-trip,
- * click-to-navigate handling, and link indexing with no new serialization path.
+ * The chosen page is inserted as a pageRef atom keyed by id. The visible label
+ * is read from the page list so a rename updates every chip without rewriting
+ * the document.
  */
 export function createWikiLinkExtension(
   getPages: () => PageOption[],
@@ -24,63 +64,22 @@ export function createWikiLinkExtension(
     priority: 500,
     addOptions() {
       return {
-        suggestion: {
-          char: "[[",
-          allowSpaces: true,
-          // `[[` reads as a link opener wherever it appears, including straight
-          // after a word, so don't require a leading space.
-          allowedPrefixes: null,
-          // `![[` is the embed trigger and contains this one. Without this both
-          // pickers open on top of each other.
-          allow: ({ state, range }: { state: EditorState; range: { from: number } }) =>
-            state.doc.textBetween(Math.max(0, range.from - 1), range.from) !== "!",
-          command: ({ editor, range, props }: any) => {
-            const page = props as PageOption;
-            editor
-              .chain()
-              .focus()
-              .deleteRange(range)
-              .insertContent({
-                type: "text",
-                marks: [
-                  {
-                    type: "link",
-                    attrs: { href: `#page:${page.id}`, class: "editor-link page-link" },
-                  },
-                ],
-                text: page.title || "Untitled",
-              })
-              .insertContent(" ")
-              .run();
-          },
-          items: ({ query }: { query: string }) => matchPages(getPages(), wikiLinkQuery(query)),
-          render: () => {
-            const renderer = renderPageSuggestions();
-            const withCreate = (props: any) => ({
-              ...props,
-              query: wikiLinkQuery(props.query ?? ""),
-              onCreate: onCreatePage
-                ? (title: string) => {
-                    props.editor.chain().focus().deleteRange(props.range).run();
-                    onCreatePage(title);
-                  }
-                : undefined,
-            });
-            return {
-              ...renderer,
-              onStart: (props: any) => renderer.onStart(withCreate(props)),
-              onUpdate: (props: any) => renderer.onUpdate(withCreate(props)),
-            };
-          },
-        },
+        suggestion: wikiLinkSuggestion("[[", getPages, onCreatePage),
       };
     },
     addProseMirrorPlugins() {
+      const brackets = wikiLinkSuggestion("[[", getPages, onCreatePage);
+      const fullwidth = wikiLinkSuggestion("【【", getPages, onCreatePage);
       return [
         Suggestion({
           editor: this.editor,
-          ...this.options.suggestion,
+          ...brackets,
           pluginKey: wikiLinkSuggestionKey,
+        }),
+        Suggestion({
+          editor: this.editor,
+          ...fullwidth,
+          pluginKey: wikiLinkFullwidthSuggestionKey,
         }),
       ];
     },
