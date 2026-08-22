@@ -62,6 +62,8 @@ export interface CreatePageParams {
   ownerId: string;
   parentId?: string | null;
   initialContent?: string;
+  /** Stored on `entries.title`, not as a leading heading in the body. */
+  title?: string;
   storage: ContentStorage;
   allEntries: Entry[];
 }
@@ -71,6 +73,7 @@ export async function executeCreatePage(params: CreatePageParams): Promise<Entry
   const entry = await createEntry(params.ownerId, params.storage === "local" ? "" : initialContent, {
     parentId: params.parentId ?? undefined,
     storage: params.storage,
+    title: params.title,
   });
   if (params.storage !== "local") return entry;
 

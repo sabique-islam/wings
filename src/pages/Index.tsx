@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { fetchEntries, syncWorkspaceEntries, updateEntry, updateEntryTitle, moveEntry, saveEntryOrder, deleteEntry, togglePin, getBreadcrumbTrail, Entry, getEntryTitle, findReusableBlankDraft, ShareRole } from "@/lib/journal";
+import { fetchEntries, syncWorkspaceEntries, updateEntry, updateEntryTitle, moveEntry, saveEntryOrder, deleteEntry, togglePin, getBreadcrumbTrail, Entry, getEntryTitle, findReusableBlankDraft, normalizeEntryTitle, ShareRole } from "@/lib/journal";
 import type { CollectionInfo } from "@/lib/collections";
 import {
   addPagesToCollection,
@@ -161,6 +161,7 @@ export default function Index() {
     ownerId: string;
     parentId?: string | null;
     initialContent?: string;
+    title?: string;
     onCreated?: (entry: Entry) => void;
     activate?: boolean;
   } | null>(null);
@@ -387,6 +388,7 @@ export default function Index() {
       ownerId: string;
       parentId?: string | null;
       initialContent?: string;
+      title?: string;
       storage: ContentStorage;
       onCreated?: (entry: Entry) => void;
       activate?: boolean;
@@ -411,6 +413,7 @@ export default function Index() {
           ownerId: opts.ownerId,
           parentId: opts.parentId,
           initialContent: opts.initialContent,
+          title: opts.title,
           storage: opts.storage,
           allEntries: entriesRef.current,
         });
@@ -434,6 +437,7 @@ export default function Index() {
       ownerId: string;
       parentId?: string | null;
       initialContent?: string;
+      title?: string;
       onCreated?: (entry: Entry) => void;
       activate?: boolean;
     }) => {
@@ -498,11 +502,15 @@ export default function Index() {
 
   const handleNewSubpageWithTitle = useCallback(async (parentId: string, title: string) => {
     if (!user || creatingRef.current) return;
+    const name = normalizeEntryTitle(title);
+    if (!name) return;
     const ownerId = resolveEntryOwnerId(parentId, user.id, entries, roleMap);
+    // Name belongs in `entries.title`. A leading `# title` heading left the
+    // title field on Untitled with an H1 in the body.
     requestCreatePage({
       ownerId,
       parentId,
-      initialContent: `# ${title}\n\n`,
+      title: name,
       onCreated: (entry) => insertPageLink(entry.id),
     });
   }, [user, entries, roleMap, requestCreatePage]);
@@ -595,6 +603,7 @@ export default function Index() {
           requestCreatePage({
             ownerId,
             parentId: activeId,
+            title,
             initialContent: markdown,
             onCreated: (entry) => {
               insertPageLink(entry.id);

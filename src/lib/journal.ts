@@ -80,6 +80,14 @@ export function getEntryTitle(entry: Entry): string {
   return entry.title || entry.content.split("\n")[0].replace(/^#+\s*/, "").slice(0, 40) || "Untitled";
 }
 
+/** Max length stored in `entries.title` (matches the title field / update path). */
+export const ENTRY_TITLE_MAX_LENGTH = 100;
+
+/** Trim and cap a page name for the title column — never for a body heading. */
+export function normalizeEntryTitle(title: string | null | undefined): string {
+  return (title ?? "").trim().slice(0, ENTRY_TITLE_MAX_LENGTH);
+}
+
 /** True when the page has no saved title or body — a fresh "Untitled" draft. */
 export function isBlankDraftPage(entry: Entry): boolean {
   if (entry.deleted_at) return false;
@@ -442,6 +450,8 @@ export interface CreateEntryOptions {
   parentId?: string;
   storage?: ContentStorage;
   initialJson?: JSONContent | null;
+  /** Page name for `entries.title`. Do not put this in the body as `# heading`. */
+  title?: string;
 }
 
 export async function createEntry(
@@ -460,6 +470,7 @@ export async function createEntry(
     parentId = opts.parentId;
   }
   const storage = opts.storage ?? "cloud";
+  const title = normalizeEntryTitle(opts.title);
   const hasStorageColumn = await contentStorageColumnAvailable();
   if (storage === "local" && !hasStorageColumn) {
     throw new Error(
@@ -471,6 +482,7 @@ export async function createEntry(
     user_id: userId,
     content: serverContent,
     ...(parentId ? { parent_id: parentId } : {}),
+    ...(title ? { title } : {}),
     ...(storage === "local" ? { content_json: null } : {}),
     ...(hasStorageColumn ? { content_storage: storage } : {}),
   };
@@ -522,7 +534,7 @@ export async function entryHasShares(entryId: string): Promise<boolean> {
 export async function updateEntryTitle(id: string, title: string): Promise<void> {
   const { error } = await supabase
     .from("entries")
-    .update({ title: title.slice(0, 100) })
+    .update({ title: normalizeEntryTitle(title) })
     .eq("id", id);
   if (error) throw error;
 }
