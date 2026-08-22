@@ -5,6 +5,9 @@ import {
   extractSingleLinkFromHtml,
   pasteExternalUrl,
   updateBookmarkMeta,
+  moveBlock,
+  duplicateBlock,
+  deleteCurrentBlock,
 } from "./blockCommands";
 
 function makeEditor(content = "<p></p>") {
@@ -113,6 +116,36 @@ describe("setCallout / setToggleBlock convert in place", () => {
     const toggleIndex = top.findIndex((node) => node.type === "toggleBlock");
     expect(toggleIndex).toBeGreaterThanOrEqual(0);
     expect(top.slice(0, toggleIndex).some((node) => node.type === "paragraph")).toBe(false);
+    editor.destroy();
+  });
+});
+
+describe("block move, duplicate, and delete", () => {
+  it("moves the current paragraph up one slot", () => {
+    const editor = makeEditor("<p>alpha</p><p>beta</p>");
+    editor.commands.setTextSelection(8);
+    expect(moveBlock(editor, "up")).toBe(true);
+    expect(editor.state.doc.firstChild?.textContent).toBe("beta");
+    expect(editor.state.doc.child(1)?.textContent).toBe("alpha");
+    editor.destroy();
+  });
+
+  it("duplicates the current paragraph after itself", () => {
+    const editor = makeEditor("<p>alpha</p>");
+    editor.commands.focus("end");
+    expect(duplicateBlock(editor)).toBe(true);
+    const paragraphs = (editor.getJSON().content ?? []).filter((node) => node.type === "paragraph" && node.content);
+    const withAlpha = paragraphs.filter((node) => node.content?.some((child) => child.text === "alpha"));
+    expect(withAlpha.length).toBe(2);
+    editor.destroy();
+  });
+
+  it("deletes the current block without emptying a sibling", () => {
+    const editor = makeEditor("<p>keep</p><p>drop</p>");
+    editor.commands.setTextSelection(8);
+    expect(deleteCurrentBlock(editor)).toBe(true);
+    expect(editor.state.doc.textContent).toContain("keep");
+    expect(editor.state.doc.textContent).not.toContain("drop");
     editor.destroy();
   });
 });

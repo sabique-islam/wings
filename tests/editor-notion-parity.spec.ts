@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { focusEditor } from "./editor-helpers";
+import { slashDateText } from "../src/components/BlockEditor/slashDates";
 
 test.describe("Notion parity keyboard and blocks", () => {
   test.beforeEach(async ({ page }) => {
@@ -82,6 +83,25 @@ test.describe("Notion parity keyboard and blocks", () => {
     await page.keyboard.press("Enter");
 
     await expect(editor.locator('[data-type="callout"]')).toHaveCount(1);
+  });
+
+  test("/dup + Enter duplicates the current paragraph", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("alpha ");
+    await page.keyboard.type("/dup");
+    await expect(page.getByRole("button", { name: "Duplicate Copy this block below" })).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(editor.locator("p").filter({ hasText: "alpha" })).toHaveCount(2);
+  });
+
+  test("/tomorr inserts tomorrow's date, not a new page", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("/tomorr");
+    await expect(page.locator(".slash-menu button", { hasText: "Tomorrow" })).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(editor).toContainText(slashDateText("tomorrow"));
+    await expect(editor.locator('[data-type="page-ref"]')).toHaveCount(0);
+    await expect(page.getByTestId("requested-page")).toHaveText("");
   });
 
   test("Esc selects current block", async ({ page }) => {

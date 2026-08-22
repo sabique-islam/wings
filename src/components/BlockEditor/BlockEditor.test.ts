@@ -148,6 +148,9 @@ describe("BlockEditor wiring", () => {
     const editor = makeEditor();
     const writing = editor.extensionManager.extensions.find((e) => e.name === "writingExperience");
     expect(writing?.config.priority).toBe(200);
+    const wrap = editor.extensionManager.extensions.find((e) => e.name === "selectionWrap");
+    expect(wrap?.config.priority).toBe(350);
+    expect(wrap?.config.priority).toBeLessThan(500);
     editor.destroy();
   });
 
