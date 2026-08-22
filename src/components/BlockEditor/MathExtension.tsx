@@ -51,7 +51,7 @@ function MathView({ node, updateAttributes, editor, inline }: any) {
 
   if (editing && editor.isEditable) {
     return (
-      <NodeViewWrapper as={inline ? "span" : "div"} className={inline ? "math-inline-edit" : "math-block-edit"}>
+      <NodeViewWrapper as={inline ? "span" : "div"} className={inline ? "math-inline-edit" : "math-block-edit"} data-type={inline ? "inline-math" : "block-math"}>
         {inline ? (
           <input
             autoFocus
@@ -96,7 +96,7 @@ function MathView({ node, updateAttributes, editor, inline }: any) {
   }
 
   return (
-    <NodeViewWrapper as={inline ? "span" : "div"} className={inline ? "math-inline" : "math-block"}>
+    <NodeViewWrapper as={inline ? "span" : "div"} className={inline ? "math-inline" : "math-block"} data-type={inline ? "inline-math" : "block-math"}>
       <Wrapper
         ref={ref as any}
         onClick={() => editor.isEditable && setEditing(true)}
