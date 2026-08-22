@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Entry } from "./journal";
-import { findReusableBlankDraft, isBlankDraftPage } from "./journal";
+import { findReusableBlankDraft, isBlankDraftPage, normalizeEntryTitle } from "./journal";
 
 function draft(overrides: Partial<Entry> = {}): Entry {
   return {
@@ -20,6 +20,18 @@ function draft(overrides: Partial<Entry> = {}): Entry {
     ...overrides,
   };
 }
+
+describe("normalizeEntryTitle", () => {
+  it("trims and caps at 100 characters", () => {
+    expect(normalizeEntryTitle("  Notes  ")).toBe("Notes");
+    expect(normalizeEntryTitle("n".repeat(120))).toHaveLength(100);
+  });
+
+  it("treats blank names as empty so they stay Untitled", () => {
+    expect(normalizeEntryTitle("   ")).toBe("");
+    expect(normalizeEntryTitle(undefined)).toBe("");
+  });
+});
 
 describe("isBlankDraftPage", () => {
   it("matches an empty untitled page", () => {
