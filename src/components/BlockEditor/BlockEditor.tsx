@@ -2,7 +2,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import type { JSONContent } from "@tiptap/core";
 import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
 import { extractMathHtmlFromClipboard, looksLikeMathMarkdown, normalizeMathMarkdown } from "@/lib/normalizeMath";
-import { insertBookmark, insertEmbed, looksLikeMarkdown, pasteExternalUrl, updateBookmarkMeta, extractSingleLinkFromHtml } from "./blockCommands";
+import { insertBookmark, insertEmbed, pasteExternalUrl, updateBookmarkMeta, extractSingleLinkFromHtml } from "./blockCommands";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { createBlockEditorExtensions } from "./editorExtensions";
 import { BlockMenu } from "./BlockMenu";
@@ -24,6 +24,7 @@ import type { PagePreview } from "./PageEmbedExtension";
 import { toast } from "sonner";
 import { EditorOutline } from "@/components/EditorOutline";
 import { isSelectionInCodeBlock } from "./blockUtils";
+import { shouldPasteAsMarkdown } from "./pasteDecision";
 
 const SERIALIZE_DEBOUNCE_MS = 200;
 const URL_ONLY = /^https?:\/\/[^\s]+$/i;
@@ -277,15 +278,15 @@ export const BlockEditor = memo(function BlockEditor({
           return true;
         }
 
-        if (html && html.includes("<")) {
+        if (shouldPasteAsMarkdown(text, html)) {
           event.preventDefault();
-          view.pasteHTML(html);
+          view.pasteHTML(markdownToHtml(text));
           return true;
         }
 
-        if (text && looksLikeMarkdown(text) && !html) {
+        if (html && html.includes("<")) {
           event.preventDefault();
-          view.pasteHTML(markdownToHtml(text));
+          view.pasteHTML(html);
           return true;
         }
 

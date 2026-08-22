@@ -251,17 +251,3 @@ export function fuzzyMatch(query: string, text: string, aliases: string[] = []):
   }
   return 0;
 }
-
-export function looksLikeMarkdown(text: string): boolean {
-  const t = text.trim();
-  if (!t) return false;
-  return (
-    /^#{1,6}\s/m.test(t) ||
-    /^\s*[-*+]\s/m.test(t) ||
-    /^\s*\d+\.\s/m.test(t) ||
-    /```/.test(t) ||
-    /\*\*[^*]+\*\*/.test(t) ||
-    /^>\s/m.test(t) ||
-    /^\s*-\s\[[ x]\]/m.test(t)
-  );
-}
