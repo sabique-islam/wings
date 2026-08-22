@@ -739,6 +739,15 @@
 .bubble-btn.is-active {
   @apply text-foreground bg-accent;
 }
+.bubble-btn-label {
+  @apply gap-1 px-1.5 text-[11px] font-medium inline-flex items-center;
+}
+.link-toolbar {
+  @apply flex items-center gap-0.5;
+}
+.link-toolbar-href {
+  @apply max-w-[10rem] truncate px-1.5 text-[11px] text-muted-foreground;
+}
 
 /* Table */
 .block-editor-content table {
