@@ -1,5 +1,5 @@
 import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Plugin, PluginKey, TextSelection, NodeSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import {
   EMPTY_FIND_STATE,
@@ -12,6 +12,27 @@ import {
 import { displayTitleForPage } from "./pageRef";
 
 export const findReplaceKey = new PluginKey("findReplace");
+
+let findReplaceRevision = 0;
+const findReplaceSubscribers = new Set<() => void>();
+
+export function subscribeFindReplace(notify: () => void): () => void {
+  findReplaceSubscribers.add(notify);
+  return () => {
+    findReplaceSubscribers.delete(notify);
+  };
+}
+
+export function readFindReplaceRevision(): number {
+  return findReplaceRevision;
+}
+
+function bumpFindReplace(): void {
+  queueMicrotask(() => {
+    findReplaceRevision += 1;
+    for (const notify of findReplaceSubscribers) notify();
+  });
+}
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -43,34 +64,36 @@ function findDecorations(doc: { nodeSize: number }, matches: FindMatch[], active
   return DecorationSet.create(doc as never, decos);
 }
 
-function patchFind(
-  state: { tr: { setMeta: (key: unknown, value: unknown) => unknown }; doc: Parameters<typeof refreshFindState>[1] },
-  current: FindReplaceState,
-  patch: Partial<FindReplaceState>,
-  pageTitle: (pageId: string) => string,
-) {
-  const next = refreshFindState({ ...current, ...patch }, state.doc, pageTitle);
-  return (state.tr as { setMeta: (key: unknown, value: unknown) => { scrollIntoView?: () => unknown } }).setMeta(
-    findReplaceKey,
-    next,
-  );
+function selectionForMatch(doc: { resolve: (pos: number) => { nodeAfter?: { isAtom?: boolean } } }, match: FindMatch) {
+  if (doc.resolve(match.from).nodeAfter?.isAtom) {
+    return NodeSelection.create(doc as never, match.from);
+  }
+  return TextSelection.create(doc as never, match.from, match.to);
 }
 
-function selectMatch(
-  editor: {
-    state: { doc: { resolve: (pos: number) => { nodeAfter?: { isAtom?: boolean } }; content: { size: number } } };
-    commands: {
-      setTextSelection: (range: { from: number; to: number }) => boolean;
-      setNodeSelection: (pos: number) => boolean;
+function dispatchFind(
+  state: {
+    tr: {
+      setMeta: (key: unknown, value: unknown) => any;
+      setSelection: (sel: unknown) => any;
+      scrollIntoView: () => any;
     };
-    view: { dispatch: (tr: { scrollIntoView: () => unknown }) => void; state: { tr: { scrollIntoView: () => unknown } } };
+    doc: { resolve: (pos: number) => { nodeAfter?: { isAtom?: boolean } } };
   },
-  match: FindMatch,
+  dispatch: ((tr: unknown) => void) | undefined,
+  next: FindReplaceState,
+  selectActive: boolean,
 ) {
-  const nodeAfter = editor.state.doc.resolve(match.from).nodeAfter;
-  if (nodeAfter?.isAtom) editor.commands.setNodeSelection(match.from);
-  else editor.commands.setTextSelection({ from: match.from, to: match.to });
-  editor.view.dispatch(editor.view.state.tr.scrollIntoView() as never);
+  let tr = state.tr.setMeta(findReplaceKey, next);
+  const match = selectActive ? next.matches[next.active] : null;
+  if (match) {
+    try {
+      tr = tr.setSelection(selectionForMatch(state.doc, match)).scrollIntoView();
+    } catch {
+      // Some atoms reject a text selection; the highlight still moves.
+    }
+  }
+  dispatch?.(tr);
 }
 
 function replaceMatch(
@@ -104,7 +127,7 @@ export function createFindReplaceExtension(getPages: () => Array<{ id: string; t
       return {
         findOpen:
           (opts) =>
-          ({ editor, state, dispatch }) => {
+          ({ state, dispatch }) => {
             const current = readFindState(state);
             const selected =
               opts?.seedFromSelection && state.selection.from !== state.selection.to
@@ -126,9 +149,7 @@ export function createFindReplaceExtension(getPages: () => Array<{ id: string; t
               state.doc,
               pageTitle,
             );
-            dispatch(state.tr.setMeta(findReplaceKey, next));
-            const match = next.matches[next.active];
-            if (match) selectMatch(editor as never, match);
+            dispatchFind(state, dispatch, next, true);
             return true;
           },
 
@@ -138,11 +159,12 @@ export function createFindReplaceExtension(getPages: () => Array<{ id: string; t
             const current = readFindState(state);
             if (!current.open) return false;
             if (!dispatch) return true;
-            dispatch(state.tr.setMeta(findReplaceKey, { ...EMPTY_FIND_STATE, query: current.query }));
+            let tr = state.tr.setMeta(findReplaceKey, { ...EMPTY_FIND_STATE, query: current.query });
             const restore = current.selectionOnOpen;
             if (restore && restore.to <= state.doc.content.size) {
-              editor.commands.setTextSelection(restore);
+              tr = tr.setSelection(TextSelection.create(state.doc as never, restore.from, restore.to));
             }
+            dispatch(tr);
             editor.commands.focus();
             return true;
           },
@@ -153,9 +175,8 @@ export function createFindReplaceExtension(getPages: () => Array<{ id: string; t
             const current = readFindState(state);
             if (!current.open) return false;
             if (!dispatch) return true;
-            dispatch(
-              patchFind(state, current, { query, active: 0 }, pageTitle) as never,
-            );
+            const next = refreshFindState({ ...current, query, active: 0 }, state.doc, pageTitle);
+            dispatchFind(state, dispatch, next, false);
             return true;
           },
 
@@ -165,40 +186,34 @@ export function createFindReplaceExtension(getPages: () => Array<{ id: string; t
             const current = readFindState(state);
             if (!current.open) return false;
             if (!dispatch) return true;
-            dispatch(
-              patchFind(
-                state,
-                current,
-                { caseSensitive: !current.caseSensitive, active: 0 },
-                pageTitle,
-              ) as never,
+            const next = refreshFindState(
+              { ...current, caseSensitive: !current.caseSensitive, active: 0 },
+              state.doc,
+              pageTitle,
             );
+            dispatchFind(state, dispatch, next, false);
             return true;
           },
 
         findNext:
           () =>
-          ({ editor, state, dispatch }) => {
+          ({ state, dispatch }) => {
             const current = readFindState(state);
             if (!current.open || current.matches.length === 0) return false;
             if (!dispatch) return true;
             const active = stepMatchIndex(current.matches.length, current.active, 1);
-            dispatch(state.tr.setMeta(findReplaceKey, { ...current, active }));
-            const match = current.matches[active];
-            if (match) selectMatch(editor as never, match);
+            dispatchFind(state, dispatch, { ...current, active }, true);
             return true;
           },
 
         findPrev:
           () =>
-          ({ editor, state, dispatch }) => {
+          ({ state, dispatch }) => {
             const current = readFindState(state);
             if (!current.open || current.matches.length === 0) return false;
             if (!dispatch) return true;
             const active = stepMatchIndex(current.matches.length, current.active, -1);
-            dispatch(state.tr.setMeta(findReplaceKey, { ...current, active }));
-            const match = current.matches[active];
-            if (match) selectMatch(editor as never, match);
+            dispatchFind(state, dispatch, { ...current, active }, true);
             return true;
           },
 
@@ -211,14 +226,8 @@ export function createFindReplaceExtension(getPages: () => Array<{ id: string; t
             if (!match?.replaceable) return editor.commands.findNext();
             if (!dispatch) return true;
             const tr = replaceMatch(state.tr, state.schema, match, replacement) as typeof state.tr;
-            const next = refreshFindState(
-              { ...current, active: current.active },
-              tr.doc,
-              pageTitle,
-            );
+            const next = refreshFindState({ ...current, active: current.active }, tr.doc, pageTitle);
             dispatch(tr.setMeta(findReplaceKey, next));
-            const follow = next.matches[next.active];
-            if (follow) selectMatch(editor as never, follow);
             return true;
           },
 
@@ -227,7 +236,7 @@ export function createFindReplaceExtension(getPages: () => Array<{ id: string; t
           ({ editor, state, dispatch }) => {
             const current = readFindState(state);
             if (!current.open || !editor.isEditable) return false;
-            const replaceable = current.matches.filter((match) => match.replaceable);
+            const replaceable = current.matches.filter((item) => item.replaceable);
             if (replaceable.length === 0) return false;
             if (wouldEmptyReplaceAll(state.doc, current.query, replacement, current.caseSensitive)) {
               return false;
@@ -267,6 +276,16 @@ export function createFindReplaceExtension(getPages: () => Array<{ id: string; t
               if (meta && !tr.docChanged) return meta;
               return refreshFindState(base, tr.doc, titleOf);
             },
+          },
+          view() {
+            return {
+              update() {
+                bumpFindReplace();
+              },
+              destroy() {
+                bumpFindReplace();
+              },
+            };
           },
           props: {
             decorations: (state) => {

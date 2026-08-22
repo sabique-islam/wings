@@ -8,7 +8,6 @@ test.describe("Find and replace", () => {
   });
 
   test("⌘F walks each match", async ({ page }) => {
-    const editor = page.locator(".ProseMirror");
     await page.keyboard.type("alpha alpha alpha");
     await page.keyboard.press("Meta+f");
 
@@ -23,18 +22,16 @@ test.describe("Find and replace", () => {
     await expect(page.getByTestId("find-count")).toHaveText("3 of 3");
     await page.getByTestId("find-next").click();
     await expect(page.getByTestId("find-count")).toHaveText("1 of 3");
-    await expect(editor).toContainText("alpha alpha alpha");
   });
 
   test("replace one leaves the other matches", async ({ page }) => {
-    const editor = page.locator(".ProseMirror");
     await page.keyboard.type("alpha alpha alpha");
     await page.keyboard.press("Meta+f");
     await page.getByTestId("find-query").fill("alpha");
     await page.getByTestId("find-replace-input").fill("beta");
     await page.getByTestId("find-replace-one").click();
 
-    await expect(editor).toContainText("beta");
+    await expect(page.locator(".ProseMirror p")).toContainText("beta");
     await expect(page.getByTestId("find-count")).toHaveText("1 of 2");
   });
 

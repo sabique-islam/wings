@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Editor } from "@tiptap/react";
 import { ChevronDown, ChevronUp, Search, X } from "@/lib/icons";
-import { findReplaceKey } from "./BlockEditor/FindReplaceExtension";
+import {
+  findReplaceKey,
+  readFindReplaceRevision,
+  subscribeFindReplace,
+} from "./BlockEditor/FindReplaceExtension";
 import { wouldEmptyReplaceAll, type FindReplaceState } from "./BlockEditor/findReplace";
 
 interface Props {
@@ -13,18 +17,9 @@ export function FindReplaceBar({ editor, editable }: Props) {
   const queryRef = useRef<HTMLInputElement>(null);
   const [replacement, setReplacement] = useState("");
   const [blocked, setBlocked] = useState(false);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const onTr = () => setTick((n) => n + 1);
-    editor.on("transaction", onTr);
-    return () => {
-      editor.off("transaction", onTr);
-    };
-  }, [editor]);
+  useSyncExternalStore(subscribeFindReplace, readFindReplaceRevision, readFindReplaceRevision);
 
   const state = (findReplaceKey.getState(editor.state) as FindReplaceState | undefined) ?? null;
-  void tick;
 
   useEffect(() => {
     if (!state?.open) return;
@@ -97,6 +92,7 @@ export function FindReplaceBar({ editor, editable }: Props) {
         data-testid="find-prev"
         title="Previous"
         aria-label="Previous match"
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => editor.commands.findPrev()}
       >
         <ChevronUp className="h-3.5 w-3.5" />
@@ -107,6 +103,7 @@ export function FindReplaceBar({ editor, editable }: Props) {
         data-testid="find-next"
         title="Next"
         aria-label="Next match"
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => editor.commands.findNext()}
       >
         <ChevronDown className="h-3.5 w-3.5" />
