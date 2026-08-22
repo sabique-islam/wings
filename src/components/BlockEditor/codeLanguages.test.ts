@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  filterCodeLanguages,
   formatCodeLanguageLabel,
   getCodeBlockLanguages,
+  isMermaidLanguage,
   normalizeCodeLanguage,
 } from "./codeLanguages";
 
@@ -10,6 +12,7 @@ describe("codeLanguages", () => {
     const languages = getCodeBlockLanguages();
     expect(languages).toContain("c");
     expect(languages).toContain("cpp");
+    expect(languages).toContain("mermaid");
     expect(languages.length).toBeGreaterThan(100);
   });
 
@@ -24,5 +27,22 @@ describe("codeLanguages", () => {
     expect(formatCodeLanguageLabel("cpp")).toBe("C++");
     expect(formatCodeLanguageLabel("c")).toBe("C");
     expect(formatCodeLanguageLabel("haskell")).toBe("haskell");
+    expect(formatCodeLanguageLabel("mermaid")).toBe("Mermaid");
+  });
+
+  it("ranks typescript first when filtering by ts", () => {
+    const matches = filterCodeLanguages("ts", "plaintext");
+    expect(matches[0]).toBe("typescript");
+    expect(matches).toContain("typescript");
+  });
+
+  it("matches C++ from the fence alias", () => {
+    const matches = filterCodeLanguages("c++", "plaintext");
+    expect(matches[0]).toBe("cpp");
+  });
+
+  it("recognizes mermaid as a preview language", () => {
+    expect(isMermaidLanguage("mermaid")).toBe(true);
+    expect(isMermaidLanguage("typescript")).toBe(false);
   });
 });

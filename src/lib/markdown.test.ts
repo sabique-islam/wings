@@ -51,6 +51,12 @@ describe("markdown <-> html conversion", () => {
     expect(html).toContain("const x = 1;");
   });
 
+  it("round-trips mermaid fences without dropping the source", () => {
+    const out = roundtrip("```mermaid\nflowchart TD\nA-->B\n```");
+    expect(out).toContain("```mermaid");
+    expect(out).toContain("A-->B");
+  });
+
   it("renders inline code", () => {
     expect(markdownToHtml("an `inline` token")).toMatch(/<code>inline<\/code>/);
   });
