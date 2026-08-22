@@ -43,6 +43,30 @@ export function findColumnDepth($from: BlockPos): number | null {
   return null;
 }
 
+type CoverableNode = {
+  isTextblock: boolean;
+  nodeSize: number;
+  descendants: (fn: (child: { isTextblock: boolean; nodeSize: number }, childPos: number) => void) => void;
+};
+
+/** Text selection over a block. Outer node positions are not valid TextSelection anchors. */
+export function selectionCoveringNode(doc: { resolve: (pos: number) => unknown }, pos: number, node: CoverableNode) {
+  if (node.isTextblock) {
+    return TextSelection.create(doc as never, pos + 1, Math.max(pos + 1, pos + node.nodeSize - 1));
+  }
+  let from: number | null = null;
+  let to: number | null = null;
+  node.descendants((child, childPos) => {
+    if (!child.isTextblock) return;
+    const start = pos + 1 + childPos + 1;
+    const end = pos + 1 + childPos + child.nodeSize - 1;
+    if (from == null) from = start;
+    to = end;
+  });
+  if (from == null || to == null) return NodeSelection.create(doc as never, pos);
+  return TextSelection.create(doc as never, from, to);
+}
+
 export function getTopLevelBlockPos($from: BlockPos): number | null {
   const depth = findTopLevelDepth($from);
   if (depth < 1) return null;
