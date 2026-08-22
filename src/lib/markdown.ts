@@ -3,6 +3,7 @@
 import { marked } from "marked";
 import TurndownService from "turndown";
 import { PAGE_HREF_PREFIX } from "./linkExtraction";
+import { normalizeMathMarkdown } from "./normalizeMath";
 
 /** Blocks the editor stores as HTML or bespoke syntax because markdown has none. */
 const CUSTOM_BLOCK_TYPES = new Set([
@@ -129,6 +130,7 @@ marked.use({
 
 function preprocessMath(md: string): string {
   if (!md) return md;
+  md = normalizeMathMarkdown(md);
   const fenceRe = /(^|\n)```[\s\S]*?\n```/g;
   let last = 0;
   const segs: { text: string; isCode: boolean }[] = [];
