@@ -144,6 +144,20 @@ describe("markdown <-> html conversion", () => {
     expect(markdownToHtml(md)).toContain('data-collapsed="true"');
   });
 
+  it("preserves heading background so planner bars survive markdown load", () => {
+    const blob = '<h3 data-bg="#f1f1ef">Sunday</h3>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain('data-bg="#f1f1ef"');
+    expect(markdownToHtml(md)).toContain('data-bg="#f1f1ef"');
+  });
+
+  it("preserves template button HTML round-trip", () => {
+    const blob = '<div data-type="template-button" data-label="New week" data-kind="weekly-planner"></div>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain('data-type="template-button"');
+    expect(markdownToHtml(md)).toContain('data-type="template-button"');
+  });
+
   it("preserves collapsed heading HTML when UniqueID puts id before data-collapsed", () => {
     const blob = '<h2 id="abc" data-collapsed="true">Folded</h2>';
     const md = htmlToMarkdown(blob);

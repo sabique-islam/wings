@@ -112,6 +112,7 @@ describe("BlockEditor wiring", () => {
     expect(names.filter((n) => n === "trailingNode")).toHaveLength(1);
     expect(names.filter((n) => n === "headingFold")).toHaveLength(1);
     expect(editor.schema.nodes.heading.spec.attrs?.collapsed).toBeTruthy();
+    expect(editor.schema.nodes.heading.spec.attrs?.bgColor).toBeTruthy();
     editor.destroy();
   });
 
@@ -334,6 +335,8 @@ describe("BlockEditor wiring", () => {
   it("registers toggleBlock node for Tab-nest and UniqueID", () => {
     const editor = makeEditor();
     expect(editor.state.schema.nodes.toggleBlock).toBeTruthy();
+    expect(editor.state.schema.nodes.templateButton).toBeTruthy();
+    expect(editor.state.schema.nodes.columnList).toBeTruthy();
     const uniqueId = editor.extensionManager.extensions.find((e) => e.name === "uniqueID");
     expect(uniqueId).toBeTruthy();
     editor.destroy();
