@@ -28,6 +28,7 @@ import { useEditorAppearance } from "@/components/EditorAppearanceProvider";
 import { pageEditorWidthClass } from "@/lib/editorAppearance";
 import { rememberDrawingSnapshot } from "@/lib/ai/excalidrawContext";
 import { countWords, countWordsInDoc, readingTime } from "@/lib/documentStats";
+import { SUGGEST_PAGE_TITLE_EVENT } from "@/components/BlockEditor/templateButton";
 import { Check, CloudOff } from "@/lib/icons";
 import {
   DropdownMenu,
@@ -156,6 +157,21 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
     const frame = requestAnimationFrame(() => titleRef.current?.focus());
     return () => cancelAnimationFrame(frame);
   }, [blankDraftId]);
+
+  useEffect(() => {
+    if (!canEdit) return;
+    const onSuggest = (event: Event) => {
+      const title = (event as CustomEvent<{ title?: string }>).detail?.title?.trim();
+      const field = titleRef.current;
+      if (!title || !field || field.value.trim()) return;
+      field.value = title;
+      field.style.height = "auto";
+      field.style.height = `${field.scrollHeight}px`;
+      onTitleChange?.(title);
+    };
+    window.addEventListener(SUGGEST_PAGE_TITLE_EVENT, onSuggest);
+    return () => window.removeEventListener(SUGGEST_PAGE_TITLE_EVENT, onSuggest);
+  }, [canEdit, onTitleChange]);
 
   const handlePromoteConfirm = useCallback(async () => {
     if (!entry || !onPromoteToCloud) return;

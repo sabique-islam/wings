@@ -32,6 +32,7 @@ export const NEVER_PARENTS = new Set([
   "pageEmbed",
   "blockMath",
   "columnList",
+  "templateButton",
 ]);
 
 export function hasBlockChildren(node: { forEach: (fn: (child: { isBlock: boolean }) => void) => void }): boolean {

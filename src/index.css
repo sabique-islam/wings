@@ -858,8 +858,40 @@
 .nw-column-list.nw-cols-3 {
   @apply grid-cols-1 md:grid-cols-3;
 }
+.nw-column-list.nw-cols-4 {
+  @apply grid-cols-2 lg:grid-cols-4;
+}
+.nw-column-list.nw-cols-5 {
+  @apply grid-cols-2 sm:grid-cols-3 xl:grid-cols-5;
+}
 .block-editor-content .nw-col {
   @apply min-h-[40px];
+}
+.nw-col h1,
+.nw-col h2,
+.nw-col h3 {
+  margin-top: 0;
+  font-size: 0.875rem;
+  padding-left: 0.6rem;
+}
+.nw-col .nw-heading-fold {
+  display: none;
+}
+
+.block-editor-content h1[data-bg],
+.block-editor-content h2[data-bg],
+.block-editor-content h3[data-bg] {
+  border-radius: 4px;
+  padding-top: 0.35rem;
+  padding-bottom: 0.35rem;
+  padding-right: 0.6rem;
+}
+
+.nw-template-button {
+  @apply my-2;
+}
+.nw-template-button-trigger {
+  @apply inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50;
 }
 
 /* Bookmark */

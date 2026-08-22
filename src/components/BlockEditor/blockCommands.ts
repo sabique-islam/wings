@@ -143,12 +143,24 @@ export function turnInto(editor: Editor, type: TurnIntoType): boolean {
   }
 }
 
-export function insertColumns(editor: Editor, count: 2 | 3): void {
-  const cols = Array.from({ length: count }, () => ({
-    type: "column",
-    content: [{ type: "paragraph" }],
-  }));
-  editor.chain().focus().insertContent({ type: "columnList", content: cols }).run();
+export function insertColumns(editor: Editor, count: 2 | 3 | 4 | 5): void {
+  editor.chain().focus().insertColumnList(count).run();
+}
+
+export function setHeadingBackground(editor: Editor, color: string): boolean {
+  return editor.chain().focus().updateAttributes("heading", { bgColor: color || null }).run();
+}
+
+/** Heading block fill when the caret is in a heading; otherwise inline highlight. */
+export function applyBackgroundColor(editor: Editor, color: string): boolean {
+  const { $from } = editor.state.selection;
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === "heading") {
+      return setHeadingBackground(editor, color);
+    }
+  }
+  if (color) return editor.chain().focus().toggleHighlight({ color }).run();
+  return editor.chain().focus().unsetHighlight().run();
 }
 
 export function insertBookmark(editor: Editor, url: string, meta?: BookmarkMeta): boolean {

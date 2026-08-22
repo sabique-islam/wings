@@ -1,9 +1,17 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 
+export type ColumnCount = 2 | 3 | 4 | 5;
+
+export function clampColumnCount(count?: number): ColumnCount {
+  if (!count || count <= 2) return 2;
+  if (count >= 5) return 5;
+  return count as ColumnCount;
+}
+
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     columnList: {
-      insertColumnList: (count?: 2 | 3) => ReturnType;
+      insertColumnList: (count?: number) => ReturnType;
     };
   }
 }
@@ -32,8 +40,8 @@ export const ColumnList = Node.create({
     return {
       cols: {
         default: 2,
-        parseHTML: (el) => parseInt(el.getAttribute("data-cols") || "2", 10),
-        renderHTML: (attrs) => ({ "data-cols": String(attrs.cols) }),
+        parseHTML: (el) => clampColumnCount(parseInt(el.getAttribute("data-cols") || "2", 10)),
+        renderHTML: (attrs) => ({ "data-cols": String(clampColumnCount(Number(attrs.cols))) }),
       },
     };
   },
@@ -58,13 +66,14 @@ export const ColumnList = Node.create({
   addCommands() {
     return {
       insertColumnList:
-        (count: 2 | 3 = 2) =>
+        (count = 2) =>
         ({ commands }) => {
-          const cols = Array.from({ length: count }, () => ({
+          const n = clampColumnCount(count);
+          const cols = Array.from({ length: n }, () => ({
             type: "column",
             content: [{ type: "paragraph" }],
           }));
-          return commands.insertContent({ type: this.name, attrs: { cols: count }, content: cols });
+          return commands.insertContent({ type: this.name, attrs: { cols: n }, content: cols });
         },
     };
   },

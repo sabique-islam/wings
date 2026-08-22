@@ -43,6 +43,7 @@ import { createSelectionWrapExtension } from "./SelectionWrapExtension";
 import type { PagePreview } from "./PageEmbedExtension";
 import { Database } from "./DatabaseExtension";
 import { SyncedBlock } from "./SyncedBlockExtension";
+import { TemplateButton } from "./TemplateButtonExtension";
 import type { Extensions } from "@tiptap/core";
 
 interface BlockEditorExtensionHandlers {
@@ -103,7 +104,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
         "paragraph", "heading", "blockquote", "codeBlock", "horizontalRule",
         "bulletList", "orderedList", "taskList", "listItem", "taskItem",
         "callout", "toggleBlock", "outlineBlock", "columnList", "column", "bookmark", "embed", "pageEmbed",
-        "blockMath", "excalidraw", "database", "syncedBlock",
+        "blockMath", "excalidraw", "database", "syncedBlock", "templateButton",
       ],
       attributeName: "id",
     }),
@@ -185,6 +186,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     pageEmbedExtension,
     Database,
     SyncedBlock,
+    TemplateButton,
     BlockMath,
     InlineMath,
     ExcalidrawNode,

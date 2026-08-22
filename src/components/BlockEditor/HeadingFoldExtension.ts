@@ -3,6 +3,9 @@ import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { EditorView } from "@tiptap/pm/view";
 import { collapsedSiblings, toggleHeadingCollapsedAt } from "./headingFold";
+import { BG_COLORS } from "./blockCommands";
+
+const ALLOWED_HEADING_BG = new Set(BG_COLORS.map((c) => c.value).filter(Boolean));
 
 export const headingFoldKey = new PluginKey("headingFold");
 
@@ -69,6 +72,18 @@ export const HeadingFold = Extension.create({
             keepOnSplit: false,
             parseHTML: (el) => (el as HTMLElement).getAttribute("data-collapsed") === "true",
             renderHTML: (attrs) => (attrs.collapsed ? { "data-collapsed": "true" } : {}),
+          },
+          bgColor: {
+            default: null,
+            keepOnSplit: false,
+            parseHTML: (el) => {
+              const raw = (el as HTMLElement).getAttribute("data-bg") || "";
+              return ALLOWED_HEADING_BG.has(raw) ? raw : null;
+            },
+            renderHTML: (attrs) =>
+              attrs.bgColor && ALLOWED_HEADING_BG.has(attrs.bgColor)
+                ? { "data-bg": attrs.bgColor, style: `background-color: ${attrs.bgColor}` }
+                : {},
           },
         },
       },
