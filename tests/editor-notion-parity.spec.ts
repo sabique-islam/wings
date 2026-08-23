@@ -160,6 +160,69 @@ test.describe("Notion parity keyboard and blocks", () => {
     await expect(editor.locator(".nw-block-selected")).toHaveCount(2);
   });
 
+  test("dragging upward from the last paragraph selects every crossed block", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("first");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("second");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("third");
+
+    const first = editor.locator("p").filter({ hasText: "first" });
+    const third = editor.locator("p").filter({ hasText: "third" });
+    const from = await third.boundingBox();
+    const to = await first.boundingBox();
+    expect(from).toBeTruthy();
+    expect(to).toBeTruthy();
+
+    await page.mouse.move(from!.x + 8, from!.y + from!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to!.x + 8, to!.y + to!.height / 2, { steps: 12 });
+    await page.mouse.up();
+
+    await expect(editor.locator(".nw-block-selected")).toHaveCount(3);
+  });
+
+  test("selecting a block does not shrink its width", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("first");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("second");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("third");
+
+    const first = editor.locator("p").filter({ hasText: "first" });
+    const second = editor.locator("p").filter({ hasText: "second" });
+    const third = editor.locator("p").filter({ hasText: "third" });
+    const from = await first.boundingBox();
+    const to = await second.boundingBox();
+    expect(from).toBeTruthy();
+    expect(to).toBeTruthy();
+
+    await page.mouse.move(from!.x + 8, from!.y + from!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to!.x + 8, to!.y + to!.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(editor.locator(".nw-block-selected")).toHaveCount(2);
+    const selectedWidth = await first.evaluate((el) => el.getBoundingClientRect().width);
+    const siblingWidth = await third.evaluate((el) => el.getBoundingClientRect().width);
+    expect(selectedWidth).toBeGreaterThanOrEqual(siblingWidth - 1);
+  });
+
+  test("Shift+click in the same block keeps a text selection", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("hello world");
+    const p = editor.locator("p").filter({ hasText: "hello world" });
+    const box = await p.boundingBox();
+    expect(box).toBeTruthy();
+    await page.mouse.click(box!.x + 8, box!.y + box!.height / 2);
+    await page.mouse.click(box!.x + box!.width - 12, box!.y + box!.height / 2, { modifiers: ["Shift"] });
+    await expect(editor.locator(".nw-block-selected")).toHaveCount(0);
+    const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+    expect(selected.length).toBeGreaterThan(0);
+  });
+
   test("Shift+Arrow extends and shrinks the block selection", async ({ page }) => {
     const editor = page.locator(".ProseMirror");
     await page.keyboard.type("first");
