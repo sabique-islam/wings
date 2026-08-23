@@ -2,6 +2,7 @@ import { Extension } from "@tiptap/core";
 import { NodeSelection, Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 import { dropPlacement } from "./blockDrop";
+import { topLevelBlockPosAtCoords } from "./blockHit";
 import { nestBlockUnder } from "./outlineNest";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,19 +40,14 @@ interface BlockHit {
 }
 
 function findTopLevelBlockAt(view: EditorView, clientX: number, clientY: number): BlockHit | null {
-  const posInfo = view.posAtCoords({ left: clientX, top: clientY });
-  if (!posInfo) return null;
-
-  const $pos = view.state.doc.resolve(posInfo.pos);
-  let depth = $pos.depth;
-  while (depth > 0 && $pos.node(depth - 1).type.name !== "doc") depth--;
-  if (depth < 1) return null;
-
-  const pos = $pos.before(depth);
-  const node = $pos.node(depth);
-  const dom = view.nodeDOM(pos) as HTMLElement | null;
+  const pos = topLevelBlockPosAtCoords(view, clientX, clientY);
+  if (pos == null) return null;
+  const node = view.state.doc.nodeAt(pos);
+  if (!node) return null;
+  let dom = view.nodeDOM(pos);
+  if (dom && dom.nodeType !== 1) dom = (dom as Node).parentElement;
   if (!dom || dom.nodeType !== 1) return null;
-  return { pos, node, dom };
+  return { pos, node, dom: dom as HTMLElement };
 }
 
 function probeXForY(view: EditorView, editorRoot: HTMLElement | null): number {

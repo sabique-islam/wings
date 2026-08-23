@@ -26,6 +26,7 @@ import {
   sameBlockPositions,
   type BlockSelectionState,
 } from "./blockSelectionKey";
+import { topLevelBlockPosAtCoords } from "./blockHit";
 import { sliceToHtml, sliceToMarkdown } from "./copyMarkdown";
 
 export { blockSelectionKey, getSelectedBlockPositions } from "./blockSelectionKey";
@@ -50,16 +51,12 @@ function setBlockSelection(view: EditorView, positions: number[], anchor: number
 /** Resolve a Y coordinate against a point inside the text column, not the gutter. */
 function posAtClientY(view: EditorView, clientY: number): number | null {
   const rect = view.dom.getBoundingClientRect();
-  const posInfo = view.posAtCoords({ left: rect.left + 16, top: clientY });
-  if (!posInfo) return null;
-  return getTopLevelBlockPos(view.state.doc.resolve(posInfo.pos) as BlockPos);
+  return topLevelBlockPosAtCoords(view, rect.left + 16, clientY);
 }
 
 function posFromEvent(view: EditorView, event: MouseEvent, probeY = false): number | null {
   if (probeY) return posAtClientY(view, event.clientY);
-  const posInfo = view.posAtCoords({ left: event.clientX, top: event.clientY });
-  if (!posInfo) return null;
-  return getTopLevelBlockPos(view.state.doc.resolve(posInfo.pos) as BlockPos);
+  return topLevelBlockPosAtCoords(view, event.clientX, event.clientY);
 }
 
 /**
