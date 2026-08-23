@@ -12,7 +12,6 @@ import {
   rangeSelect,
   resolveShiftClickAnchor,
   selectCurrentBlock,
-  shouldPromoteToBlockRange,
   stepBlockSelection,
   toggleBlockInSelection,
   type BlockDoc,
@@ -27,6 +26,13 @@ import {
   type BlockSelectionState,
 } from "./blockSelectionKey";
 import { topLevelBlockPosAtCoords } from "./blockHit";
+import {
+  blocksInSweep,
+  listSelectableBlockRects,
+  pointInRect,
+  sweepRectFromPoints,
+  type SweepRect,
+} from "./blockSweep";
 import { sliceToHtml, sliceToMarkdown } from "./copyMarkdown";
 
 export { blockSelectionKey, getSelectedBlockPositions } from "./blockSelectionKey";
@@ -48,71 +54,163 @@ function setBlockSelection(view: EditorView, positions: number[], anchor: number
   );
 }
 
-/** Resolve a Y coordinate against a point inside the text column, not the gutter. */
-function posAtClientY(view: EditorView, clientY: number): number | null {
-  const rect = view.dom.getBoundingClientRect();
-  return topLevelBlockPosAtCoords(view, rect.left + 16, clientY);
-}
+const AUTO_SCROLL_EDGE = 48;
+const AUTO_SCROLL_MAX = 16;
+const SWEEP_CLASS = "is-block-sweeping";
 
-function posFromEvent(view: EditorView, event: MouseEvent, probeY = false): number | null {
-  if (probeY) return posAtClientY(view, event.clientY);
+function posFromEvent(view: EditorView, event: MouseEvent): number | null {
   return topLevelBlockPosAtCoords(view, event.clientX, event.clientY);
 }
 
-/**
- * Notion's margin drag: pressing in the left gutter and dragging sweeps whole
- * blocks rather than placing a caret. Ignored on a plain click so clicking the
- * margin still focuses the nearest line.
- */
-function startMarginDrag(view: EditorView, event: MouseEvent): boolean {
-  if (event.button !== 0) return false;
+function blockClientRect(view: EditorView, pos: number): SweepRect | null {
+  let dom = view.nodeDOM(pos);
+  if (dom && dom.nodeType !== 1) dom = (dom as Node).parentElement;
+  if (!(dom instanceof HTMLElement)) return null;
+  const rect = dom.getBoundingClientRect();
+  return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+}
+
+function nativeRangeSpansBlocks(view: EditorView): boolean {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return false;
+  const range = selection.getRangeAt(0);
+  if (range.collapsed) return false;
+  try {
+    const start = view.posAtDOM(range.startContainer, range.startOffset);
+    const end = view.posAtDOM(range.endContainer, range.endOffset);
+    const startBlock = getTopLevelBlockPos(view.state.doc.resolve(start) as BlockPos);
+    const endBlock = getTopLevelBlockPos(view.state.doc.resolve(end) as BlockPos);
+    return startBlock != null && endBlock != null && startBlock !== endBlock;
+  } catch {
+    return false;
+  }
+}
+
+function isGutterOrChrome(view: EditorView, event: MouseEvent): boolean {
   const contentRect = view.dom.getBoundingClientRect();
-  if (!isInMarginDragZone(event.clientX - contentRect.left, MARGIN_DRAG_ZONE_PX)) return false;
+  if (isInMarginDragZone(event.clientX - contentRect.left, MARGIN_DRAG_ZONE_PX)) return true;
+  return event.target === view.dom;
+}
 
-  const anchor = posAtClientY(view, event.clientY);
-  if (anchor == null) return false;
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+  const parent = el.closest(".overflow-y-auto");
+  return parent instanceof HTMLElement ? parent : null;
+}
 
-  let dragged = false;
-
-  const onMove = (move: MouseEvent) => {
-    const target = posAtClientY(view, move.clientY);
-    if (target == null) return;
-    dragged = true;
-    setBlockSelection(view, rangeSelect(anchor, target, view.state.doc as BlockDoc), anchor);
-  };
-
-  const onUp = () => {
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("mouseup", onUp);
-    if (!dragged) setBlockSelection(view, [], null);
-  };
-
-  document.addEventListener("mousemove", onMove);
-  document.addEventListener("mouseup", onUp);
-  event.preventDefault();
-  return true;
+function expandSweepToColumn(userRect: SweepRect, view: EditorView): SweepRect {
+  const content = view.dom.getBoundingClientRect();
+  const left = Math.min(userRect.left, content.left);
+  const right = Math.max(userRect.left + userRect.width, content.right);
+  return { left, top: userRect.top, width: right - left, height: userRect.height };
 }
 
 /**
- * Stay a text selection until the pointer enters a second top-level block,
- * then promote to a block range.
+ * One pointer session: stay a native text selection until the gesture leaves
+ * the start block or spans two top-level blocks, then sweep by DOM rects.
+ * Gutter / empty chrome enters the sweep immediately.
  */
-function startContentDrag(view: EditorView, event: MouseEvent): void {
-  if (event.button !== 0) return;
-  const start = posFromEvent(view, event);
-  if (start == null) return;
+function startPointerSession(view: EditorView, event: MouseEvent, enterImmediately: boolean): void {
+  const startX = event.clientX;
+  const startY = event.clientY;
+  const startBlock = topLevelBlockPosAtCoords(view, event.clientX, event.clientY);
+  const scrollParent = findScrollParent(view.dom);
+  const startScrollLeft = scrollParent?.scrollLeft ?? window.scrollX;
+  const startScrollTop = scrollParent?.scrollTop ?? window.scrollY;
+
+  let sweeping = enterImmediately;
+  let applied = false;
+  let raf = 0;
+  let overlay: HTMLDivElement | null = null;
+  let lastX = startX;
+  let lastY = startY;
+  let autoScrollRaf = 0;
+  let autoScrollY = startY;
+
+  const stopAutoScroll = () => {
+    if (autoScrollRaf) cancelAnimationFrame(autoScrollRaf);
+    autoScrollRaf = 0;
+  };
+
+  const tickAutoScroll = () => {
+    if (!scrollParent) return;
+    const rect = scrollParent.getBoundingClientRect();
+    let delta = 0;
+    if (autoScrollY < rect.top + AUTO_SCROLL_EDGE) {
+      delta = -Math.min(AUTO_SCROLL_MAX, AUTO_SCROLL_EDGE - (autoScrollY - rect.top));
+    } else if (autoScrollY > rect.bottom - AUTO_SCROLL_EDGE) {
+      delta = Math.min(AUTO_SCROLL_MAX, autoScrollY - (rect.bottom - AUTO_SCROLL_EDGE));
+    }
+    if (delta !== 0) scrollParent.scrollTop += delta;
+    autoScrollRaf = requestAnimationFrame(tickAutoScroll);
+  };
+
+  const enterSweep = () => {
+    if (sweeping && applied) return;
+    sweeping = true;
+    window.getSelection()?.removeAllRanges();
+    view.dom.classList.add(SWEEP_CLASS);
+    if (!autoScrollRaf && scrollParent) autoScrollRaf = requestAnimationFrame(tickAutoScroll);
+  };
+
+  const userRectAt = (x: number, y: number): SweepRect => {
+    const dx = (scrollParent?.scrollLeft ?? window.scrollX) - startScrollLeft;
+    const dy = (scrollParent?.scrollTop ?? window.scrollY) - startScrollTop;
+    const rect = sweepRectFromPoints(startX - dx, startY - dy, x, y);
+    return enterImmediately ? expandSweepToColumn(rect, view) : rect;
+  };
+
+  const applySweep = (x: number, y: number) => {
+    const userRect = userRectAt(x, y);
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "nw-block-sweep";
+      overlay.setAttribute("aria-hidden", "true");
+      document.body.appendChild(overlay);
+    }
+    overlay.style.left = `${userRect.left}px`;
+    overlay.style.top = `${userRect.top}px`;
+    overlay.style.width = `${Math.max(userRect.width, 1)}px`;
+    overlay.style.height = `${Math.max(userRect.height, 1)}px`;
+
+    const positions = blocksInSweep(listSelectableBlockRects(view), userRect);
+    setBlockSelection(view, positions, startBlock ?? positions[0] ?? null);
+    applied = true;
+  };
+
+  if (enterImmediately) {
+    event.preventDefault();
+    enterSweep();
+  }
 
   const onMove = (move: MouseEvent) => {
-    const target = posFromEvent(view, move);
-    if (target == null || !shouldPromoteToBlockRange(start, target)) return;
+    lastX = move.clientX;
+    lastY = move.clientY;
+    autoScrollY = move.clientY;
+
+    if (!sweeping) {
+      const liveStart = startBlock != null ? blockClientRect(view, startBlock) : null;
+      const leftStart = liveStart != null && !pointInRect(move.clientX, move.clientY, liveStart);
+      if (!leftStart && !nativeRangeSpansBlocks(view)) return;
+      enterSweep();
+    }
+
     move.preventDefault();
-    window.getSelection()?.removeAllRanges();
-    setBlockSelection(view, rangeSelect(start, target, view.state.doc as BlockDoc), start);
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      applySweep(lastX, lastY);
+    });
   };
 
   const onUp = () => {
     document.removeEventListener("mousemove", onMove);
     document.removeEventListener("mouseup", onUp);
+    if (raf) cancelAnimationFrame(raf);
+    stopAutoScroll();
+    view.dom.classList.remove(SWEEP_CLASS);
+    overlay?.remove();
+    overlay = null;
+    if (enterImmediately && !applied) setBlockSelection(view, [], null);
   };
 
   document.addEventListener("mousemove", onMove);
@@ -221,9 +319,10 @@ export const BlockSelection = Extension.create({
               if (e.shiftKey) {
                 const blockPos = posFromEvent(view, e);
                 if (blockPos == null) return false;
+                const caretBlock = getTopLevelBlockPos(view.state.selection.$from as BlockPos);
+                if (caretBlock === blockPos) return false;
                 e.preventDefault();
                 const pluginState = getBlockSelectionState(view.state);
-                const caretBlock = getTopLevelBlockPos(view.state.selection.$from as BlockPos);
                 const anchor = resolveShiftClickAnchor(pluginState.anchor, caretBlock, blockPos);
                 setBlockSelection(view, rangeSelect(anchor, blockPos, view.state.doc as BlockDoc), anchor);
                 return true;
@@ -239,12 +338,12 @@ export const BlockSelection = Extension.create({
                 return true;
               }
 
-              if (startMarginDrag(view, e)) return true;
+              const chrome = isGutterOrChrome(view, e);
               if (getBlockSelectionState(view.state).positions.length > 0) {
                 setBlockSelection(view, [], null);
               }
-              startContentDrag(view, e);
-              return false;
+              startPointerSession(view, e, chrome);
+              return chrome;
             },
             copy(view, event) {
               return writeBlockSelectionClipboard(view, event as ClipboardEvent, editor);
