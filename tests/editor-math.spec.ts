@@ -32,6 +32,35 @@ test("pasting a ChatGPT equation dump renders KaTeX blocks", async ({ page }) =>
   expect(stored).toContain("\\boxed");
 });
 
+test("hovering a block equation shows the handle", async ({ page }) => {
+  await page.goto("/__editor-e2e");
+  const editor = await focusEditor(page);
+  await page.evaluate(() => {
+    (window as unknown as { __nw_editor: { commands: { setBlockMath: (latex: string) => void } } }).__nw_editor.commands.setBlockMath(
+      "x^2",
+    );
+  });
+  const math = editor.locator(".math-block").first();
+  await expect(math).toBeVisible();
+  await math.hover();
+  await expect(page.locator(".nw-block-handle.is-visible")).toBeVisible();
+});
+
+test("right-click delete removes a block equation", async ({ page }) => {
+  await page.goto("/__editor-e2e");
+  const editor = await focusEditor(page);
+  await page.evaluate(() => {
+    (window as unknown as { __nw_editor: { commands: { setBlockMath: (latex: string) => void } } }).__nw_editor.commands.setBlockMath(
+      "x^2",
+    );
+  });
+  const math = editor.locator(".math-block").first();
+  await expect(math).toBeVisible();
+  await math.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Delete block" }).click();
+  await expect(editor.locator(".math-block, .math-block-edit")).toHaveCount(0);
+});
+
 test("typing $x^2$ renders inline KaTeX", async ({ page }) => {
   await page.goto("/__editor-e2e");
   const editor = await focusEditor(page);
