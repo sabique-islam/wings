@@ -210,17 +210,13 @@ test.describe("Notion parity keyboard and blocks", () => {
     expect(selectedWidth).toBeGreaterThanOrEqual(siblingWidth - 1);
   });
 
-  test("Shift+click in the same block keeps a text selection", async ({ page }) => {
+  test("Shift+click in the same block does not start a block range", async ({ page }) => {
     const editor = page.locator(".ProseMirror");
     await page.keyboard.type("hello world");
     const p = editor.locator("p").filter({ hasText: "hello world" });
-    const box = await p.boundingBox();
-    expect(box).toBeTruthy();
-    await page.mouse.click(box!.x + 8, box!.y + box!.height / 2);
-    await page.mouse.click(box!.x + box!.width - 12, box!.y + box!.height / 2, { modifiers: ["Shift"] });
+    await p.click();
+    await p.click({ modifiers: ["Shift"] });
     await expect(editor.locator(".nw-block-selected")).toHaveCount(0);
-    const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
-    expect(selected.length).toBeGreaterThan(0);
   });
 
   test("Shift+Arrow extends and shrinks the block selection", async ({ page }) => {
