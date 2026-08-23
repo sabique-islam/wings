@@ -1,54 +1,66 @@
-import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey, NodeSelection, type EditorState } from "@tiptap/pm/state";
+import { Extension, type Editor } from "@tiptap/core";
+import { Plugin, TextSelection } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { EditorView } from "@tiptap/pm/view";
 import {
+  coveringRangeForPositions,
   deleteBlocksAtPositions,
   duplicateBlocksAtPositions,
-  getDocChildBlockPositions,
   getTopLevelBlockPos,
+  isInMarginDragZone,
+  MARGIN_DRAG_ZONE_PX,
+  rangeSelect,
+  resolveShiftClickAnchor,
   selectCurrentBlock,
+  shouldPromoteToBlockRange,
   stepBlockSelection,
+  toggleBlockInSelection,
   type BlockDoc,
   type BlockPos,
 } from "./blockUtils";
+import {
+  blockSelectionKey,
+  EMPTY_BLOCK_SELECTION,
+  getBlockSelectionState,
+  getSelectedBlockPositions,
+  sameBlockPositions,
+  type BlockSelectionState,
+} from "./blockSelectionKey";
+import { sliceToHtml, sliceToMarkdown } from "./copyMarkdown";
 
-export const blockSelectionKey = new PluginKey("blockSelection");
+export { blockSelectionKey, getSelectedBlockPositions } from "./blockSelectionKey";
 
-interface BlockSelectionState {
-  positions: number[];
-  anchor: number | null;
-}
-
-export function getSelectedBlockPositions(state: EditorState): number[] {
-  const pluginState = blockSelectionKey.getState(state) as BlockSelectionState | undefined;
-  return pluginState?.positions ?? [];
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    blockSelection: {
+      setBlockSelection: (positions: number[], anchor?: number | null) => ReturnType;
+      clearBlockSelection: () => ReturnType;
+    };
+  }
 }
 
 function setBlockSelection(view: EditorView, positions: number[], anchor: number | null = null) {
+  const current = getBlockSelectionState(view.state);
+  if (sameBlockPositions(current.positions, positions) && current.anchor === anchor) return;
   view.dispatch(
     view.state.tr.setMeta(blockSelectionKey, { positions, anchor } satisfies BlockSelectionState),
   );
 }
 
-function posFromEvent(view: EditorView, event: MouseEvent): number | null {
+/** Resolve a Y coordinate against a point inside the text column, not the gutter. */
+function posAtClientY(view: EditorView, clientY: number): number | null {
+  const rect = view.dom.getBoundingClientRect();
+  const posInfo = view.posAtCoords({ left: rect.left + 16, top: clientY });
+  if (!posInfo) return null;
+  return getTopLevelBlockPos(view.state.doc.resolve(posInfo.pos) as BlockPos);
+}
+
+function posFromEvent(view: EditorView, event: MouseEvent, probeY = false): number | null {
+  if (probeY) return posAtClientY(view, event.clientY);
   const posInfo = view.posAtCoords({ left: event.clientX, top: event.clientY });
   if (!posInfo) return null;
-  const $pos = view.state.doc.resolve(posInfo.pos);
-  return getTopLevelBlockPos($pos as BlockPos);
+  return getTopLevelBlockPos(view.state.doc.resolve(posInfo.pos) as BlockPos);
 }
-
-function rangeSelect(anchor: number, target: number, doc: BlockDoc): number[] {
-  const all = getDocChildBlockPositions(doc);
-  const ai = all.indexOf(anchor);
-  const ti = all.indexOf(target);
-  if (ai < 0 || ti < 0) return [target];
-  const [from, to] = ai < ti ? [ai, ti] : [ti, ai];
-  return all.slice(from, to + 1);
-}
-
-/** How far left of the text column counts as the gutter. */
-const MARGIN_DRAG_ZONE_PX = 64;
 
 /**
  * Notion's margin drag: pressing in the left gutter and dragging sweeps whole
@@ -58,16 +70,15 @@ const MARGIN_DRAG_ZONE_PX = 64;
 function startMarginDrag(view: EditorView, event: MouseEvent): boolean {
   if (event.button !== 0) return false;
   const contentRect = view.dom.getBoundingClientRect();
-  const offsetFromLeft = event.clientX - contentRect.left;
-  if (offsetFromLeft > 0 || offsetFromLeft < -MARGIN_DRAG_ZONE_PX) return false;
+  if (!isInMarginDragZone(event.clientX - contentRect.left, MARGIN_DRAG_ZONE_PX)) return false;
 
-  const anchor = posFromEvent(view, event);
+  const anchor = posAtClientY(view, event.clientY);
   if (anchor == null) return false;
 
   let dragged = false;
 
   const onMove = (move: MouseEvent) => {
-    const target = posFromEvent(view, move);
+    const target = posAtClientY(view, move.clientY);
     if (target == null) return;
     dragged = true;
     setBlockSelection(view, rangeSelect(anchor, target, view.state.doc as BlockDoc), anchor);
@@ -76,7 +87,6 @@ function startMarginDrag(view: EditorView, event: MouseEvent): boolean {
   const onUp = () => {
     document.removeEventListener("mousemove", onMove);
     document.removeEventListener("mouseup", onUp);
-    // A press without movement is a click in the margin, not a selection.
     if (!dragged) setBlockSelection(view, [], null);
   };
 
@@ -86,21 +96,92 @@ function startMarginDrag(view: EditorView, event: MouseEvent): boolean {
   return true;
 }
 
-function getSelectionState(state: EditorState): BlockSelectionState {
-  return (blockSelectionKey.getState(state) as BlockSelectionState) ?? { positions: [], anchor: null };
+/**
+ * Stay a text selection until the pointer enters a second top-level block,
+ * then promote to a block range.
+ */
+function startContentDrag(view: EditorView, event: MouseEvent): void {
+  if (event.button !== 0) return;
+  const start = posFromEvent(view, event);
+  if (start == null) return;
+
+  const onMove = (move: MouseEvent) => {
+    const target = posFromEvent(view, move);
+    if (target == null || !shouldPromoteToBlockRange(start, target)) return;
+    move.preventDefault();
+    window.getSelection()?.removeAllRanges();
+    setBlockSelection(view, rangeSelect(start, target, view.state.doc as BlockDoc), start);
+  };
+
+  const onUp = () => {
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  };
+
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+function replaceBlockSelection(view: EditorView, text: string): boolean {
+  const { positions } = getBlockSelectionState(view.state);
+  if (positions.length === 0) return false;
+  const sorted = [...positions].sort((a, b) => b - a);
+  let tr = view.state.tr;
+  for (const pos of sorted) {
+    const node = tr.doc.nodeAt(pos);
+    if (!node) continue;
+    tr = tr.delete(pos, pos + node.nodeSize);
+  }
+  tr.setMeta(blockSelectionKey, EMPTY_BLOCK_SELECTION);
+  const mapped = Math.min(sorted[sorted.length - 1]!, tr.doc.content.size);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(Math.max(1, mapped))));
+  if (text) tr.insertText(text);
+  view.dispatch(tr.scrollIntoView());
+  return true;
+}
+
+function writeBlockSelectionClipboard(view: EditorView, event: ClipboardEvent, editor: Editor): boolean {
+  const positions = getSelectedBlockPositions(view.state);
+  if (positions.length === 0) return false;
+  const range = coveringRangeForPositions(view.state.doc, positions);
+  if (!range) return false;
+  const markdown = sliceToMarkdown(editor, range.from, range.to);
+  const html = sliceToHtml(editor, range.from, range.to);
+  event.clipboardData?.setData("text/plain", markdown);
+  if (html) event.clipboardData?.setData("text/html", html);
+  event.preventDefault();
+  return true;
 }
 
 export const BlockSelection = Extension.create({
   name: "blockSelection",
   priority: 201,
 
+  addCommands() {
+    return {
+      setBlockSelection:
+        (positions, anchor = null) =>
+        ({ tr, dispatch }) => {
+          if (dispatch) tr.setMeta(blockSelectionKey, { positions, anchor } satisfies BlockSelectionState);
+          return true;
+        },
+      clearBlockSelection:
+        () =>
+        ({ tr, dispatch }) => {
+          if (dispatch) tr.setMeta(blockSelectionKey, EMPTY_BLOCK_SELECTION);
+          return true;
+        },
+    };
+  },
+
   addProseMirrorPlugins() {
+    const editor = this.editor;
     return [
       new Plugin({
         key: blockSelectionKey,
         state: {
           init(): BlockSelectionState {
-            return { positions: [], anchor: null };
+            return EMPTY_BLOCK_SELECTION;
           },
           apply(tr, value): BlockSelectionState {
             const meta = tr.getMeta(blockSelectionKey) as BlockSelectionState | undefined;
@@ -120,9 +201,7 @@ export const BlockSelection = Extension.create({
         },
         props: {
           decorations(state) {
-            const { positions } = (blockSelectionKey.getState(state) as BlockSelectionState) ?? {
-              positions: [],
-            };
+            const { positions } = getBlockSelectionState(state);
             const decos: Decoration[] = [];
             for (const pos of positions) {
               const node = state.doc.nodeAt(pos);
@@ -133,48 +212,51 @@ export const BlockSelection = Extension.create({
             }
             return DecorationSet.create(state.doc, decos);
           },
-          // Typing or clicking exits block selection the way Notion does.
-          handleTextInput(view) {
-            if (getSelectionState(view.state).positions.length > 0) {
-              setBlockSelection(view, [], null);
-            }
-            return false;
+          handleTextInput(view, _from, _to, text) {
+            if (getBlockSelectionState(view.state).positions.length === 0) return false;
+            return replaceBlockSelection(view, text);
           },
           handleDOMEvents: {
             mousedown(view, event) {
               const e = event as MouseEvent;
-              if (!e.shiftKey && !(e.metaKey && e.shiftKey) && !(e.altKey && e.shiftKey)) {
-                if (startMarginDrag(view, e)) return true;
-                if (getSelectionState(view.state).positions.length > 0) {
-                  setBlockSelection(view, [], null);
-                }
-                return false;
-              }
-              const blockPos = posFromEvent(view, e);
-              if (blockPos == null) return false;
-              e.preventDefault();
-
-              const pluginState = blockSelectionKey.getState(view.state) as BlockSelectionState;
-              const mod = e.metaKey || e.ctrlKey;
-
-              if (mod && e.shiftKey) {
-                const exists = pluginState.positions.includes(blockPos);
-                const next = exists
-                  ? pluginState.positions.filter((p) => p !== blockPos)
-                  : [...pluginState.positions, blockPos];
-                setBlockSelection(view, next, pluginState.anchor ?? blockPos);
-                view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, blockPos)));
-                return true;
-              }
+              if (e.button !== 0) return false;
 
               if (e.shiftKey) {
-                const anchor = pluginState.anchor ?? blockPos;
-                const range = rangeSelect(anchor, blockPos, view.state.doc as BlockDoc);
-                setBlockSelection(view, range, anchor);
-                view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, blockPos)));
+                const blockPos = posFromEvent(view, e);
+                if (blockPos == null) return false;
+                e.preventDefault();
+                const pluginState = getBlockSelectionState(view.state);
+                const caretBlock = getTopLevelBlockPos(view.state.selection.$from as BlockPos);
+                const anchor = resolveShiftClickAnchor(pluginState.anchor, caretBlock, blockPos);
+                setBlockSelection(view, rangeSelect(anchor, blockPos, view.state.doc as BlockDoc), anchor);
                 return true;
               }
+
+              if (e.metaKey || e.ctrlKey) {
+                const blockPos = posFromEvent(view, e);
+                if (blockPos == null) return false;
+                e.preventDefault();
+                const pluginState = getBlockSelectionState(view.state);
+                const next = toggleBlockInSelection(pluginState.positions, pluginState.anchor, blockPos);
+                setBlockSelection(view, next.positions, next.anchor);
+                return true;
+              }
+
+              if (startMarginDrag(view, e)) return true;
+              if (getBlockSelectionState(view.state).positions.length > 0) {
+                setBlockSelection(view, [], null);
+              }
+              startContentDrag(view, e);
               return false;
+            },
+            copy(view, event) {
+              return writeBlockSelectionClipboard(view, event as ClipboardEvent, editor);
+            },
+            cut(view, event) {
+              if (!writeBlockSelectionClipboard(view, event as ClipboardEvent, editor)) return false;
+              const positions = getSelectedBlockPositions(view.state);
+              deleteBlocksAtPositions(editor, positions);
+              return true;
             },
           },
         },
@@ -188,7 +270,7 @@ export const BlockSelection = Extension.create({
      * behaviour when the user is just typing.
      */
     const walk = (direction: -1 | 1, extend: boolean) => () => {
-      const { positions, anchor } = getSelectionState(this.editor.state);
+      const { positions, anchor } = getBlockSelectionState(this.editor.state);
       if (positions.length === 0) return false;
       const next = stepBlockSelection(
         this.editor.state.doc as BlockDoc,
@@ -199,14 +281,10 @@ export const BlockSelection = Extension.create({
       );
       if (!next) return false;
       const view = this.editor.view;
+      view.dispatch(view.state.tr.setMeta(blockSelectionKey, next satisfies BlockSelectionState));
       const head = direction > 0 ? Math.max(...next.positions) : Math.min(...next.positions);
-      let tr = view.state.tr.setMeta(blockSelectionKey, next satisfies BlockSelectionState);
-      try {
-        tr = tr.setSelection(NodeSelection.create(view.state.doc, head));
-      } catch {
-        // Not every block accepts a node selection; the highlight still moves.
-      }
-      view.dispatch(tr.scrollIntoView());
+      const dom = view.nodeDOM(head);
+      if (dom instanceof HTMLElement) dom.scrollIntoView({ block: "nearest" });
       return true;
     };
 
@@ -222,7 +300,6 @@ export const BlockSelection = Extension.create({
           setBlockSelection(this.editor.view, [], null);
           return true;
         }
-        // Record the block in plugin state so arrow keys and block actions see it.
         const pos = selectCurrentBlock(this.editor);
         if (pos == null) return false;
         setBlockSelection(this.editor.view, [pos], pos);
@@ -250,7 +327,6 @@ export const BlockSelection = Extension.create({
         const positions = getSelectedBlockPositions(this.editor.state);
         if (positions.length === 0) return false;
         deleteBlocksAtPositions(this.editor, positions);
-        setBlockSelection(this.editor.view, [], null);
         return true;
       },
 
@@ -258,7 +334,29 @@ export const BlockSelection = Extension.create({
         const positions = getSelectedBlockPositions(this.editor.state);
         if (positions.length === 0) return false;
         deleteBlocksAtPositions(this.editor, positions);
-        setBlockSelection(this.editor.view, [], null);
+        return true;
+      },
+
+      "Mod-x": () => {
+        const positions = getSelectedBlockPositions(this.editor.state);
+        if (positions.length === 0) return false;
+        const range = coveringRangeForPositions(this.editor.state.doc, positions);
+        if (range) {
+          const markdown = sliceToMarkdown(this.editor, range.from, range.to);
+          const html = sliceToHtml(this.editor, range.from, range.to);
+          void navigator.clipboard?.writeText(markdown).catch(() => undefined);
+          if (html && typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+            void navigator.clipboard
+              .write([
+                new ClipboardItem({
+                  "text/plain": new Blob([markdown], { type: "text/plain" }),
+                  "text/html": new Blob([html], { type: "text/html" }),
+                }),
+              ])
+              .catch(() => undefined);
+          }
+        }
+        deleteBlocksAtPositions(this.editor, positions);
         return true;
       },
 

@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import type { Editor } from "@tiptap/core";
-import { NodeSelection } from "@tiptap/pm/state";
 import { turnInto, TURN_INTO_ITEMS, TEXT_COLORS, BG_COLORS, applyBackgroundColor } from "./blockCommands";
 import { Trash2, Copy, ChevronRight } from "@/lib/icons";
 
@@ -26,12 +25,7 @@ export function BlockMenu({ editor, onDeleteBlock }: Props) {
       setAnchor({ x: detail.x ?? 80, y: detail.y ?? 120 });
       setOpen(true);
       setSubmenu(null);
-      try {
-        const tr = editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, detail.pos));
-        editor.view.dispatch(tr);
-      } catch {
-        /* ignore */
-      }
+      editor.commands.setBlockSelection([detail.pos], detail.pos);
     };
     window.addEventListener("nw:blockMenu", handler);
     return () => window.removeEventListener("nw:blockMenu", handler);

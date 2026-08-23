@@ -1,6 +1,7 @@
 import { getHTMLFromFragment, type Editor } from "@tiptap/core";
 import { htmlToMarkdown } from "@/lib/markdown";
-import { getTopLevelBlockPos, type BlockPos } from "./blockUtils";
+import { getSelectedBlockPositions } from "./blockSelectionKey";
+import { coveringRangeForPositions, getTopLevelBlockPos, type BlockPos } from "./blockUtils";
 
 export type CopyScope = "auto" | "block" | "page";
 
@@ -17,6 +18,12 @@ export type CopyRange = {
 export function resolveCopyRange(editor: Editor, scope: CopyScope = "auto"): CopyRange {
   const size = editor.state.doc.content.size;
   if (scope === "page") return { from: 0, to: size, kind: "page" };
+
+  const selectedBlocks = getSelectedBlockPositions(editor.state);
+  if (scope === "auto" && selectedBlocks.length > 0) {
+    const covering = coveringRangeForPositions(editor.state.doc, selectedBlocks);
+    if (covering) return { ...covering, kind: "selection" };
+  }
 
   const { from, to, empty } = editor.state.selection;
   if (scope === "auto" && !empty && from !== to) {

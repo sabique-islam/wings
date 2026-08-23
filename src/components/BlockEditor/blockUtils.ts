@@ -1,5 +1,6 @@
 import type { Editor } from "@tiptap/core";
 import { TextSelection, NodeSelection } from "@tiptap/pm/state";
+import { blockSelectionKey, EMPTY_BLOCK_SELECTION } from "./blockSelectionKey";
 
 /**
  * Structural types for position/doc helpers.
@@ -101,6 +102,64 @@ export function getDocChildBlockPositions(doc: BlockDoc): number[] {
   return positions;
 }
 
+/** Inclusive top-level range from one child block to another. */
+export function rangeSelect(anchor: number, target: number, doc: BlockDoc): number[] {
+  const all = getDocChildBlockPositions(doc);
+  const ai = all.indexOf(anchor);
+  const ti = all.indexOf(target);
+  if (ai < 0 || ti < 0) return [target];
+  const [from, to] = ai < ti ? [ai, ti] : [ti, ai];
+  return all.slice(from, to + 1);
+}
+
+/**
+ * Shift+click grows from the existing block-selection anchor, then the caret's
+ * block, then the clicked block (so the first Shift+click is never a no-op).
+ */
+export function resolveShiftClickAnchor(
+  pluginAnchor: number | null,
+  caretBlockPos: number | null,
+  clickedPos: number,
+): number {
+  if (pluginAnchor != null) return pluginAnchor;
+  if (caretBlockPos != null) return caretBlockPos;
+  return clickedPos;
+}
+
+export function toggleBlockInSelection(
+  positions: number[],
+  anchor: number | null,
+  clickedPos: number,
+): { positions: number[]; anchor: number } {
+  const exists = positions.includes(clickedPos);
+  const next = exists ? positions.filter((p) => p !== clickedPos) : [...positions, clickedPos];
+  return { positions: next, anchor: anchor ?? clickedPos };
+}
+
+export function shouldPromoteToBlockRange(startPos: number, currentPos: number): boolean {
+  return startPos !== currentPos;
+}
+
+/** How far left of the text column counts as the gutter. */
+export const MARGIN_DRAG_ZONE_PX = 64;
+
+export function isInMarginDragZone(offsetFromLeft: number, zonePx = MARGIN_DRAG_ZONE_PX): boolean {
+  return offsetFromLeft <= 0 && offsetFromLeft >= -zonePx;
+}
+
+/** Slice covering every selected top-level block, in document order. */
+export function coveringRangeForPositions(
+  doc: { nodeAt(pos: number): { nodeSize: number } | null },
+  positions: number[],
+): { from: number; to: number } | null {
+  if (positions.length === 0) return null;
+  const sorted = [...positions].sort((a, b) => a - b);
+  const last = sorted[sorted.length - 1]!;
+  const node = doc.nodeAt(last);
+  if (!node) return null;
+  return { from: sorted[0]!, to: last + node.nodeSize };
+}
+
 export interface BlockSelectionRange {
   positions: number[];
   anchor: number;
@@ -152,18 +211,9 @@ export function stepBlockSelection(
   return { positions: all.slice(from, to + 1), anchor: all[anchorIndex]! };
 }
 
-/** Selects the block containing the caret and returns its position, or null. */
+/** Position of the block containing the caret, or null. Does not change selection. */
 export function selectCurrentBlock(editor: Editor): number | null {
-  const { $from } = editor.state.selection;
-  const pos = getTopLevelBlockPos($from as BlockPos);
-  if (pos == null) return null;
-  try {
-    const tr = editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos));
-    editor.view.dispatch(tr);
-    return pos;
-  } catch {
-    return null;
-  }
+  return getTopLevelBlockPos(editor.state.selection.$from as BlockPos);
 }
 
 export function deleteBlocksAtPositions(editor: Editor, positions: number[]): boolean {
@@ -177,6 +227,7 @@ export function deleteBlocksAtPositions(editor: Editor, positions: number[]): bo
   }
   const mapped = Math.min(sorted[sorted.length - 1]!, tr.doc.content.size);
   tr.setSelection(TextSelection.near(tr.doc.resolve(Math.max(1, mapped))));
+  tr.setMeta(blockSelectionKey, EMPTY_BLOCK_SELECTION);
   editor.view.dispatch(tr.scrollIntoView());
   return true;
 }
