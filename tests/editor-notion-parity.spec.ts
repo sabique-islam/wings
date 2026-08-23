@@ -125,6 +125,41 @@ test.describe("Notion parity keyboard and blocks", () => {
     await expect(editor.locator(".nw-block-selected")).toHaveText("second");
   });
 
+  test("Shift+click from the caret covers every block through the click", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("first");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("second");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("third");
+
+    await editor.locator("p").filter({ hasText: "first" }).click();
+    await editor.locator("p").filter({ hasText: "third" }).click({ modifiers: ["Shift"] });
+
+    await expect(editor.locator(".nw-block-selected")).toHaveCount(3);
+  });
+
+  test("dragging across two paragraphs promotes to a block range", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("first");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("second");
+
+    const first = editor.locator("p").filter({ hasText: "first" });
+    const second = editor.locator("p").filter({ hasText: "second" });
+    const from = await first.boundingBox();
+    const to = await second.boundingBox();
+    expect(from).toBeTruthy();
+    expect(to).toBeTruthy();
+
+    await page.mouse.move(from!.x + 8, from!.y + from!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to!.x + 8, to!.y + to!.height / 2, { steps: 8 });
+    await page.mouse.up();
+
+    await expect(editor.locator(".nw-block-selected")).toHaveCount(2);
+  });
+
   test("Shift+Arrow extends and shrinks the block selection", async ({ page }) => {
     const editor = page.locator(".ProseMirror");
     await page.keyboard.type("first");

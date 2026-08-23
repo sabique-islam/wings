@@ -7,6 +7,7 @@ import {
   resolveCopyRange,
   sliceToMarkdown,
 } from "./copyMarkdown";
+import { getDocChildBlockPositions, type BlockDoc } from "./blockUtils";
 
 function makeEditor(content = "<p>hello</p>") {
   return new Editor({
@@ -42,6 +43,20 @@ describe("resolveCopyRange", () => {
     expect(range.kind).toBe("block");
     expect(sliceToMarkdown(editor, range.from, range.to).trim()).toBe("world");
     expect(sliceToMarkdown(editor, range.from, range.to)).not.toContain("hello");
+    editor.destroy();
+  });
+
+  it("uses every plugin-selected block, not the collapsed caret", () => {
+    const editor = makeEditor("<p>hello</p><p>world</p><p>later</p>");
+    placeCursorInParagraph(editor, "hello");
+    const [hello, world] = getDocChildBlockPositions(editor.state.doc as BlockDoc);
+    editor.commands.setBlockSelection([hello!, world!], hello);
+    const range = resolveCopyRange(editor, "auto");
+    expect(range.kind).toBe("selection");
+    const md = markdownForCopy(editor, "auto");
+    expect(md).toContain("hello");
+    expect(md).toContain("world");
+    expect(md).not.toContain("later");
     editor.destroy();
   });
 
