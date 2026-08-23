@@ -86,9 +86,12 @@ function nativeRangeSpansBlocks(view: EditorView): boolean {
   }
 }
 
-function isGutterOrChrome(view: EditorView, event: MouseEvent): boolean {
+function isGutterPress(view: EditorView, event: MouseEvent): boolean {
   const contentRect = view.dom.getBoundingClientRect();
-  if (isInMarginDragZone(event.clientX - contentRect.left, MARGIN_DRAG_ZONE_PX)) return true;
+  return isInMarginDragZone(event.clientX - contentRect.left, MARGIN_DRAG_ZONE_PX);
+}
+
+function isEmptyEditorChrome(view: EditorView, event: MouseEvent): boolean {
   return event.target === view.dom;
 }
 
@@ -107,17 +110,23 @@ function expandSweepToColumn(userRect: SweepRect, view: EditorView): SweepRect {
 /**
  * One pointer session: stay a native text selection until the gesture leaves
  * the start block or spans two top-level blocks, then sweep by DOM rects.
- * Gutter / empty chrome enters the sweep immediately.
+ * Gutter presses enter the sweep immediately (and steal the event). Empty
+ * editor chrome promotes on the first move so a plain click can still focus.
  */
-function startPointerSession(view: EditorView, event: MouseEvent, enterImmediately: boolean): void {
+function startPointerSession(
+  view: EditorView,
+  event: MouseEvent,
+  opts: { stealEvent: boolean; expandToColumn: boolean },
+): void {
   const startX = event.clientX;
   const startY = event.clientY;
   const startBlock = topLevelBlockPosAtCoords(view, event.clientX, event.clientY);
   const scrollParent = findScrollParent(view.dom);
   const startScrollLeft = scrollParent?.scrollLeft ?? window.scrollX;
   const startScrollTop = scrollParent?.scrollTop ?? window.scrollY;
+  const promoteOnMove = opts.expandToColumn;
 
-  let sweeping = enterImmediately;
+  let sweeping = opts.stealEvent;
   let applied = false;
   let raf = 0;
   let overlay: HTMLDivElement | null = null;
@@ -156,7 +165,7 @@ function startPointerSession(view: EditorView, event: MouseEvent, enterImmediate
     const dx = (scrollParent?.scrollLeft ?? window.scrollX) - startScrollLeft;
     const dy = (scrollParent?.scrollTop ?? window.scrollY) - startScrollTop;
     const rect = sweepRectFromPoints(startX - dx, startY - dy, x, y);
-    return enterImmediately ? expandSweepToColumn(rect, view) : rect;
+    return opts.expandToColumn ? expandSweepToColumn(rect, view) : rect;
   };
 
   const applySweep = (x: number, y: number) => {
@@ -177,7 +186,7 @@ function startPointerSession(view: EditorView, event: MouseEvent, enterImmediate
     applied = true;
   };
 
-  if (enterImmediately) {
+  if (opts.stealEvent) {
     event.preventDefault();
     enterSweep();
   }
@@ -188,10 +197,14 @@ function startPointerSession(view: EditorView, event: MouseEvent, enterImmediate
     autoScrollY = move.clientY;
 
     if (!sweeping) {
-      const liveStart = startBlock != null ? blockClientRect(view, startBlock) : null;
-      const leftStart = liveStart != null && !pointInRect(move.clientX, move.clientY, liveStart);
-      if (!leftStart && !nativeRangeSpansBlocks(view)) return;
-      enterSweep();
+      if (promoteOnMove) {
+        enterSweep();
+      } else {
+        const liveStart = startBlock != null ? blockClientRect(view, startBlock) : null;
+        const leftStart = liveStart != null && !pointInRect(move.clientX, move.clientY, liveStart);
+        if (!leftStart && !nativeRangeSpansBlocks(view)) return;
+        enterSweep();
+      }
     }
 
     move.preventDefault();
@@ -210,7 +223,7 @@ function startPointerSession(view: EditorView, event: MouseEvent, enterImmediate
     view.dom.classList.remove(SWEEP_CLASS);
     overlay?.remove();
     overlay = null;
-    if (enterImmediately && !applied) setBlockSelection(view, [], null);
+    if (opts.stealEvent && !applied) setBlockSelection(view, [], null);
   };
 
   document.addEventListener("mousemove", onMove);
@@ -338,12 +351,13 @@ export const BlockSelection = Extension.create({
                 return true;
               }
 
-              const chrome = isGutterOrChrome(view, e);
+              const gutter = isGutterPress(view, e);
+              const chrome = isEmptyEditorChrome(view, e);
               if (getBlockSelectionState(view.state).positions.length > 0) {
                 setBlockSelection(view, [], null);
               }
-              startPointerSession(view, e, chrome);
-              return chrome;
+              startPointerSession(view, e, { stealEvent: gutter, expandToColumn: gutter || chrome });
+              return gutter;
             },
             copy(view, event) {
               return writeBlockSelectionClipboard(view, event as ClipboardEvent, editor);
