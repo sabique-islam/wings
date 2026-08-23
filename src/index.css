@@ -405,16 +405,23 @@
 }
 
 .block-editor-content > .ProseMirror-selectednode,
-.block-editor-content > [data-node-view-wrapper].ProseMirror-selectednode {
+.block-editor-content > [data-node-view-wrapper].ProseMirror-selectednode,
+.block-editor-content .nw-block-selected {
   background: hsl(var(--accent-soft) / 0.35);
   outline: none;
+  border-radius: 4px;
+  user-select: none;
 }
 
-/* Multi-block selection halo (Notion-style) */
-.block-editor-content .nw-block-selected {
-  background: hsl(var(--foreground) / 0.06);
-  border-radius: 4px;
-  outline: 1px solid hsl(var(--foreground) / 0.08);
+/* Adjacent selected blocks read as one bar, not stacked cards. */
+.block-editor-content > .nw-block-selected + .nw-block-selected {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.block-editor-content > .nw-block-selected:has(+ .nw-block-selected) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /* Paragraphs — Notion line height */
