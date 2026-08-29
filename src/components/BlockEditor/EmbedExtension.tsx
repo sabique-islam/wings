@@ -10,18 +10,28 @@ declare module "@tiptap/core" {
   }
 }
 
-function EmbedView({ node }: NodeViewProps) {
+function EmbedView({ node, selected, getPos, editor }: NodeViewProps) {
   const { embedUrl, url } = node.attrs as { embedUrl: string; url: string };
   const src = embedUrl || url;
 
-  // Only frame trusted https hosts. Anything else degrades to a plain link so
-  // a malicious src (javascript:, data:, arbitrary origin) can never load.
+  const selectCard = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const pos = typeof getPos === "function" ? getPos() : undefined;
+    if (typeof pos !== "number") return;
+    editor.chain().focus().setNodeSelection(pos).run();
+  };
+
   if (!isAllowedEmbedUrl(src)) {
     return (
       <NodeViewWrapper className="embed-block" data-type="embed">
-        <div className="embed-fallback" contentEditable={false}>
+        <div
+          className={`embed-fallback${selected ? " is-selected" : ""}`}
+          contentEditable={false}
+          onClick={selectCard}
+        >
           {isSafeHttpUrl(url) ? (
-            <a href={url} target="_blank" rel="noopener noreferrer nofollow">
+            <a href={url} target="_blank" rel="noopener noreferrer nofollow" onClick={(e) => e.stopPropagation()}>
               {url}
             </a>
           ) : (
@@ -34,16 +44,22 @@ function EmbedView({ node }: NodeViewProps) {
 
   return (
     <NodeViewWrapper className="embed-block" data-type="embed">
-      <iframe
-        src={src}
-        title="Embed"
-        frameBorder="0"
-        allowFullScreen
-        sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
-        referrerPolicy="no-referrer"
-        className="embed-iframe"
+      <div
+        className={`embed-frame${selected ? " is-selected" : ""}`}
         contentEditable={false}
-      />
+        data-testid="embed-card"
+      >
+        {!selected ? <button type="button" className="embed-hit" aria-label="Select embed" onClick={selectCard} /> : null}
+        <iframe
+          src={src}
+          title="Embed"
+          frameBorder="0"
+          allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+          referrerPolicy="no-referrer"
+          className="embed-iframe"
+        />
+      </div>
     </NodeViewWrapper>
   );
 }
@@ -56,8 +72,21 @@ export const Embed = Node.create({
 
   addAttributes() {
     return {
-      url: { default: "" },
-      embedUrl: { default: "" },
+      url: {
+        default: "",
+        parseHTML: (el) =>
+          (el as HTMLElement).getAttribute("data-url") || (el as HTMLElement).getAttribute("url") || "",
+        renderHTML: (attrs) => (attrs.url ? { "data-url": attrs.url } : {}),
+      },
+      embedUrl: {
+        default: "",
+        parseHTML: (el) =>
+          (el as HTMLElement).getAttribute("data-embed-url") ||
+          (el as HTMLElement).getAttribute("embedurl") ||
+          (el as HTMLElement).getAttribute("embedUrl") ||
+          "",
+        renderHTML: (attrs) => (attrs.embedUrl ? { "data-embed-url": attrs.embedUrl } : {}),
+      },
     };
   },
 

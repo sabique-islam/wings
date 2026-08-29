@@ -2,7 +2,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import type { JSONContent } from "@tiptap/core";
 import { markdownToHtml, htmlToMarkdown } from "@/lib/markdown";
 import { extractMathHtmlFromClipboard, looksLikeMathMarkdown, normalizeMathMarkdown } from "@/lib/normalizeMath";
-import { insertBookmark, insertEmbed, pasteExternalUrl, updateBookmarkMeta, extractSingleLinkFromHtml } from "./blockCommands";
+import { insertBookmark, insertEmbed, pasteExternalUrlAsLink, extractSingleLinkFromHtml } from "./blockCommands";
 import { copyAsMarkdown, copyAsPlaintext, copyPageMarkdown } from "./copyMarkdown";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { createBlockEditorExtensions } from "./editorExtensions";
@@ -275,21 +275,13 @@ export const BlockEditor = memo(function BlockEditor({
         const externalUrl = urlFromText ?? urlFromHtml;
 
         if (externalUrl) {
-          event.preventDefault();
-          event.stopPropagation();
           const ed = editorRef.current;
-          if (ed) {
-            const bookmarkPos = pasteExternalUrl(ed, externalUrl);
-            if (bookmarkPos != null) {
-              void fetchLinkPreview(externalUrl).then((meta) => {
-                if (meta && editorRef.current) {
-                  updateBookmarkMeta(editorRef.current, bookmarkPos, meta);
-                }
-              });
-              return true;
-            }
+          if (ed && pasteExternalUrlAsLink(ed, externalUrl)) {
+            event.preventDefault();
+            event.stopPropagation();
+            return true;
           }
-          return true;
+          return false;
         }
 
         // ChatGPT / Claude attach HTML that would otherwise dump as paragraphs
@@ -585,8 +577,7 @@ export const BlockEditor = memo(function BlockEditor({
         // Capture so ProseMirror / node views cannot swallow the click before we open.
         const anchor = (e.target as HTMLElement).closest("a");
         if (!anchor || !e.currentTarget.contains(anchor)) return;
-        // Bookmark cards already use <a target="_blank"> — let the browser handle them.
-        if (anchor.classList.contains("bookmark-card")) return;
+        if (anchor.closest("[data-type='bookmark'], [data-type='embed']")) return;
         const href = anchor.getAttribute("href");
         const action = resolveEditorLinkAction({
           href,
@@ -610,7 +601,7 @@ export const BlockEditor = memo(function BlockEditor({
         if (e.button !== 1) return;
         const anchor = (e.target as HTMLElement).closest("a");
         if (!anchor || !e.currentTarget.contains(anchor)) return;
-        if (anchor.classList.contains("bookmark-card")) return;
+        if (anchor.closest("[data-type='bookmark'], [data-type='embed']")) return;
         const href = anchor.getAttribute("href");
         const action = resolveEditorLinkAction({
           href,

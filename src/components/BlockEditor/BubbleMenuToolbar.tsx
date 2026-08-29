@@ -4,7 +4,7 @@ import { BubbleMenu } from "@tiptap/react/menus";
 import {
   Bold, Italic, Strikethrough, Underline, Code, Link as LinkIcon, Sparkles,
   AlignLeft, AlignCenter, AlignRight, Type, ExternalLink, Copy, Pencil, Link2Off,
-  Globe, Monitor, Eye,
+  Globe, Monitor, Eye, RefreshCw, Trash2, LayoutList,
 } from "@/lib/icons";
 import { requestPagePeek } from "@/lib/pagePeek";
 import { toast } from "sonner";
@@ -17,16 +17,27 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   activeLinkTarget,
+  cardToolbarActions,
   convertActiveLinkToBookmark,
   convertActiveLinkToEmbed,
+  convertSelectedCardToBookmark,
+  convertSelectedCardToEmbed,
+  convertSelectedCardToInline,
   copyHrefForTarget,
+  copySelectedCardUrl,
+  deleteSelectedCard,
   hrefPreview,
   linkToolbarActions,
   openActiveLink,
+  openSelectedCard,
+  refreshSelectedBookmark,
+  selectedCard,
   shouldShowEditorBubble,
   shouldShowFormatButtons,
+  toggleSelectedBookmarkListStyle,
   unlinkActiveLink,
   type ActiveLinkTarget,
+  type CardToolbarAction,
   type LinkToolbarAction,
 } from "./linkToolbar";
 
@@ -48,16 +59,19 @@ const FONTS = [
   { label: "Mono", value: "ui-monospace, SFMono-Regular, Menlo, monospace" },
 ] as const;
 
-function copyLinkHref(target: ActiveLinkTarget): void {
-  const href = copyHrefForTarget(target);
-  if (!href || typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
+function copyText(value: string | null): void {
+  if (!value || typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
     toast.error("Nothing to copy");
     return;
   }
-  void navigator.clipboard.writeText(href).then(
+  void navigator.clipboard.writeText(value).then(
     () => toast.success("Copied URL"),
     () => toast.error("Couldn't copy"),
   );
+}
+
+function copyLinkHref(target: ActiveLinkTarget): void {
+  copyText(copyHrefForTarget(target));
 }
 
 function LinkActions({
@@ -155,6 +169,80 @@ function LinkActions({
   );
 }
 
+function CardActions({ editor, kind, url }: { editor: Editor; kind: "bookmark" | "embed"; url: string }) {
+  const actions = new Set(cardToolbarActions(kind, url));
+  const run = (action: CardToolbarAction) => {
+    if (action === "inline") convertSelectedCardToInline(editor);
+    else if (action === "card") convertSelectedCardToBookmark(editor);
+    else if (action === "embed") convertSelectedCardToEmbed(editor);
+    else if (action === "copy") copyText(copySelectedCardUrl(editor));
+    else if (action === "open") openSelectedCard(editor);
+    else if (action === "reload") void refreshSelectedBookmark(editor);
+    else if (action === "list") toggleSelectedBookmarkListStyle(editor);
+    else if (action === "delete") deleteSelectedCard(editor);
+  };
+
+  return (
+    <div className="link-toolbar" data-testid="card-toolbar">
+      {actions.has("inline") ? (
+        <button type="button" className="bubble-btn bubble-btn-label" title="Inline view" aria-label="Inline view" onClick={() => run("inline")}>
+          Inline
+        </button>
+      ) : null}
+      {actions.has("card") ? (
+        <button
+          type="button"
+          className={`bubble-btn bubble-btn-label${kind === "bookmark" ? " is-active" : ""}`}
+          title="Card view"
+          aria-label="Card view"
+          disabled={kind === "bookmark"}
+          onClick={() => run("card")}
+        >
+          Card
+        </button>
+      ) : null}
+      {actions.has("embed") ? (
+        <button
+          type="button"
+          className={`bubble-btn bubble-btn-label${kind === "embed" ? " is-active" : ""}`}
+          title="Embed view"
+          aria-label="Embed view"
+          disabled={kind === "embed"}
+          onClick={() => run("embed")}
+        >
+          <Monitor className="h-3.5 w-3.5" />
+          Embed
+        </button>
+      ) : null}
+      {actions.has("copy") ? (
+        <button type="button" className="bubble-btn" title="Copy URL" aria-label="Copy URL" onClick={() => run("copy")}>
+          <Copy className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+      {actions.has("open") ? (
+        <button type="button" className="bubble-btn" title="Open" aria-label="Open" onClick={() => run("open")}>
+          <ExternalLink className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+      {actions.has("reload") ? (
+        <button type="button" className="bubble-btn" title="Reload preview" aria-label="Reload preview" onClick={() => run("reload")}>
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+      {actions.has("list") ? (
+        <button type="button" className="bubble-btn" title="Compact card" aria-label="Compact card" onClick={() => run("list")}>
+          <LayoutList className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+      {actions.has("delete") ? (
+        <button type="button" className="bubble-btn" title="Delete" aria-label="Delete" onClick={() => run("delete")}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /** Bubble toolbar — subscribes only to mark state, not every transaction. */
 export function BubbleMenuToolbar({ editor, onSetLink }: Props) {
   const marks = useEditorState({
@@ -172,11 +260,14 @@ export function BubbleMenuToolbar({ editor, onSetLink }: Props) {
     }),
   });
 
-  const target = activeLinkTarget(editor);
+  const card = selectedCard(editor);
+  const cardActive = Boolean(card);
+  const target = cardActive ? null : activeLinkTarget(editor);
   const showFormat = shouldShowFormatButtons({
     selectionEmpty: marks.empty,
     linkActive: marks.link,
     pageRefActive: marks.pageRef,
+    cardActive,
   });
 
   return (
@@ -191,6 +282,7 @@ export function BubbleMenuToolbar({ editor, onSetLink }: Props) {
           to,
           linkActive: ed.isActive("link"),
           pageRefActive: ed.isActive("pageRef"),
+          cardActive: ed.isActive("bookmark") || ed.isActive("embed"),
           viewFocused: view.hasFocus() || Boolean(element?.contains(document.activeElement)),
         })
       }
@@ -293,6 +385,7 @@ export function BubbleMenuToolbar({ editor, onSetLink }: Props) {
           </DropdownMenu>
         </>
       ) : null}
+      {card ? <CardActions editor={editor} kind={card.kind} url={card.url} /> : null}
       {target ? (
         <>
           {showFormat ? <div className="w-px h-4 bg-border mx-0.5" /> : null}
