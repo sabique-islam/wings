@@ -48,6 +48,24 @@ export function isConvertibleParagraph(state: EditorState): boolean {
   return true;
 }
 
+/** Space input-rule: fence token plus the trailing space. */
+export const CODE_FENCE_SPACE = /^(```|~~~)([\w#+.+-]*) $/;
+
+/** Space input-rule: 3+ hyphen/asterisk/underscore plus the trailing space. */
+export const HORIZONTAL_RULE_SPACE = /^(-{3,}|\*{3,}|_{3,}) $/;
+
+/** Fence line without requiring a trailing space (Enter). */
+export function matchCodeFenceMarkup(text: string): { language: string } | null {
+  const match = text.trim().match(/^(```|~~~)([\w#+.+-]*)$/);
+  if (!match) return null;
+  return { language: match[2] ?? "" };
+}
+
+/** HR line without requiring a trailing space (Enter). */
+export function isHorizontalRuleMarkup(text: string): boolean {
+  return /^(-{3,}|\*{3,}|_{3,})$/.test(text.trim());
+}
+
 export function isInsideNode(state: EditorState, name: string): boolean {
   const { $from } = state.selection;
   for (let depth = $from.depth; depth > 0; depth--) {

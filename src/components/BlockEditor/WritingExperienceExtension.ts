@@ -1,84 +1,26 @@
 import { Extension } from "@tiptap/core";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { turnInto, moveBlock, duplicateBlock, type TurnIntoType } from "./blockCommands";
-import { caretPosAfterMerge, findColumnDepth, findTopLevelDepth, selectionCoveringNode } from "./blockUtils";
-import { collapsedSiblings } from "./headingFold";
-import { indentCurrentBlock, inlineContentSize, inlineTextOf, isInsideTable, outdentCurrentBlock } from "./outlineNest";
+import { findColumnDepth, findTopLevelDepth, selectionCoveringNode } from "./blockUtils";
+import { indentCurrentBlock, isInsideTable, outdentCurrentBlock } from "./outlineNest";
 import { openLinkHref } from "./editorLinkClick";
-import { normalizeCodeLanguage } from "./codeLanguages";
+import {
+  addParagraphAfterHeading,
+  addParagraphAfterOutlineTitle,
+  applyEnterMarkdownShortcut,
+  convertEmptyDecorationToParagraph,
+  hasNode,
+  mergeEmptyBlockUp,
+} from "./writingKeys";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WritingExperience — the "Notion-parity" keymap.
+// WritingExperience — typing keymap.
 //
 // Priority = 200: above StarterKit's node keymaps (100) so we get a first look
 // at Enter/Backspace, but BELOW Suggestion plugins (500). Slash-menu keeps its
 // Enter binding when its popup is open. This was the root cause of Enter being
 // swallowed at priority 1000.
 // ─────────────────────────────────────────────────────────────────────────────
-
-function hasNode(editor: any, name: string): boolean {
-  return Boolean(editor.state.schema.nodes[name]);
-}
-
-function currentTextBlock(editor: any) {
-  const { selection } = editor.state;
-  const { $from } = selection;
-  if (!selection.empty || !$from.parent?.isTextblock) return null;
-  const inlineSize = inlineContentSize($from.parent);
-  return {
-    node: $from.parent,
-    text: inlineTextOf($from.parent),
-    offset: $from.parentOffset,
-    from: $from.start(),
-    to: $from.start() + inlineSize,
-    depth: $from.depth,
-    typeName: $from.parent.type.name,
-  };
-}
-
-function applyEnterMarkdownShortcut(editor: any): boolean {
-  const block = currentTextBlock(editor);
-  if (!block || block.offset !== block.text.length) return false;
-
-  const text = block.text.trim();
-
-  const codeFence = text.match(/^(```|~~~)([\w#+.+-]+)?$/);
-  if (codeFence) {
-    const language = normalizeCodeLanguage(codeFence[2] || null);
-    let chain = editor.chain().deleteRange({ from: block.from, to: block.to });
-    chain = language === "plaintext" ? chain.setCodeBlock() : chain.setCodeBlock({ language });
-    return chain.run();
-  }
-
-  if (/^(---|___|\*\*\*)$/.test(text)) {
-    return editor
-      .chain()
-      .deleteRange({ from: block.from, to: block.to })
-      .setHorizontalRule()
-      .run();
-  }
-
-  return false;
-}
-
-function convertEmptyDecorationToParagraph(editor: any): boolean {
-  const block = currentTextBlock(editor);
-  if (!block) return false;
-  if (block.text.length !== 0) return false;
-  const decorativeTypes = new Set(["heading", "blockquote", "callout"]);
-  if (!decorativeTypes.has(block.typeName)) return false;
-  return editor.chain().setParagraph().run();
-}
-
-function backspaceAtStartOfDecoration(editor: any): boolean {
-  const { selection } = editor.state;
-  if (!selection.empty) return false;
-  const { $from } = selection;
-  if ($from.parentOffset !== 0) return false;
-  const decorativeTypes = new Set(["heading", "blockquote", "callout"]);
-  if (!decorativeTypes.has($from.parent.type.name)) return false;
-  return editor.chain().setParagraph().run();
-}
 
 const CARD_NODE_TYPES = new Set(["bookmark", "embed"]);
 
@@ -104,92 +46,13 @@ function deleteSelectedCardNode(editor: any): boolean {
   return editor.commands.deleteSelection();
 }
 
-const LIST_ITEM_TYPES = new Set(["listItem", "taskItem"]);
-const LIST_WRAPPER_TYPES = new Set(["bulletList", "orderedList", "taskList"]);
-
-/** Walk ancestors — `$from.parent` is the inner paragraph, never the list item. */
-function ancestorTypeName(
-  $from: { depth: number; node: (depth: number) => { type: { name: string } } },
-  types: Set<string>,
-): string | null {
-  for (let depth = $from.depth; depth > 0; depth--) {
-    const name = $from.node(depth).type.name;
-    if (types.has(name)) return name;
-  }
-  return null;
-}
-
-/** Backspace on empty block merges/deletes upward (Notion merge-up). */
-function mergeEmptyBlockUp(editor: any): boolean {
-  const { state, view } = editor;
-  const { selection } = state;
+function backspaceAtStartOfDecoration(editor: any): boolean {
+  const { selection } = editor.state;
   if (!selection.empty) return false;
   const { $from } = selection;
-
-  // List Backspace belongs to ListKeymap (priority 100). The caret sits in a
-  // paragraph inside listItem, so findTopLevelDepth resolves to the list
-  // wrapper — deleting that wipes every bullet.
-  if (ancestorTypeName($from, LIST_ITEM_TYPES)) return false;
-
-  const block = currentTextBlock(editor);
-  if (!block || block.text.length !== 0 || block.offset !== 0) return false;
-
-  // Delete this textblock, not the top-level wrapper. findTopLevelDepth inside
-  // a column is the whole columnList, so Backspace used to wipe the week row.
-  const depth = $from.depth;
-  if (depth < 1) return false;
-
-  const parent = $from.node(depth - 1);
-  const indexInParent = $from.index(depth - 1);
-  if (indexInParent === 0) {
-    if (parent.type.name === "doc") return false;
-    // Isolating columns: stay put. Falling through lets selectNodeBackward
-    // grab the columnList, and the next Backspace deletes every day.
-    if (parent.type.spec?.isolating || parent.type.name === "column") return true;
-    return false;
-  }
-
-  const blockPos = $from.before(depth);
-  const blockNode = $from.parent;
-  if (LIST_WRAPPER_TYPES.has(blockNode.type.name)) return false;
-
-  const prev = parent.child(indexInParent - 1);
-  const prevPos = blockPos - prev.nodeSize;
-
-  const tr = state.tr.delete(blockPos, blockPos + blockNode.nodeSize);
-  const caretPos = caretPosAfterMerge(prevPos, prev, tr.doc.content.size);
-  tr.setSelection(TextSelection.near(tr.doc.resolve(caretPos)));
-  tr.scrollIntoView();
-  view.dispatch(tr);
-  return true;
-}
-
-/** Notion: Enter in a heading always leaves a paragraph, never another heading. */
-function exitHeadingOnEnter(editor: any): boolean {
-  const block = currentTextBlock(editor);
-  if (!block || block.typeName !== "heading") return false;
-
-  const { $from } = editor.state.selection;
-  if (block.offset === block.text.length && $from.parent.attrs?.collapsed) {
-    const headingPos = $from.before($from.depth);
-    const range = collapsedSiblings(editor.state.doc, headingPos);
-    const insertPos = range?.to ?? $from.after($from.depth);
-    const paragraph = editor.state.schema.nodes.paragraph.create();
-    const tr = editor.state.tr.insert(insertPos, paragraph);
-    tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)));
-    editor.view.dispatch(tr.scrollIntoView());
-    return true;
-  }
-
-  if (block.offset === block.text.length) {
-    const after = $from.after($from.depth);
-    const next = editor.state.doc.nodeAt(after);
-    if (next?.type.name === "paragraph" && next.content.size === 0) {
-      return editor.commands.setTextSelection(after + 1);
-    }
-  }
-
-  if (!editor.commands.splitBlock({ keepMarks: true })) return false;
+  if ($from.parentOffset !== 0) return false;
+  const decorativeTypes = new Set(["heading", "blockquote", "callout"]);
+  if (!decorativeTypes.has($from.parent.type.name)) return false;
   return editor.chain().setParagraph().run();
 }
 
@@ -221,7 +84,7 @@ function modifyCurrentBlock(editor: any): boolean {
   }
 
   const marks = state.doc.resolve(from).marks();
-  const link = marks.find((m) => m.type.name === "link");
+  const link = marks.find((m: { type: { name: string }; attrs: { href?: string } }) => m.type.name === "link");
   if (!link?.attrs.href) return false;
   return openLinkHref(link.attrs.href as string);
 }
@@ -248,7 +111,8 @@ export const WritingExperience = Extension.create({
       if (enterAfterSelectedCard(this.editor)) return true;
       if (applyEnterMarkdownShortcut(this.editor)) return true;
       if (convertEmptyDecorationToParagraph(this.editor)) return true;
-      if (exitHeadingOnEnter(this.editor)) return true;
+      if (addParagraphAfterHeading(this.editor)) return true;
+      if (addParagraphAfterOutlineTitle(this.editor)) return true;
       return this.editor.commands.first(({ commands }) => [
         () => commands.newlineInCode(),
         () =>
@@ -280,13 +144,11 @@ export const WritingExperience = Extension.create({
 
       Tab: () => {
         if (isInsideTable(this.editor.state.selection.$from)) return false;
-        indentCurrentBlock(this.editor);
-        return true;
+        return indentCurrentBlock(this.editor);
       },
       "Shift-Tab": () => {
         if (isInsideTable(this.editor.state.selection.$from)) return false;
-        outdentCurrentBlock(this.editor);
-        return true;
+        return outdentCurrentBlock(this.editor);
       },
 
       "Mod-a": () => {

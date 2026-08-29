@@ -197,6 +197,19 @@ export function addParagraphAfterHeading(editor: any): boolean {
   return insertOrReuseParagraphAfter(editor, $from.after($from.depth));
 }
 
+/** Enter at the end of an outline title inserts the next child inside the outline. */
+export function addParagraphAfterOutlineTitle(editor: any): boolean {
+  const block = currentTextBlock(editor);
+  if (!block || block.offset !== block.text.length) return false;
+  if (block.typeName === "heading") return false;
+  const { $from } = editor.state.selection;
+  if ($from.depth < 1) return false;
+  const parent = $from.node($from.depth - 1);
+  if (parent.type.name !== "outlineBlock") return false;
+  if ($from.index($from.depth - 1) !== 0) return false;
+  return insertOrReuseParagraphAfter(editor, $from.after($from.depth));
+}
+
 export function convertEmptyDecorationToParagraph(editor: any): boolean {
   const block = currentTextBlock(editor);
   if (!block) return false;

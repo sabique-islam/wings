@@ -135,8 +135,8 @@ function moveDepthOf($from: { parent?: { isTextblock?: boolean }; depth: number;
 
 /**
  * Indent the current text block under the previous block sibling, if that
- * sibling can hold children. Returns false when nothing moved (caller may
- * still consume Tab so the gutter does not steal focus).
+ * sibling can hold children. Returns false when nothing moved — the keymap
+ * must not consume Tab in that case (handles stay tabindex -1).
  */
 export function nestCurrentBlock(editor: {
   state: any;

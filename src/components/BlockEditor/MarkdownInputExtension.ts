@@ -3,6 +3,8 @@ import type { EditorState } from "@tiptap/pm/state";
 import { normalizeCodeLanguage } from "./codeLanguages";
 import {
   calloutEmojiFromToken,
+  CODE_FENCE_SPACE,
+  HORIZONTAL_RULE_SPACE,
   isConvertibleParagraph,
   isInsideNode,
   isMarkdownSuggestionOpen,
@@ -51,7 +53,7 @@ export const MarkdownInput = Extension.create({
     const marks = this.editor.schema.marks;
     const rules: InputRule[] = [
       new InputRule({
-        find: /^(```|~~~)([\w#+.+-]*) $/,
+        find: CODE_FENCE_SPACE,
         handler: ({ state, range, match, chain }) => {
           if (isMarkdownSuggestionOpen(state) || !isConvertibleParagraph(state)) return null;
           const language = normalizeCodeLanguage(match[2] || null);
@@ -73,7 +75,7 @@ export const MarkdownInput = Extension.create({
         },
       }),
       new InputRule({
-        find: /^(-{3,}|\*{3,}|_{3,}) $/,
+        find: HORIZONTAL_RULE_SPACE,
         handler: ({ state, range, chain }) => {
           if (isMarkdownSuggestionOpen(state) || !isConvertibleParagraph(state)) return null;
           if (!chain().deleteRange(range).setHorizontalRule().run()) return null;
