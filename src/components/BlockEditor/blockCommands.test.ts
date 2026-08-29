@@ -3,8 +3,10 @@ import { Editor } from "@tiptap/core";
 import { createBlockEditorExtensions } from "./editorExtensions";
 import {
   extractSingleLinkFromHtml,
-  pasteExternalUrl,
+  pasteExternalUrlAsLink,
+  insertBookmark,
   updateBookmarkMeta,
+  bookmarkNeedsPreview,
   moveBlock,
   duplicateBlock,
   deleteCurrentBlock,
@@ -38,59 +40,89 @@ describe("extractSingleLinkFromHtml", () => {
   });
 });
 
-describe("pasteExternalUrl", () => {
-  it("inserts one bookmark into an empty paragraph without leaving the raw URL", () => {
+describe("pasteExternalUrlAsLink", () => {
+  it("inserts an inline link into an empty paragraph, not a bookmark", () => {
     const editor = makeEditor("<p></p>");
     editor.commands.focus();
     const url = "https://github.com/org/repo";
-    const pos = pasteExternalUrl(editor, url);
-    expect(pos).not.toBeNull();
-    expect(bookmarkCount(editor)).toBe(1);
-    expect(editor.state.doc.textContent).not.toContain("github.com/org");
+    expect(pasteExternalUrlAsLink(editor, url)).toBe(true);
+    expect(bookmarkCount(editor)).toBe(0);
+    expect(editor.state.doc.textContent).toContain("github.com/org");
+    expect(editor.isActive("link")).toBe(true);
+    expect(String(editor.getAttributes("link").href)).toContain("github.com/org/repo");
     editor.destroy();
   });
 
-  it("replaces a paragraph that already contains only the URL", () => {
+  it("keeps surrounding text when the caret is mid-paragraph", () => {
+    const editor = makeEditor("<p>see  here</p>");
+    editor.commands.setTextSelection(5);
     const url = "https://github.com/org/repo";
-    const editor = makeEditor(`<p>${url}</p>`);
-    editor.commands.focus("end");
-    pasteExternalUrl(editor, url);
-    expect(bookmarkCount(editor)).toBe(1);
-    expect(editor.getHTML()).not.toMatch(new RegExp(`<p[^>]*>${url.replace(/\//g, "\\/")}`));
+    expect(pasteExternalUrlAsLink(editor, url)).toBe(true);
+    expect(bookmarkCount(editor)).toBe(0);
+    expect(editor.state.doc.textContent).toContain("see");
+    expect(editor.state.doc.textContent).toContain("here");
+    expect(editor.state.doc.textContent).toContain(url);
     editor.destroy();
   });
 
-  it("updates metadata in place without duplicating the bookmark", () => {
+  it("applies the href to the selected text", () => {
+    const editor = makeEditor("<p>hello</p>");
+    editor.commands.setTextSelection({ from: 1, to: 6 });
+    expect(pasteExternalUrlAsLink(editor, "https://github.com/org/repo")).toBe(true);
+    expect(bookmarkCount(editor)).toBe(0);
+    expect(editor.state.doc.textContent).toBe("hello");
+    expect(String(editor.getAttributes("link").href)).toContain("github.com/org/repo");
+    editor.destroy();
+  });
+
+  it("rejects javascript: urls", () => {
+    const editor = makeEditor("<p></p>");
+    editor.commands.focus();
+    expect(pasteExternalUrlAsLink(editor, "javascript:alert(1)")).toBe(false);
+    expect(editor.state.doc.textContent).toBe("");
+    editor.destroy();
+  });
+});
+
+describe("insertBookmark + updateBookmarkMeta", () => {
+  it("inserts one bookmark and patches metadata by url, not position", () => {
     const editor = makeEditor("<p></p>");
     editor.commands.focus();
     const url = "https://github.com/org/repo";
-    const pos = pasteExternalUrl(editor, url)!;
+    expect(insertBookmark(editor, url)).toBe(true);
     expect(bookmarkCount(editor)).toBe(1);
-    updateBookmarkMeta(editor, pos, {
+    expect(updateBookmarkMeta(editor, url, {
       title: "My Repo",
       description: "Notes",
       image: "https://example.com/og.png",
       favicon: "https://github.com/favicon.ico",
-    });
+    })).toBe(true);
     expect(bookmarkCount(editor)).toBe(1);
-    const node = editor.state.doc.nodeAt(pos);
-    expect(node?.attrs.title).toBe("My Repo");
-    expect(node?.attrs.description).toBe("Notes");
-    expect(node?.attrs.url).toBe(url);
-    expect(node?.attrs.image).toBe("https://example.com/og.png");
-    expect(node?.attrs.favicon).toBe("https://github.com/favicon.ico");
+    let found: { title: string; url: string } | null = null;
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "bookmark") found = { title: node.attrs.title, url: node.attrs.url };
+    });
+    expect(found).toEqual({ title: "My Repo", url });
     editor.destroy();
   });
 
-  it("stores the full URL on insert before preview metadata arrives", () => {
-    const editor = makeEditor("<p></p>");
-    editor.commands.focus();
-    const url = "https://github.com/org/repo";
-    const pos = pasteExternalUrl(editor, url)!;
-    const node = editor.state.doc.nodeAt(pos);
-    expect(node?.attrs.url).toBe(url);
-    expect(node?.attrs.title).toBe("github.com");
+  it("reads data-url from HTML and writes it back", () => {
+    const editor = makeEditor('<div data-type="bookmark" data-url="https://a.com" data-title="Alpha"></div>');
+    let url = "";
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === "bookmark") url = node.attrs.url;
+    });
+    expect(url).toBe("https://a.com");
+    expect(editor.getHTML()).toContain("data-url=\"https://a.com\"");
     editor.destroy();
+  });
+});
+
+describe("bookmarkNeedsPreview", () => {
+  it("is true for hostname-only titles and false once OG data exists", () => {
+    expect(bookmarkNeedsPreview({ url: "https://github.com/org/repo", title: "github.com" })).toBe(true);
+    expect(bookmarkNeedsPreview({ url: "https://github.com/org/repo", title: "My Repo" })).toBe(false);
+    expect(bookmarkNeedsPreview({ url: "https://github.com/org/repo", title: "github.com", description: "x" })).toBe(false);
   });
 });
 

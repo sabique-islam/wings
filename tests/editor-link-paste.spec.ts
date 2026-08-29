@@ -7,7 +7,7 @@ test.describe("External link paste", () => {
     await focusEditor(page);
   });
 
-  test("pasting a bare URL inserts one bookmark, not duplicate inline text", async ({ page }) => {
+  test("pasting a bare URL inserts an inline link, not a bookmark", async ({ page }) => {
     const url = "https://github.com/org/repo";
     const editor = page.locator(".ProseMirror");
 
@@ -17,17 +17,9 @@ test.describe("External link paste", () => {
     }, url);
     await page.keyboard.press("Meta+v");
 
-    await expect(editor.locator('[data-type="bookmark"]')).toHaveCount(1);
-    await expect(editor.locator("a.editor-link")).toHaveCount(0);
-    await expect(editor.locator(".bookmark-url")).toHaveText(url);
-
-    const urlInTopLevelParagraph = await page.evaluate((pasteUrl) => {
-      const root = document.querySelector(".ProseMirror");
-      if (!root) return false;
-      return Array.from(root.children).some(
-        (el) => el.tagName === "P" && (el.textContent ?? "").includes(pasteUrl),
-      );
-    }, url);
-    expect(urlInTopLevelParagraph).toBe(false);
+    await expect(editor.locator('[data-type="bookmark"]')).toHaveCount(0);
+    await expect(editor.locator("a.editor-link")).toHaveCount(1);
+    await expect(editor.locator("a.editor-link")).toHaveAttribute("href", url);
+    await expect(editor).toContainText(url);
   });
 });

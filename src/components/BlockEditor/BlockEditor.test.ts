@@ -91,6 +91,7 @@ describe("BlockEditor wiring", () => {
     const editor = makeEditor();
     const linkCount = editor.extensionManager.extensions.filter((e) => e.name === "link").length;
     expect(linkCount).toBe(1);
+    expect(editor.extensionManager.extensions.some((e) => e.name === "gapCursor")).toBe(true);
     editor.destroy();
   });
 

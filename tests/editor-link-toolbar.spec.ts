@@ -73,6 +73,46 @@ test.describe("Link toolbar", () => {
     await expect(editor.locator("a.editor-link")).toHaveCount(0);
   });
 
+  test("clicking a card selects it without navigating", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await insertLinkAtCaret(page, "hello", "https://example.com");
+    await page.getByRole("button", { name: "Turn into bookmark" }).click();
+    const card = editor.getByTestId("link-card");
+    await expect(card).toBeVisible();
+    await card.click();
+    await expect(page).toHaveURL(/__editor-e2e/);
+    await expect(page.getByTestId("card-toolbar")).toBeVisible();
+  });
+
+  test("Inline view turns a card back into a link", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await insertLinkAtCaret(page, "hello", "https://example.com");
+    await page.getByRole("button", { name: "Turn into bookmark" }).click();
+    await editor.getByTestId("link-card").click();
+    await expect(page.getByTestId("card-toolbar")).toBeVisible();
+    await page.getByRole("button", { name: "Inline view" }).click();
+    await expect(editor.locator('[data-type="bookmark"]')).toHaveCount(0);
+    await expect(editor.locator("a.editor-link")).toHaveCount(1);
+  });
+
+  test("Backspace on a selected card deletes it", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await insertLinkAtCaret(page, "hello", "https://example.com");
+    await page.getByRole("button", { name: "Turn into bookmark" }).click();
+    await editor.getByTestId("link-card").click();
+    await page.keyboard.press("Backspace");
+    await expect(editor.locator('[data-type="bookmark"]')).toHaveCount(0);
+  });
+
+  test("insertBookmark still creates a card", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.evaluate(() => {
+      const ed = (window as unknown as { __nw_editor: { commands: { insertBookmark: (attrs: { url: string }) => boolean } } }).__nw_editor;
+      ed.commands.insertBookmark({ url: "https://example.com" });
+    });
+    await expect(editor.locator('[data-type="bookmark"]')).toHaveCount(1);
+  });
+
   test("slash menu Enter still inserts a callout", async ({ page }) => {
     const editor = page.locator(".ProseMirror");
     await page.keyboard.type("/callout");

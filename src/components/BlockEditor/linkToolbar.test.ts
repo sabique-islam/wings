@@ -9,7 +9,11 @@ import {
   activeLinkTarget,
   convertActiveLinkToBookmark,
   convertActiveLinkToEmbed,
+  convertSelectedCardToBookmark,
+  convertSelectedCardToEmbed,
+  convertSelectedCardToInline,
   copyHrefForTarget,
+  deleteSelectedCard,
   linkMarkRangeAtSelection,
   linkToolbarActions,
   openActiveLink,
@@ -129,6 +133,20 @@ describe("shouldShowEditorBubble", () => {
       }),
     ).toBe(false);
   });
+
+  it("shows when a card is selected", () => {
+    expect(
+      shouldShowEditorBubble({
+        editable: true,
+        from: 1,
+        to: 2,
+        linkActive: false,
+        pageRefActive: false,
+        viewFocused: true,
+        cardActive: true,
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("shouldShowFormatButtons", () => {
@@ -142,6 +160,17 @@ describe("shouldShowFormatButtons", () => {
     expect(shouldShowFormatButtons({ selectionEmpty: false, linkActive: false, pageRefActive: true })).toBe(
       false,
     );
+  });
+
+  it("hides format buttons on a selected card", () => {
+    expect(
+      shouldShowFormatButtons({
+        selectionEmpty: false,
+        linkActive: false,
+        pageRefActive: false,
+        cardActive: true,
+      }),
+    ).toBe(false);
   });
 
   it("keeps format buttons for a highlighted range", () => {
@@ -323,6 +352,62 @@ describe("openActiveLink", () => {
     expect(openActiveLink(editor)).toBe(false);
     expect(opened).toEqual([]);
     window.open = original;
+    editor.destroy();
+  });
+});
+
+describe("card view conversions", () => {
+  function selectFirst(editor: Editor, type: string) {
+    let pos: number | null = null;
+    editor.state.doc.descendants((node, nodePos) => {
+      if (node.type.name === type) {
+        pos = nodePos;
+        return false;
+      }
+    });
+    if (pos == null) throw new Error(`${type} not found`);
+    editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos)));
+  }
+
+  it("converts a link to a card and back to an inline link", () => {
+    const editor = makeEditor('<p><a href="https://example.com">hello</a></p>');
+    placeCaretInText(editor, "hello");
+    expect(convertActiveLinkToBookmark(editor)).toBe(true);
+    expect(countType(editor, "bookmark")).toBe(1);
+    selectFirst(editor, "bookmark");
+    expect(convertSelectedCardToInline(editor)).toBe(true);
+    expect(countType(editor, "bookmark")).toBe(0);
+    expect(editor.isActive("link")).toBe(true);
+    expect(editor.state.doc.textContent).toMatch(/hello|example\.com/);
+    const next = htmlToMarkdown(editor.getHTML());
+    expect(shouldBlockEmptySave("this is more than twenty chars", next)).toBe(false);
+    editor.destroy();
+  });
+
+  it("converts a YouTube card to an embed and back", () => {
+    const href = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+    const editor = makeEditor(`<p><a href="${href}">video</a></p>`);
+    placeCaretInText(editor, "video");
+    expect(convertActiveLinkToBookmark(editor)).toBe(true);
+    selectFirst(editor, "bookmark");
+    expect(convertSelectedCardToEmbed(editor)).toBe(true);
+    expect(countType(editor, "bookmark")).toBe(0);
+    expect(countType(editor, "embed")).toBe(1);
+    selectFirst(editor, "embed");
+    expect(convertSelectedCardToBookmark(editor)).toBe(true);
+    expect(countType(editor, "embed")).toBe(0);
+    expect(countType(editor, "bookmark")).toBe(1);
+    editor.destroy();
+  });
+
+  it("deletes a selected card without emptying a sibling", () => {
+    const editor = makeEditor('<p>keep</p><p><a href="https://example.com">x</a></p>');
+    placeCaretInText(editor, "x");
+    convertActiveLinkToBookmark(editor);
+    selectFirst(editor, "bookmark");
+    expect(deleteSelectedCard(editor)).toBe(true);
+    expect(countType(editor, "bookmark")).toBe(0);
+    expect(editor.state.doc.textContent).toContain("keep");
     editor.destroy();
   });
 });
