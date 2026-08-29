@@ -157,6 +157,27 @@ describe("column backspace containment", () => {
     editor.destroy();
   });
 
+  it("moves Backspace from a later empty first cell into the previous column", () => {
+    const editor = makeEditor(
+      `<div data-type="column-list" data-cols="2"><div data-type="column"><h3>Monday</h3><p>keep</p></div><div data-type="column"><p></p></div></div>`,
+    );
+    let emptyPos: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === "paragraph" && node.textContent === "" && emptyPos == null) {
+        emptyPos = pos + 1;
+        return false;
+      }
+    });
+    editor.commands.setTextSelection(emptyPos!);
+    editor.commands.keyboardShortcut("Backspace");
+
+    expect(columnCount(editor)).toBe(2);
+    expect(editor.state.doc.textContent).toContain("Monday");
+    expect(editor.state.doc.textContent).toContain("keep");
+    expect(editor.state.doc.textContent.slice(0, editor.state.selection.from)).toContain("keep");
+    editor.destroy();
+  });
+
   it("converts an empty day heading then keeps the rest of the row", () => {
     const editor = makeEditor(FIVE_DAY_ROW);
     let from = -1;

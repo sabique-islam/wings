@@ -238,13 +238,15 @@ test.describe("Notion parity keyboard and blocks", () => {
     await expect(editor.locator(".nw-block-selected")).toHaveCount(2);
   });
 
-  test("Tab stays in the editor instead of focusing the gutter handle", async ({ page }) => {
+  test("Tab on the first block does not insert a tab or focus the gutter handle", async ({ page }) => {
     const editor = page.locator(".ProseMirror");
     await page.keyboard.type("stay here");
     await page.keyboard.press("Tab");
-    const focused = await page.evaluate(() => document.activeElement?.className ?? "");
-    expect(focused).toContain("ProseMirror");
     await expect(editor).toContainText("stay here");
+    const text = await editor.innerText();
+    expect(text).not.toMatch(/\t/);
+    const focused = await page.evaluate(() => document.activeElement?.className ?? "");
+    expect(focused).not.toMatch(/nw-block-handle/);
   });
 
   test("Enter after a heading creates a paragraph, not another heading", async ({ page }) => {
@@ -256,6 +258,24 @@ test.describe("Notion parity keyboard and blocks", () => {
     await page.keyboard.type("body");
     await expect(editor.locator("h1")).toHaveText("Title");
     await expect(editor.locator("p").filter({ hasText: "body" })).toHaveCount(1);
+  });
+
+  test("Enter on an outline title stays inside the outline", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("hello");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("world");
+    await page.keyboard.press("Tab");
+    await expect(editor.locator('[data-type="paragraph"] > p').filter({ hasText: "world" })).toHaveCount(1);
+
+    await editor.locator("p", { hasText: "hello" }).click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("inside");
+
+    await expect(editor.locator('[data-type="paragraph"]')).toContainText("hello");
+    await expect(editor.locator('[data-type="paragraph"]')).toContainText("inside");
+    await expect(editor.locator('[data-type="paragraph"]')).toContainText("world");
   });
 
   test("typing --- then Enter inserts a divider", async ({ page }) => {

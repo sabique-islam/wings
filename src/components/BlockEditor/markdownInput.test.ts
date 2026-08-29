@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { calloutEmojiFromToken, matchDelimited } from "./markdownInput";
+import {
+  calloutEmojiFromToken,
+  isHorizontalRuleMarkup,
+  matchCodeFenceMarkup,
+  matchDelimited,
+} from "./markdownInput";
 
 describe("matchDelimited", () => {
   it("converts on the trailing space and keeps inner text", () => {
@@ -20,6 +25,25 @@ describe("matchDelimited", () => {
 
   it("does not convert until space", () => {
     expect(matchDelimited("**hi**", "**")).toBeNull();
+  });
+});
+
+describe("fence and HR markup", () => {
+  it("parses fence tokens with or without a language", () => {
+    expect(matchCodeFenceMarkup("```ts")).toEqual({ language: "ts" });
+    expect(matchCodeFenceMarkup("```")).toEqual({ language: "" });
+    expect(matchCodeFenceMarkup("~~~python")).toEqual({ language: "python" });
+    expect(matchCodeFenceMarkup("``` ts")).toBeNull();
+    expect(matchCodeFenceMarkup("not a fence")).toBeNull();
+  });
+
+  it("accepts three or more rule characters", () => {
+    expect(isHorizontalRuleMarkup("---")).toBe(true);
+    expect(isHorizontalRuleMarkup("----")).toBe(true);
+    expect(isHorizontalRuleMarkup("___")).toBe(true);
+    expect(isHorizontalRuleMarkup("***")).toBe(true);
+    expect(isHorizontalRuleMarkup("--")).toBe(false);
+    expect(isHorizontalRuleMarkup("- - -")).toBe(false);
   });
 });
 

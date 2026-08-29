@@ -16,7 +16,7 @@ import { createBlockEditorExtensions } from "./editorExtensions";
 import { slashCommandSuggestionKey, pageMentionSuggestionKey } from "./suggestionPluginKeys";
 import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 import { isEmptyDoc, shouldBlockEmptySave } from "@/lib/editorContent";
-import { liftCurrentBlock, nestBlockUnder } from "./outlineNest";
+import { indentCurrentBlock, liftCurrentBlock, nestBlockUnder } from "./outlineNest";
 
 function makeEditor(content = "<p>hello</p>") {
   return new Editor({
@@ -485,6 +485,15 @@ Example:
     expect(typeof blockEditor.extensionManager.extensions.find((e) => e.name === "blockMath")?.config.addInputRules).toBe("function");
     expect(typeof blockEditor.extensionManager.extensions.find((e) => e.name === "inlineMath")?.config.addInputRules).toBe("function");
     blockEditor.destroy();
+  });
+
+  it("Tab on the first paragraph is a no-op", () => {
+    const editor = makeEditor("<p>hello</p>");
+    placeCursorInParagraph(editor, "hello");
+    expect(indentCurrentBlock(editor)).toBe(false);
+    expect(editor.state.doc.firstChild?.type.name).toBe("paragraph");
+    expect(editor.state.doc.textContent).toBe("hello");
+    editor.destroy();
   });
 
   it("Tab nests a paragraph under the previous paragraph", () => {
