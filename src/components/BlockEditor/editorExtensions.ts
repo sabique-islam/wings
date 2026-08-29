@@ -164,7 +164,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     }).configure({
       openOnClick: false,
       autolink: true,
-      linkOnPaste: false,
+      linkOnPaste: true,
       HTMLAttributes: { class: "editor-link" },
     }),
     Dropcursor.configure({ color: "hsl(var(--muted-foreground) / 0.4)", width: 2 }),

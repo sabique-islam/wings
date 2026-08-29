@@ -38,7 +38,7 @@ function bookmarkAttrs(url: string, meta?: BookmarkMeta) {
 
 /**
  * Clipboard HTML from GitHub, YouTube, etc. is often a wrapper meta tag plus a
- * single anchor. Treat that as a bare URL paste so we don't also inline-link it.
+ * single anchor. Treat that as a bare URL so we insert one inline link.
  */
 export function extractSingleLinkFromHtml(html: string): string | null {
   if (!html.includes("<")) return null;
@@ -173,58 +173,77 @@ export function insertBookmark(editor: Editor, url: string, meta?: BookmarkMeta)
     .run();
 }
 
+/** True when the card still only has a hostname stand-in and should fetch OG data. */
+export function bookmarkNeedsPreview(attrs: {
+  url: string;
+  title?: string;
+  description?: string;
+  image?: string;
+}): boolean {
+  if (!attrs.url) return false;
+  if (attrs.description || attrs.image) return false;
+  const title = (attrs.title ?? "").trim();
+  try {
+    return !title || title === new URL(attrs.url).hostname;
+  } catch {
+    return !title;
+  }
+}
+
 /**
- * Paste a bare external URL as a single bookmark block, synchronously, so the
- * default paste path cannot also leave the raw URL in the paragraph.
- * Returns the bookmark's document position for a later metadata patch.
+ * Paste a bare http(s) URL as an inline link. Selected text gets the href;
+ * a collapsed caret inserts the URL as linked text in the current block.
  */
-export function pasteExternalUrl(editor: Editor, url: string): number | null {
-  if (!isSafeHttpUrl(url)) return null;
-  const attrs = bookmarkAttrs(url);
+export function pasteExternalUrlAsLink(editor: Editor, url: string): boolean {
+  if (!isSafeHttpUrl(url)) return false;
   const { state } = editor;
-  const { $from } = state.selection;
-  const blockPos = getTopLevelBlockPos($from as BlockPos);
-  if (blockPos == null) return null;
+  const link = state.schema.marks.link;
+  if (!link) return false;
+  const { selection, schema } = state;
+  const { empty, $from } = selection;
 
-  const block = state.doc.nodeAt(blockPos);
-  if (!block) return null;
-
-  const blockText = block.textContent.trim();
-  const replaceBlock = blockText === "" || blockText === url.trim();
-
-  if (replaceBlock) {
-    const bookmark = state.schema.nodes.bookmark.create(attrs);
-    const tr = state.tr
-      .replaceWith(blockPos, blockPos + block.nodeSize, bookmark)
-      .setMeta("preventAutolink", true)
-      .scrollIntoView();
-    editor.view.dispatch(tr);
-    return blockPos;
+  if (!empty) {
+    if (!$from.parent.isTextblock) return false;
+    return editor.chain().focus().setMeta("preventAutolink", true).setLink({ href: url }).run();
   }
 
-  const ok = editor
-    .chain()
-    .focus()
-    .setMeta("preventAutolink", true)
-    .insertContent({ type: "bookmark", attrs })
-    .run();
-  if (!ok) return null;
+  const mark = link.create({ href: url });
+  const textNode = schema.text(url, [mark]);
 
+  if (!$from.parent.isTextblock) {
+    const blockPos = getTopLevelBlockPos($from as BlockPos);
+    if (blockPos == null) return false;
+    const block = state.doc.nodeAt(blockPos);
+    if (!block) return false;
+    const paragraph = schema.nodes.paragraph.create(null, textNode);
+    const insertPos = blockPos + block.nodeSize;
+    const tr = state.tr.insert(insertPos, paragraph).setMeta("preventAutolink", true);
+    tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)));
+    editor.view.dispatch(tr.scrollIntoView());
+    return true;
+  }
+
+  const tr = state.tr.replaceSelectionWith(textNode, false).setMeta("preventAutolink", true);
+  editor.view.dispatch(tr.scrollIntoView());
+  return true;
+}
+
+export function findBookmarkPosByUrl(editor: Editor, url: string): number | null {
   let found: number | null = null;
   editor.state.doc.descendants((node, pos) => {
-    if (node.type.name === "bookmark" && node.attrs.url === url && found == null) {
-      found = pos;
-    }
+    if (found != null) return false;
+    if (node.type.name === "bookmark" && node.attrs.url === url) found = pos;
   });
   return found;
 }
 
-/** Patch preview metadata onto a bookmark that was inserted by pasteExternalUrl. */
-export function updateBookmarkMeta(editor: Editor, pos: number, meta: BookmarkMeta): boolean {
-  let node = editor.state.doc.nodeAt(pos);
+/** Patch preview metadata onto the bookmark with this URL, wherever it sits now. */
+export function updateBookmarkMeta(editor: Editor, url: string, meta: BookmarkMeta): boolean {
+  const pos = findBookmarkPosByUrl(editor, url);
+  if (pos == null) return false;
+  const node = editor.state.doc.nodeAt(pos);
   if (!node || node.type.name !== "bookmark") return false;
 
-  const url = node.attrs.url as string;
   const tr = editor.state.tr
     .setNodeMarkup(pos, undefined, {
       ...node.attrs,

@@ -1,5 +1,5 @@
 import { Extension } from "@tiptap/core";
-import { TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { turnInto, moveBlock, duplicateBlock, type TurnIntoType } from "./blockCommands";
 import { caretPosAfterMerge, findColumnDepth, findTopLevelDepth, selectionCoveringNode } from "./blockUtils";
 import { collapsedSiblings } from "./headingFold";
@@ -78,6 +78,30 @@ function backspaceAtStartOfDecoration(editor: any): boolean {
   const decorativeTypes = new Set(["heading", "blockquote", "callout"]);
   if (!decorativeTypes.has($from.parent.type.name)) return false;
   return editor.chain().setParagraph().run();
+}
+
+const CARD_NODE_TYPES = new Set(["bookmark", "embed"]);
+
+function selectedCardNode(editor: any): { from: number; to: number } | null {
+  const { selection } = editor.state;
+  if (!(selection instanceof NodeSelection)) return null;
+  if (!CARD_NODE_TYPES.has(selection.node.type.name)) return null;
+  return { from: selection.from, to: selection.to };
+}
+
+function enterAfterSelectedCard(editor: any): boolean {
+  const card = selectedCardNode(editor);
+  if (!card) return false;
+  const paragraph = editor.state.schema.nodes.paragraph.create();
+  const tr = editor.state.tr.insert(card.to, paragraph);
+  tr.setSelection(TextSelection.near(tr.doc.resolve(card.to + 1)));
+  editor.view.dispatch(tr.scrollIntoView());
+  return true;
+}
+
+function deleteSelectedCardNode(editor: any): boolean {
+  if (!selectedCardNode(editor)) return false;
+  return editor.commands.deleteSelection();
 }
 
 const LIST_ITEM_TYPES = new Set(["listItem", "taskItem"]);
@@ -221,6 +245,7 @@ export const WritingExperience = Extension.create({
   addKeyboardShortcuts() {
     const enter = () => {
       if (!this.editor.isEditable) return false;
+      if (enterAfterSelectedCard(this.editor)) return true;
       if (applyEnterMarkdownShortcut(this.editor)) return true;
       if (convertEmptyDecorationToParagraph(this.editor)) return true;
       if (exitHeadingOnEnter(this.editor)) return true;
@@ -248,8 +273,10 @@ export const WritingExperience = Extension.create({
       "Mod-Enter": () => modifyCurrentBlock(this.editor),
 
       Backspace: () =>
+        deleteSelectedCardNode(this.editor) ||
         backspaceAtStartOfDecoration(this.editor) ||
         mergeEmptyBlockUp(this.editor),
+      Delete: () => deleteSelectedCardNode(this.editor),
 
       Tab: () => {
         if (isInsideTable(this.editor.state.selection.$from)) return false;

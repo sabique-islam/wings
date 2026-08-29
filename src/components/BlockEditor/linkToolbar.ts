@@ -1,14 +1,17 @@
 import type { Editor } from "@tiptap/core";
 import { Fragment } from "@tiptap/pm/model";
-import { NodeSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { pageIdFromHref } from "@/lib/linkExtraction";
+import { fetchLinkPreview } from "@/lib/linkPreview";
 import { isAllowedEmbedUrl, isSafeHttpUrl } from "@/lib/safeUrl";
-import { rewriteEmbedUrl } from "./blockCommands";
+import { rewriteEmbedUrl, updateBookmarkMeta } from "./blockCommands";
 import { getTopLevelBlockPos, type BlockPos } from "./blockUtils";
 import { normalizeExternalHref, openLinkHref } from "./editorLinkClick";
 import { displayTitleForPage, PAGE_REF_NODE, pageRefHref } from "./pageRef";
 
 export type LinkToolbarAction = "open" | "peek" | "copy" | "edit" | "unlink" | "bookmark" | "embed";
+export type CardToolbarAction = "inline" | "card" | "embed" | "copy" | "open" | "reload" | "delete" | "list";
+export type CardKind = "bookmark" | "embed";
 
 export type ActiveLinkTarget =
   | { kind: "page"; href: string; pageId: string }
@@ -21,8 +24,10 @@ export function shouldShowEditorBubble(input: {
   linkActive: boolean;
   pageRefActive: boolean;
   viewFocused: boolean;
+  cardActive?: boolean;
 }): boolean {
   if (!input.editable || !input.viewFocused) return false;
+  if (input.cardActive) return true;
   if (input.linkActive || input.pageRefActive) return true;
   return input.from !== input.to;
 }
@@ -32,10 +37,37 @@ export function shouldShowFormatButtons(input: {
   selectionEmpty: boolean;
   linkActive: boolean;
   pageRefActive: boolean;
+  cardActive?: boolean;
 }): boolean {
+  if (input.cardActive) return false;
   if (input.pageRefActive) return false;
   if (input.selectionEmpty && input.linkActive) return false;
   return !input.selectionEmpty;
+}
+
+export function selectedCard(editor: Editor): { kind: CardKind; from: number; to: number; url: string; title: string } | null {
+  const { selection } = editor.state;
+  if (!(selection instanceof NodeSelection)) return null;
+  const name = selection.node.type.name;
+  if (name !== "bookmark" && name !== "embed") return null;
+  return {
+    kind: name,
+    from: selection.from,
+    to: selection.to,
+    url: String(selection.node.attrs.url ?? ""),
+    title: String(selection.node.attrs.title ?? ""),
+  };
+}
+
+export function cardToolbarActions(kind: CardKind, url: string): CardToolbarAction[] {
+  const actions: CardToolbarAction[] = ["inline", "card"];
+  if (isAllowedEmbedUrl(rewriteEmbedUrl(url))) actions.push("embed");
+  actions.push("copy", "open");
+  if (kind === "bookmark") {
+    actions.push("reload", "list");
+  }
+  actions.push("delete");
+  return actions;
 }
 
 export function activeLinkTarget(editor: Editor): ActiveLinkTarget | null {
@@ -90,18 +122,21 @@ export function convertActiveLinkToBookmark(editor: Editor): boolean {
   if (!range) return false;
   const type = editor.state.schema.nodes.bookmark;
   if (!type) return false;
+  const selectedText = editor.state.doc.textBetween(range.from, range.to).trim();
   let host = target.safeHref;
   try {
     host = new URL(target.safeHref).hostname;
   } catch {
     /* keep href */
   }
+  const title = selectedText && selectedText !== target.safeHref ? selectedText : host;
   const block = type.create({
     url: target.safeHref,
-    title: host,
+    title,
     description: "",
     image: "",
     favicon: "",
+    style: "horizontal",
   });
   return replaceInlineRangeWithBlock(editor, range.from, range.to, block);
 }
@@ -117,6 +152,104 @@ export function convertActiveLinkToEmbed(editor: Editor): boolean {
   if (!type) return false;
   const block = type.create({ url: target.safeHref, embedUrl });
   return replaceInlineRangeWithBlock(editor, range.from, range.to, block);
+}
+
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+}
+
+function replaceSelectedAtom(editor: Editor, node: { nodeSize: number }): boolean {
+  const { state } = editor;
+  const { selection } = state;
+  if (!(selection instanceof NodeSelection)) return false;
+  const from = selection.from;
+  const tr = state.tr
+    .replaceWith(from, selection.to, node as never)
+    .setMeta("preventAutolink", true)
+    .scrollIntoView();
+  tr.setSelection(NodeSelection.create(tr.doc, from));
+  editor.view.dispatch(tr);
+  return true;
+}
+
+export function convertSelectedCardToInline(editor: Editor): boolean {
+  const card = selectedCard(editor);
+  if (!card) return false;
+  const label = card.title.trim() || hostnameOf(card.url) || card.url || "link";
+  const { state } = editor;
+  const marks = isSafeHttpUrl(card.url) ? [state.schema.marks.link.create({ href: card.url })] : [];
+  const text = state.schema.text(label, marks);
+  const paragraph = state.schema.nodes.paragraph.create(null, text);
+  const tr = state.tr
+    .replaceWith(card.from, card.to, paragraph)
+    .setMeta("preventAutolink", true)
+    .scrollIntoView();
+  tr.setSelection(TextSelection.near(tr.doc.resolve(card.from + 1)));
+  editor.view.dispatch(tr);
+  return true;
+}
+
+export function convertSelectedCardToBookmark(editor: Editor): boolean {
+  const card = selectedCard(editor);
+  if (!card || card.kind === "bookmark") return false;
+  if (!isSafeHttpUrl(card.url)) return false;
+  const type = editor.state.schema.nodes.bookmark;
+  if (!type) return false;
+  const block = type.create({
+    url: card.url,
+    title: hostnameOf(card.url),
+    description: "",
+    image: "",
+    favicon: "",
+    style: "horizontal",
+  });
+  return replaceSelectedAtom(editor, block);
+}
+
+export function convertSelectedCardToEmbed(editor: Editor): boolean {
+  const card = selectedCard(editor);
+  if (!card || card.kind === "embed") return false;
+  const embedUrl = rewriteEmbedUrl(card.url);
+  if (!isAllowedEmbedUrl(embedUrl)) return false;
+  const type = editor.state.schema.nodes.embed;
+  if (!type) return false;
+  return replaceSelectedAtom(editor, type.create({ url: card.url, embedUrl }));
+}
+
+export function deleteSelectedCard(editor: Editor): boolean {
+  if (!selectedCard(editor)) return false;
+  return editor.chain().focus().deleteSelection().run();
+}
+
+export function openSelectedCard(editor: Editor): boolean {
+  const card = selectedCard(editor);
+  if (!card) return false;
+  return openLinkHref(card.url);
+}
+
+export function copySelectedCardUrl(editor: Editor): string | null {
+  const card = selectedCard(editor);
+  if (!card || !isSafeHttpUrl(card.url)) return null;
+  return card.url;
+}
+
+export async function refreshSelectedBookmark(editor: Editor): Promise<boolean> {
+  const card = selectedCard(editor);
+  if (card?.kind !== "bookmark" || !isSafeHttpUrl(card.url)) return false;
+  const meta = await fetchLinkPreview(card.url);
+  if (!meta) return false;
+  return updateBookmarkMeta(editor, card.url, meta);
+}
+
+export function toggleSelectedBookmarkListStyle(editor: Editor): boolean {
+  const { selection } = editor.state;
+  if (!(selection instanceof NodeSelection) || selection.node.type.name !== "bookmark") return false;
+  const next = selection.node.attrs.style === "list" ? "horizontal" : "list";
+  return editor.chain().focus().updateAttributes("bookmark", { style: next }).run();
 }
 
 function pageRefAtSelection(editor: Editor): { from: number; to: number; pageId: string } | null {
