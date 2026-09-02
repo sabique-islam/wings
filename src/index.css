@@ -994,6 +994,17 @@ body.nw-col-resizing * {
   color: hsl(var(--foreground));
 }
 
+.nw-week-card {
+  margin: 1.25rem 0;
+  padding: 1rem 1.1rem 0.85rem;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  background: hsl(var(--card));
+}
+.nw-week-card + .nw-week-card {
+  margin-top: 1.5rem;
+}
+
 .nw-template-button {
   @apply my-2;
 }

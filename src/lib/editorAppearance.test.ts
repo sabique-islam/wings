@@ -7,6 +7,7 @@ import {
   fontStackFor,
   loadEditorAppearance,
   pageEditorWidthClass,
+  contentLooksFullWidth,
   parseEditorAppearance,
   patchEditorAppearance,
   resetEditorAppearanceMemory,
@@ -81,5 +82,13 @@ describe("localStorage round-trip", () => {
     expect(defaultCodeWrap()).toBe(false);
     patchEditorAppearance({ codeWrap: true });
     expect(defaultCodeWrap()).toBe(true);
+  });
+});
+
+describe("contentLooksFullWidth", () => {
+  it("detects planner grids in markdown or JSON", () => {
+    expect(contentLooksFullWidth("hello")).toBe(false);
+    expect(contentLooksFullWidth('div data-type="column-list"')).toBe(true);
+    expect(contentLooksFullWidth("", { type: "doc", content: [{ type: "weekCard" }] })).toBe(true);
   });
 });

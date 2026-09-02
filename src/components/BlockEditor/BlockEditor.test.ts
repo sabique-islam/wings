@@ -91,6 +91,7 @@ describe("BlockEditor wiring", () => {
     const editor = makeEditor();
     const linkCount = editor.extensionManager.extensions.filter((e) => e.name === "link").length;
     expect(linkCount).toBe(1);
+    expect(editor.schema.marks.link.spec.inclusive).toBe(false);
     expect(editor.extensionManager.extensions.some((e) => e.name === "gapCursor")).toBe(true);
     editor.destroy();
   });
@@ -338,6 +339,8 @@ describe("BlockEditor wiring", () => {
     expect(editor.state.schema.nodes.toggleBlock).toBeTruthy();
     expect(editor.state.schema.nodes.templateButton).toBeTruthy();
     expect(editor.state.schema.nodes.columnList).toBeTruthy();
+    expect(editor.state.schema.nodes.weekCard).toBeTruthy();
+    expect(editor.state.schema.nodes.weekCard.spec.isolating).toBe(true);
     const uniqueId = editor.extensionManager.extensions.find((e) => e.name === "uniqueID");
     expect(uniqueId).toBeTruthy();
     editor.destroy();

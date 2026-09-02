@@ -1,7 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { Editor } from "@tiptap/core";
 import { createBlockEditorExtensions } from "./editorExtensions";
-import { insertWeeklyPlanner, stampTemplateButton } from "./templateButton";
+import { insertWeeklyPlanner, stampTemplateButton, wrapUnwrappedPlannerWeeks } from "./templateButton";
 import { parseWeekHeading } from "@/lib/weeklyPlanner";
 import { clearEditorAppearance } from "@/lib/editorAppearance";
 import { htmlToMarkdown } from "@/lib/markdown";
@@ -67,6 +67,7 @@ describe("weekly planner insert", () => {
     expect(editor.state.doc.textContent).toContain(`Week ${weeks[0]}`);
     expect(columnCounts(editor)).toEqual([5, 5]);
     expect(editor.getHTML()).toContain("template-button");
+    expect(editor.getHTML()).toContain("week-card");
     expect(editor.getHTML()).toContain("Sunday");
     expect(editor.getHTML()).toContain("Groceries");
     const markdown = htmlToMarkdown(editor.getHTML());
@@ -84,6 +85,19 @@ describe("weekly planner insert", () => {
     expect(weeks).toHaveLength(2);
     expect(weeks[1]).toBe(weeks[0]! + 1);
     expect(columnCounts(editor)).toEqual([5, 5, 5, 5]);
+    expect(editor.view.dom.querySelectorAll("[data-type='week-card']")).toHaveLength(2);
+    editor.destroy();
+  });
+
+  it("wraps a legacy flat week without dropping text", () => {
+    const editor = makeEditor(
+      "<h2>Week 1</h2><p>Aug 23 – Aug 29, 2026</p><div data-type=\"column-list\" data-cols=\"2\"><div data-type=\"column\"><h3>Sunday</h3><p>sun</p></div><div data-type=\"column\"><h3>Monday</h3><p>mon</p></div></div>",
+    );
+    const before = editor.state.doc.textContent;
+    expect(wrapUnwrappedPlannerWeeks(editor)).toBe(true);
+    expect(editor.state.doc.textContent).toBe(before);
+    expect(editor.state.doc.firstChild?.type.name).toBe("weekCard");
+    expect(wrapUnwrappedPlannerWeeks(editor)).toBe(false);
     editor.destroy();
   });
 });

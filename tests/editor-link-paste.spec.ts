@@ -21,5 +21,16 @@ test.describe("External link paste", () => {
     await expect(editor.locator("a.editor-link")).toHaveCount(1);
     await expect(editor.locator("a.editor-link")).toHaveAttribute("href", url);
     await expect(editor).toContainText(url);
+
+    await page.keyboard.type(" hello");
+    await expect(editor.locator("a.editor-link")).toHaveText(url);
+    await expect(editor).toContainText("hello");
+  });
+
+  test("typing a URL then space still autolinks", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("https://example.com ");
+    await expect(editor.locator("a.editor-link")).toHaveCount(1);
+    await expect(editor.locator("a.editor-link")).toHaveAttribute("href", "https://example.com");
   });
 });

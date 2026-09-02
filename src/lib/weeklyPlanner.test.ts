@@ -11,6 +11,7 @@ import {
   weekNumberStartingSunday,
   weeklyPlannerPageContent,
   weeklyPlannerWeekContent,
+  normalizeWeeklyPlannerDoc,
 } from "./weeklyPlanner";
 
 describe("weekly planner dates", () => {
@@ -61,13 +62,17 @@ describe("weekly planner dates", () => {
 });
 
 describe("weekly planner JSON", () => {
-  it("builds a button plus a 5+5 column week", () => {
+  it("builds a button plus a 5+5 column week card", () => {
     const page = weeklyPlannerPageContent(new Date(2026, 7, 23, 12));
     expect(page[0]?.type).toBe("templateButton");
     expect(page[0]?.attrs?.kind).toBe("weekly-planner");
+    expect(page[1]?.type).toBe("weekCard");
     const week = plannerWeekFromSunday(sundayOf(new Date(2026, 7, 23)), 1);
     const blocks = weeklyPlannerWeekContent(week);
-    const lists = blocks.filter((n) => n.type === "columnList");
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.type).toBe("weekCard");
+    const inner = blocks[0]?.content ?? [];
+    const lists = inner.filter((n) => n.type === "columnList");
     expect(lists).toHaveLength(2);
     expect(lists[0]?.content).toHaveLength(5);
     expect(lists[1]?.content).toHaveLength(5);
@@ -83,5 +88,50 @@ describe("weekly planner JSON", () => {
       content: [{ type: "text", text: "Week 1" }],
     });
     expect(stripped.attrs).toEqual({ level: 2 });
+  });
+});
+
+function jsonText(node: { text?: string; content?: unknown[] }): string {
+  if (typeof node.text === "string") return node.text;
+  return ((node.content ?? []) as typeof node[]).map(jsonText).join("");
+}
+
+describe("normalizeWeeklyPlannerDoc", () => {
+  it("wraps a flat Week heading sequence without dropping text", () => {
+    const flat = {
+      type: "doc" as const,
+      content: [
+        { type: "templateButton", attrs: { kind: "weekly-planner", label: "New week", contentJson: "[]" } },
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Week 34" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Aug 23 – Aug 29, 2026" }] },
+        { type: "heading", attrs: { level: 3 }, content: [{ type: "text", text: "Goals this week" }] },
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Week 35" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Aug 30 – Sep 5, 2026" }] },
+        { type: "paragraph" },
+      ],
+    };
+    const before = jsonText(flat);
+    const next = normalizeWeeklyPlannerDoc(flat);
+    expect(jsonText(next)).toBe(before);
+    expect(next.content?.filter((n) => n.type === "weekCard")).toHaveLength(2);
+    expect(next.content?.[0]?.type).toBe("templateButton");
+    expect(next.content?.[next.content.length - 1]?.type).toBe("paragraph");
+  });
+
+  it("is a no-op when weeks are already cards", () => {
+    const page = weeklyPlannerPageContent(new Date(2026, 7, 23, 12));
+    const doc = { type: "doc" as const, content: page };
+    expect(normalizeWeeklyPlannerDoc(doc)).toEqual(doc);
+  });
+
+  it("leaves a plain Week heading note alone when there is no planner grid", () => {
+    const doc = {
+      type: "doc" as const,
+      content: [
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Week 5" }] },
+        { type: "paragraph", content: [{ type: "text", text: "just a heading" }] },
+      ],
+    };
+    expect(normalizeWeeklyPlannerDoc(doc)).toEqual(doc);
   });
 });

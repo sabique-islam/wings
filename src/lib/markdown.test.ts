@@ -167,6 +167,15 @@ describe("markdown <-> html conversion", () => {
     expect(markdownToHtml(md)).toContain('data-type="template-button"');
   });
 
+  it("preserves week-card HTML round-trip", () => {
+    const blob =
+      '<div data-type="week-card"><h2>Week 1</h2><p>notes</p></div>';
+    const md = htmlToMarkdown(blob);
+    expect(md).toContain('data-type="week-card"');
+    expect(markdownToHtml(md)).toContain('data-type="week-card"');
+    expect(markdownToHtml(md)).toContain("Week 1");
+  });
+
   it("preserves collapsed heading HTML when UniqueID puts id before data-collapsed", () => {
     const blob = '<h2 id="abc" data-collapsed="true">Folded</h2>';
     const md = htmlToMarkdown(blob);
@@ -237,6 +246,23 @@ describe("custom block markup survives the html guard", () => {
 
   it("still escapes script tags", () => {
     expect(markdownToHtml("<script>alert(1)</script>")).not.toContain("<script>");
+  });
+
+  it("restores underline, highlight, and colored text from markdown", () => {
+    expect(markdownToHtml("x <u>y</u> z")).toContain("<u>y</u>");
+    expect(markdownToHtml("x <u>y</u> z")).not.toContain("&lt;u&gt;");
+    expect(markdownToHtml("x ==y== z")).toContain("<mark>y</mark>");
+    expect(markdownToHtml("x ==y== z")).not.toContain("==y==");
+    const colored = markdownToHtml('x <span style="color: #c4554d">y</span> z');
+    expect(colored).toContain("color:");
+    expect(colored).toContain(">y</span>");
+    expect(colored).not.toContain("&lt;span");
+  });
+
+  it("round-trips underline and highlight through htmlToMarkdown", () => {
+    expect(htmlToMarkdown("<p>x <u>y</u> z</p>")).toContain("<u>y</u>");
+    expect(htmlToMarkdown("<p>x <mark>y</mark> z</p>")).toContain("==y==");
+    expect(markdownToHtml(htmlToMarkdown("<p>x <u>y</u> z</p>"))).toContain("<u>y</u>");
   });
 });
 

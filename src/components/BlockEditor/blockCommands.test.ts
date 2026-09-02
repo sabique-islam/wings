@@ -48,8 +48,16 @@ describe("pasteExternalUrlAsLink", () => {
     expect(pasteExternalUrlAsLink(editor, url)).toBe(true);
     expect(bookmarkCount(editor)).toBe(0);
     expect(editor.state.doc.textContent).toContain("github.com/org");
-    expect(editor.isActive("link")).toBe(true);
-    expect(String(editor.getAttributes("link").href)).toContain("github.com/org/repo");
+    expect(String(editor.getAttributes("link").href || "")).not.toContain("github.com/org/repo");
+    expect(editor.getHTML()).toContain('href="https://github.com/org/repo"');
+    editor.commands.insertContent(" hello");
+    const linked: string[] = [];
+    editor.state.doc.descendants((node) => {
+      if (!node.isText) return;
+      if (node.marks.some((mark) => mark.type.name === "link")) linked.push(node.text ?? "");
+    });
+    expect(linked.join("")).toBe(url);
+    expect(editor.state.doc.textContent).toContain("hello");
     editor.destroy();
   });
 

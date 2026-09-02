@@ -15,6 +15,7 @@ test.describe("weekly planner", () => {
     await item.click();
 
     await expect(page.getByTestId("template-button")).toHaveCount(1);
+    await expect(editor.locator('[data-type="week-card"]')).toHaveCount(1);
     await expect(editor.locator("h2", { hasText: /Week \d+/ })).toHaveCount(1);
     await expect(editor.locator('[data-type="column-list"]')).toHaveCount(2);
     await expect(editor.locator('[data-type="column"]')).toHaveCount(10);
@@ -23,6 +24,7 @@ test.describe("weekly planner", () => {
 
     await page.getByTestId("template-button").click();
     await expect(editor.locator("h2", { hasText: /Week \d+/ })).toHaveCount(2);
+    await expect(editor.locator('[data-type="week-card"]')).toHaveCount(2);
     await expect(editor.locator('[data-type="column-list"]')).toHaveCount(4);
 
     const firstWeek = editor.locator("h2", { hasText: /Week \d+/ }).first();
@@ -149,5 +151,64 @@ test.describe("weekly planner", () => {
     });
     expect(selected).toContain("Sunday");
     expect(selected).not.toContain("Monday");
+  });
+
+  test("typing in one week does not edit the other week", async ({ page }) => {
+    const editor = page.locator(".ProseMirror");
+    await page.keyboard.type("/weekly");
+    const item = page.locator(".slash-menu button", { hasText: "Weekly planner" });
+    await expect(item).toBeVisible();
+    await item.click();
+    await page.getByTestId("template-button").click();
+    await expect(editor.locator('[data-type="week-card"]')).toHaveCount(2);
+
+    await page.evaluate(() => {
+      const ed = (
+        window as unknown as {
+          __nw_editor: {
+            state: {
+              doc: {
+                descendants: (
+                  fn: (node: { type: { name: string }; textContent: string }, pos: number) => false | void,
+                ) => void;
+              };
+            };
+            commands: { setTextSelection: (pos: number) => void; focus: () => void };
+          };
+        }
+      ).__nw_editor;
+      let pos = -1;
+      ed.state.doc.descendants((node, nodePos) => {
+        if (node.type.name === "heading" && node.textContent === "Sunday") {
+          pos = nodePos + 1 + node.textContent.length;
+          return false;
+        }
+      });
+      ed.commands.focus();
+      ed.commands.setTextSelection(pos);
+    });
+    await page.keyboard.type(" ONLYWEEKONE");
+
+    const firstCard = editor.locator('[data-type="week-card"]').first();
+    const secondCard = editor.locator('[data-type="week-card"]').nth(1);
+    await expect(firstCard).toContainText("ONLYWEEKONE");
+    await expect(secondCard).not.toContainText("ONLYWEEKONE");
+
+    await page.keyboard.press("ControlOrMeta+a");
+    await page.keyboard.press("ControlOrMeta+a");
+    const selected = await page.evaluate(() => {
+      const ed = (
+        window as unknown as {
+          __nw_editor: {
+            state: { selection: { from: number; to: number }; doc: { textBetween: (from: number, to: number) => string } };
+          };
+        }
+      ).__nw_editor;
+      return ed.state.doc.textBetween(ed.state.selection.from, ed.state.selection.to);
+    });
+    expect(selected).toContain("ONLYWEEKONE");
+    const weekTitles = await editor.locator("h2").allTextContents();
+    const otherWeek = weekTitles.find((title) => /^Week\s+\d+/.test(title) && !selected.includes(title));
+    expect(otherWeek).toBeTruthy();
   });
 });
