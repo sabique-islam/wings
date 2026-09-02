@@ -336,6 +336,7 @@ export type Database = {
         Returns: {
           title: string
           content: string
+          content_json: Json | null
           created_at: string
         }[]
       }

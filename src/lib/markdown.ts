@@ -20,6 +20,7 @@ const CUSTOM_BLOCK_TYPES = new Set([
   "database",
   "synced-block",
   "template-button",
+  "week-card",
   "paragraph",
   "heading",
 ]);
@@ -122,9 +123,22 @@ marked.setOptions({ gfm: true, breaks: false });
  * first), which is where unknown tags and attributes are actually dropped.
  */
 const CUSTOM_BLOCK_HTML =
-  /^\s*(?:<(?:div|span)\b(?=[^>]*\bdata-type="(?:callout|toggle|column-list|column|bookmark|embed|page-embed|excalidraw|block-math|inline-math|database|synced-block|template-button|paragraph|heading)")|<h[1-3]\b(?=[^>]*\bdata-(?:collapsed|bg)=))/;
+  /^\s*(?:<(?:div|span)\b(?=[^>]*\bdata-type="(?:callout|toggle|column-list|column|bookmark|embed|page-embed|excalidraw|block-math|inline-math|database|synced-block|template-button|week-card|paragraph|heading)")|<h[1-3]\b(?=[^>]*\bdata-(?:collapsed|bg)=))/;
 /** Inline custom markup is tokenized open-tag-first, so its close arrives alone. */
-const BARE_CLOSING_TAG = /^\s*<\/(?:div|span|h[1-3])>\s*$/;
+const BARE_CLOSING_TAG = /^\s*<\/(?:div|span|h[1-3]|u|mark)>\s*$/;
+
+function isSafeInlineHtml(raw: string): boolean {
+  const trimmed = raw.trim();
+  if (/^<\/?(?:u|mark)>$/i.test(trimmed)) return true;
+  if (/^<(?:u|mark)>[\s\S]*<\/(?:u|mark)>$/i.test(trimmed) && !/\bon\w+\s*=/i.test(trimmed)) {
+    return true;
+  }
+  if (/^<\/span>$/i.test(trimmed)) return true;
+  if (!/^<span\b/i.test(trimmed)) return false;
+  if (/\bon\w+\s*=/i.test(trimmed)) return false;
+  if (/javascript:/i.test(trimmed)) return false;
+  return /\bstyle\s*=/i.test(trimmed);
+}
 
 // Defense-in-depth: treat raw HTML in markdown as plain text so <script> and
 // event-handler attributes never pass through marked into the editor pipeline.
@@ -132,7 +146,7 @@ marked.use({
   walkTokens(token) {
     if (token.type !== "html") return;
     const raw = (token as { raw?: string }).raw ?? "";
-    if (CUSTOM_BLOCK_HTML.test(raw) || BARE_CLOSING_TAG.test(raw)) return;
+    if (CUSTOM_BLOCK_HTML.test(raw) || BARE_CLOSING_TAG.test(raw) || isSafeInlineHtml(raw)) return;
     (token as { type: string }).type = "text";
     (token as { text: string }).text = raw
       .replace(/&/g, "&amp;")
@@ -227,8 +241,30 @@ function preprocessGfmCallouts(md: string): string {
   return next;
 }
 
+function preprocessHighlights(md: string): string {
+  if (!md.includes("==")) return md;
+  const fenceRe = /(^|\n)```[\s\S]*?\n```/g;
+  let last = 0;
+  const segs: { text: string; isCode: boolean }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = fenceRe.exec(md)) !== null) {
+    if (m.index > last) segs.push({ text: md.slice(last, m.index), isCode: false });
+    segs.push({ text: m[0], isCode: true });
+    last = m.index + m[0].length;
+  }
+  if (last < md.length) segs.push({ text: md.slice(last), isCode: false });
+  return segs
+    .map((seg) => {
+      if (seg.isCode) return seg.text;
+      return seg.text.replace(/==([^=\n]+)==/g, "<mark>$1</mark>");
+    })
+    .join("");
+}
+
 export function markdownToHtml(md: string, resolvePageId?: (title: string) => string | null): string {
   if (!md) return "";
-  const prepared = preprocessGfmCallouts(preprocessPageEmbeds(preprocessMath(md), resolvePageId));
+  const prepared = preprocessGfmCallouts(
+    preprocessPageEmbeds(preprocessHighlights(preprocessMath(md)), resolvePageId),
+  );
   return marked.parse(prepared, { async: false }) as string;
 }

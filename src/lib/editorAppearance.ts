@@ -52,6 +52,19 @@ export function pageEditorWidthClass(fullWidth: boolean): string {
   return fullWidth ? "max-w-none" : "max-w-[708px]";
 }
 
+/** Planner grids and column lists need the wide canvas on public shares too. */
+export function contentLooksFullWidth(markdown: string, json?: unknown): boolean {
+  if (
+    markdown.includes('data-type="column-list"') ||
+    markdown.includes('data-type="week-card"')
+  ) {
+    return true;
+  }
+  if (json == null) return false;
+  const blob = JSON.stringify(json);
+  return blob.includes('"columnList"') || blob.includes('"weekCard"');
+}
+
 let memory: EditorAppearance | null = null;
 
 export function loadEditorAppearance(): EditorAppearance {

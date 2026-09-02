@@ -208,8 +208,92 @@ function columnList(cols: JSONContent[]): JSONContent {
   };
 }
 
-/** One week block: heading, dates, two 5-column rows, goals, reflection. */
-export function weeklyPlannerWeekContent(week: PlannerWeek): JSONContent[] {
+function jsonTextContent(node: JSONContent): string {
+  if (typeof node.text === "string") return node.text;
+  return (node.content ?? []).map(jsonTextContent).join("");
+}
+
+function isEmptyParagraphNode(node: JSONContent): boolean {
+  if (node.type !== "paragraph") return false;
+  return jsonTextContent(node).trim().length === 0;
+}
+
+function isWeekHeadingNode(node: JSONContent): boolean {
+  if (node.type === "heading") return parseWeekHeading(jsonTextContent(node)) != null;
+  if (node.type === "outlineBlock" && node.content?.[0]) return isWeekHeadingNode(node.content[0]);
+  return false;
+}
+
+function isPlannerButton(node: JSONContent): boolean {
+  return node.type === "templateButton" && String(node.attrs?.kind ?? "") === "weekly-planner";
+}
+
+function hasUnwrappedPlannerWeek(nodes: JSONContent[]): boolean {
+  return nodes.some((node) => node.type !== "weekCard" && isWeekHeadingNode(node));
+}
+
+function looksLikePlannerDoc(nodes: JSONContent[]): boolean {
+  if (nodes.some(isPlannerButton)) return true;
+  const hasWeek = nodes.some((node) => isWeekHeadingNode(node) || node.type === "weekCard");
+  const hasColumns = nodes.some((node) => {
+    if (node.type === "columnList") return true;
+    if (node.type === "weekCard") return (node.content ?? []).some((child) => child.type === "columnList");
+    return false;
+  });
+  return hasWeek && hasColumns;
+}
+
+function wrapWeekChunk(chunk: JSONContent[]): JSONContent {
+  return { type: "weekCard", content: chunk };
+}
+
+/**
+ * Wrap legacy flat Week-N sequences in isolating `weekCard` nodes.
+ * Structure only: text content is unchanged. Never wraps the New week button.
+ */
+export function normalizeWeeklyPlannerDoc(doc: JSONContent): JSONContent {
+  if (doc.type !== "doc") return doc;
+  const nodes = doc.content ?? [];
+  if (!looksLikePlannerDoc(nodes) || !hasUnwrappedPlannerWeek(nodes)) return doc;
+
+  const next: JSONContent[] = [];
+  let i = 0;
+  while (i < nodes.length) {
+    const node = nodes[i]!;
+    if (node.type === "weekCard" || isPlannerButton(node)) {
+      next.push(node);
+      i += 1;
+      continue;
+    }
+    if (!isWeekHeadingNode(node)) {
+      next.push(node);
+      i += 1;
+      continue;
+    }
+
+    const start = i;
+    i += 1;
+    while (i < nodes.length) {
+      const following = nodes[i]!;
+      if (following.type === "weekCard" || isPlannerButton(following) || isWeekHeadingNode(following)) break;
+      i += 1;
+    }
+
+    let end = i;
+    while (end > start + 1 && isEmptyParagraphNode(nodes[end - 1]!)) end -= 1;
+    const chunk = nodes.slice(start, end);
+    if (chunk.length) next.push(wrapWeekChunk(chunk));
+    while (end < i) {
+      next.push(nodes[end]!);
+      end += 1;
+    }
+  }
+
+  return { ...doc, content: next };
+}
+
+/** Inner blocks for one week (heading, days, goals, reflection). */
+export function weeklyPlannerWeekInnerContent(week: PlannerWeek): JSONContent[] {
   return [
     heading(2, week.title),
     paragraph(week.rangeLabel),
@@ -229,6 +313,11 @@ export function weeklyPlannerWeekContent(week: PlannerWeek): JSONContent[] {
       content: [paragraph("What went well? What didn't? What will you change?")],
     },
   ];
+}
+
+/** One isolating week card. */
+export function weeklyPlannerWeekContent(week: PlannerWeek): JSONContent[] {
+  return [wrapWeekChunk(weeklyPlannerWeekInnerContent(week))];
 }
 
 export function weeklyPlannerButtonNode(): JSONContent {
