@@ -59,7 +59,8 @@ StarterKit.configure({
   ...(collab ? { undoRedo: false } : {}),
 }),
 // ...
-Link.configure({ openOnClick: false, autolink: true, linkOnPaste: false }),
+Link.configure({ openOnClick: false, autolink: true, linkOnPaste: true }),
+// Link.extend({ inclusive: false }) — typing after a pasted URL is plain text
 ```
 
 **Test:** `registers Link exactly once` — run on every BlockEditor PR.
