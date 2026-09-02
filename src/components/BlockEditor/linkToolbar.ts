@@ -74,12 +74,38 @@ export function activeLinkTarget(editor: Editor): ActiveLinkTarget | null {
   const page = pageRefAtSelection(editor);
   if (page) return { kind: "page", href: pageRefHref(page.pageId), pageId: page.pageId };
 
-  if (!editor.isActive("link")) return null;
-  const href = String(editor.getAttributes("link").href ?? "").trim();
+  const href = linkHrefNearSelection(editor);
   if (!href) return null;
   const pageId = pageIdFromHref(href);
   if (pageId) return { kind: "page", href, pageId };
   return { kind: "http", href, safeHref: normalizeExternalHref(href) };
+}
+
+/** Link href at the caret, including exclusive edges (caret just after a pasted URL). */
+export function linkHrefNearSelection(editor: Editor): string | null {
+  const { state } = editor;
+  const link = state.schema.marks.link;
+  if (!link) return null;
+  if (editor.isActive("link")) {
+    const href = String(editor.getAttributes("link").href ?? "").trim();
+    return href || null;
+  }
+  const { $from, from, to, empty } = state.selection;
+  if (!empty && state.doc.rangeHasMark(from, to, link)) {
+    let found = "";
+    state.doc.nodesBetween(from, to, (node) => {
+      if (found || !node.isText) return;
+      const mark = node.marks.find((item) => item.type === link);
+      if (mark) found = String(mark.attrs.href ?? "").trim();
+    });
+    return found || null;
+  }
+  const before = $from.nodeBefore;
+  const after = $from.nodeAfter;
+  const mark =
+    before?.marks.find((item) => item.type === link) ?? after?.marks.find((item) => item.type === link);
+  const href = mark ? String(mark.attrs.href ?? "").trim() : "";
+  return href || null;
 }
 
 export function linkToolbarActions(target: ActiveLinkTarget | null): LinkToolbarAction[] {
@@ -111,8 +137,9 @@ export function openActiveLink(editor: Editor): boolean {
 export function unlinkActiveLink(editor: Editor): boolean {
   const page = pageRefAtSelection(editor);
   if (page) return unwrapPageRef(editor, page);
-  if (!editor.isActive("link")) return false;
-  return editor.chain().focus().extendMarkRange("link").unsetLink().run();
+  const range = linkMarkRangeAtSelection(editor);
+  if (!range) return false;
+  return editor.chain().focus().setTextSelection(range).unsetLink().run();
 }
 
 export function convertActiveLinkToBookmark(editor: Editor): boolean {
@@ -188,7 +215,7 @@ export function convertSelectedCardToInline(editor: Editor): boolean {
     .replaceWith(card.from, card.to, paragraph)
     .setMeta("preventAutolink", true)
     .scrollIntoView();
-  tr.setSelection(TextSelection.near(tr.doc.resolve(card.from + 1)));
+  tr.setSelection(TextSelection.near(tr.doc.resolve(card.from + 2)));
   editor.view.dispatch(tr);
   return true;
 }
@@ -301,7 +328,7 @@ function unwrapPageRef(
 export function linkMarkRangeAtSelection(editor: Editor): { from: number; to: number } | null {
   const { state } = editor;
   const link = state.schema.marks.link;
-  if (!link || !editor.isActive("link")) return null;
+  if (!link || !linkHrefNearSelection(editor)) return null;
   const { $from, from, empty } = state.selection;
   const parent = $from.parent;
   if (!parent.isTextblock) return null;

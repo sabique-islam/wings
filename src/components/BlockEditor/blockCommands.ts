@@ -204,7 +204,9 @@ export function pasteExternalUrlAsLink(editor: Editor, url: string): boolean {
 
   if (!empty) {
     if (!$from.parent.isTextblock) return false;
-    return editor.chain().focus().setMeta("preventAutolink", true).setLink({ href: url }).run();
+    const applied = editor.chain().focus().setMeta("preventAutolink", true).setLink({ href: url }).run();
+    if (applied) editor.view.dispatch(editor.state.tr.removeStoredMark(link));
+    return applied;
   }
 
   const mark = link.create({ href: url });
@@ -218,12 +220,14 @@ export function pasteExternalUrlAsLink(editor: Editor, url: string): boolean {
     const paragraph = schema.nodes.paragraph.create(null, textNode);
     const insertPos = blockPos + block.nodeSize;
     const tr = state.tr.insert(insertPos, paragraph).setMeta("preventAutolink", true);
-    tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + 1)));
+    tr.setSelection(TextSelection.near(tr.doc.resolve(insertPos + paragraph.nodeSize - 1)));
+    tr.removeStoredMark(link);
     editor.view.dispatch(tr.scrollIntoView());
     return true;
   }
 
   const tr = state.tr.replaceSelectionWith(textNode, false).setMeta("preventAutolink", true);
+  tr.removeStoredMark(link);
   editor.view.dispatch(tr.scrollIntoView());
   return true;
 }

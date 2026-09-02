@@ -31,6 +31,7 @@ import { BlockHandle } from "./BlockHandleExtension";
 import { BlockSelection } from "./BlockSelectionExtension";
 import { CodeBlockExtension } from "./CodeBlockExtension";
 import { Column, ColumnList } from "./ColumnExtension";
+import { WeekCard } from "./WeekCardExtension";
 import { Bookmark } from "./BookmarkExtension";
 import { Embed } from "./EmbedExtension";
 import { createPageMentionExtension, type PageOption } from "./PageMentionExtension";
@@ -103,7 +104,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
       types: [
         "paragraph", "heading", "blockquote", "codeBlock", "horizontalRule",
         "bulletList", "orderedList", "taskList", "listItem", "taskItem",
-        "callout", "toggleBlock", "outlineBlock", "columnList", "column", "bookmark", "embed", "pageEmbed",
+        "callout", "toggleBlock", "outlineBlock", "columnList", "column", "weekCard", "bookmark", "embed", "pageEmbed",
         "blockMath", "excalidraw", "database", "syncedBlock", "templateButton",
       ],
       attributeName: "id",
@@ -154,6 +155,9 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
       allowBase64: true,
     }),
     Link.extend({
+      // TipTap derives inclusive from autolink. Keep autolink, but typing after a
+      // pasted URL must be plain text (Notion / AFFiNE).
+      inclusive: false,
       parseHTML() {
         return [
           {
@@ -178,6 +182,7 @@ export function createBlockEditorExtensions(handlers: BlockEditorExtensionOption
     TableHeader,
     Column,
     ColumnList,
+    WeekCard,
     Callout,
     ToggleBlock,
     Bookmark,

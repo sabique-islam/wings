@@ -1,7 +1,7 @@
 import { Extension } from "@tiptap/core";
 import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import { turnInto, moveBlock, duplicateBlock, type TurnIntoType } from "./blockCommands";
-import { findColumnDepth, findTopLevelDepth, selectionCoveringNode } from "./blockUtils";
+import { findColumnDepth, findTopLevelDepth, findWeekCardDepth, selectionCoveringNode } from "./blockUtils";
 import { indentCurrentBlock, isInsideTable, outdentCurrentBlock } from "./outlineNest";
 import { openLinkHref } from "./editorLinkClick";
 import {
@@ -154,9 +154,13 @@ export const WritingExperience = Extension.create({
       "Mod-a": () => {
         const { selection, doc } = this.editor.state;
         const { $from } = selection;
-        const columnDepth = findColumnDepth($from);
-        const depth = columnDepth ?? findTopLevelDepth($from);
-        if (depth >= 1) {
+        const depths = [findColumnDepth($from), findWeekCardDepth($from), findTopLevelDepth($from)].filter(
+          (depth): depth is number => depth != null && depth >= 1,
+        );
+        const seen = new Set<number>();
+        for (const depth of depths) {
+          if (seen.has(depth)) continue;
+          seen.add(depth);
           const pos = $from.before(depth);
           const next = selectionCoveringNode(doc, pos, $from.node(depth));
           if (selection.from !== next.from || selection.to !== next.to) {

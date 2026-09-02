@@ -2,6 +2,7 @@ import type { Editor, JSONContent } from "@tiptap/core";
 import {
   currentPlannerWeek,
   nextPlannerWeek,
+  normalizeWeeklyPlannerDoc,
   parseTemplateButtonContent,
   parseWeekHeading,
   parseWeekRangeLabel,
@@ -68,4 +69,12 @@ export function insertWeeklyPlanner(editor: Editor, now = new Date()): boolean {
   patchEditorAppearance({ fullWidth: true });
   suggestPageTitle(currentPlannerWeek(now).title);
   return editor.chain().focus().insertContent(weeklyPlannerPageContent(now)).run();
+}
+
+/** Wrap legacy flat weeks after load. No-op when already card-shaped. */
+export function wrapUnwrappedPlannerWeeks(editor: Editor): boolean {
+  const json = editor.getJSON();
+  const next = normalizeWeeklyPlannerDoc(json);
+  if (JSON.stringify(json) === JSON.stringify(next)) return false;
+  return editor.commands.setContent(next, { emitUpdate: false });
 }

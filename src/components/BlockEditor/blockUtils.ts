@@ -44,6 +44,14 @@ export function findColumnDepth($from: BlockPos): number | null {
   return null;
 }
 
+/** Depth of the enclosing week card, when the caret is inside one. */
+export function findWeekCardDepth($from: BlockPos): number | null {
+  for (let depth = $from.depth; depth > 0; depth--) {
+    if ($from.node(depth).type.name === "weekCard") return depth;
+  }
+  return null;
+}
+
 type CoverableNode = {
   isTextblock: boolean;
   nodeSize: number;

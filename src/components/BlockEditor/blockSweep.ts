@@ -21,6 +21,7 @@ const WRAPPER_TYPES = new Set([
   "outlineBlock",
   "columnList",
   "column",
+  "weekCard",
 ]);
 
 export function sweepRectFromPoints(ax: number, ay: number, bx: number, by: number): SweepRect {
