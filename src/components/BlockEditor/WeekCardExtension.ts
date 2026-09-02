@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import { plannerTodayPlugin } from "./plannerToday";
 
 /**
  * Isolating wrapper for one planner week.
@@ -25,5 +26,9 @@ export const WeekCard = Node.create({
       mergeAttributes(HTMLAttributes, { "data-type": "week-card", class: "nw-week-card" }),
       0,
     ];
+  },
+
+  addProseMirrorPlugins() {
+    return [plannerTodayPlugin()];
   },
 });

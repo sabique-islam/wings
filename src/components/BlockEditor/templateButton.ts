@@ -1,6 +1,7 @@
 import type { Editor, JSONContent } from "@tiptap/core";
 import {
   currentPlannerWeek,
+  latestPlannerSunday,
   nextPlannerWeek,
   normalizeWeeklyPlannerDoc,
   parseTemplateButtonContent,
@@ -21,7 +22,7 @@ export function suggestPageTitle(title: string): void {
 
 function collectPlannerState(editor: Editor): { weekNumbers: number[]; lastSunday: Date | null } {
   const weekNumbers: number[] = [];
-  let lastSunday: Date | null = null;
+  const sundays: Date[] = [];
   editor.state.doc.descendants((node) => {
     if (node.type.name === "heading") {
       const n = parseWeekHeading(node.textContent);
@@ -30,10 +31,22 @@ function collectPlannerState(editor: Editor): { weekNumbers: number[]; lastSunda
     }
     if (node.type.name === "paragraph") {
       const parsed = parseWeekRangeLabel(node.textContent);
-      if (parsed) lastSunday = parsed;
+      if (parsed) sundays.push(parsed);
     }
   });
-  return { weekNumbers, lastSunday };
+  return { weekNumbers, lastSunday: latestPlannerSunday(sundays) };
+}
+
+/** Insert the next week under the New week button so newest cards stay on top. */
+function insertPosAfterWeeklyPlannerButton(doc: { forEach: (fn: (node: { type: { name: string }; attrs: Record<string, unknown>; nodeSize: number }, offset: number) => void) => void }): number | null {
+  let found: number | null = null;
+  doc.forEach((node, offset) => {
+    if (found != null) return;
+    if (node.type.name === "templateButton" && String(node.attrs.kind ?? "") === "weekly-planner") {
+      found = offset + node.nodeSize;
+    }
+  });
+  return found;
 }
 
 /** Insert before the trailing empty paragraph so weeks stack above the caret. */
@@ -51,7 +64,12 @@ export function insertBlocksBeforeTrailing(editor: Editor, content: JSONContent[
 export function insertNextWeeklyPlannerWeek(editor: Editor, now = new Date()): boolean {
   const { weekNumbers, lastSunday } = collectPlannerState(editor);
   const week = nextPlannerWeek(weekNumbers, lastSunday, now);
-  return insertBlocksBeforeTrailing(editor, weeklyPlannerWeekContent(week));
+  const content = weeklyPlannerWeekContent(week);
+  const afterButton = insertPosAfterWeeklyPlannerButton(editor.state.doc);
+  if (afterButton != null) {
+    return editor.chain().focus().insertContentAt(afterButton, content).run();
+  }
+  return insertBlocksBeforeTrailing(editor, content);
 }
 
 export function stampTemplateButton(editor: Editor, buttonPos: number, now = new Date()): boolean {

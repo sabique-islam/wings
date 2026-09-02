@@ -4,7 +4,7 @@ import type { JSONContent } from "@tiptap/core";
 export const PLANNER_HEADING_BG = "#f1f1ef";
 
 const MS_PER_DAY = 86_400_000;
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
 export const WEEK_HEADING_RE = /^Week\s+(\d+)\s*$/i;
 
@@ -66,6 +66,23 @@ export function plannerWeekFromSunday(sunday: Date, weekNumber: number): Planner
 export function currentPlannerWeek(now = new Date()): PlannerWeek {
   const sunday = sundayOf(now);
   return plannerWeekFromSunday(sunday, weekNumberStartingSunday(now, now));
+}
+
+export function plannerDayName(date: Date): (typeof DAY_NAMES)[number] {
+  return DAY_NAMES[date.getDay()]!;
+}
+
+export function weekContainsDate(sunday: Date, date: Date): boolean {
+  const start = sundayOf(sunday).getTime();
+  const end = addDays(sundayOf(sunday), 6).getTime();
+  const t = atLocalNoon(date).getTime();
+  return t >= start && t <= end;
+}
+
+/** Newest Sunday among range labels — independent of document order. */
+export function latestPlannerSunday(sundays: Date[]): Date | null {
+  if (!sundays.length) return null;
+  return sundays.reduce((latest, sunday) => (sunday.getTime() > latest.getTime() ? sunday : latest));
 }
 
 export function parseWeekHeading(text: string): number | null {
@@ -247,15 +264,43 @@ function wrapWeekChunk(chunk: JSONContent[]): JSONContent {
   return { type: "weekCard", content: chunk };
 }
 
-/**
- * Wrap legacy flat Week-N sequences in isolating `weekCard` nodes.
- * Structure only: text content is unchanged. Never wraps the New week button.
- */
-export function normalizeWeeklyPlannerDoc(doc: JSONContent): JSONContent {
-  if (doc.type !== "doc") return doc;
-  const nodes = doc.content ?? [];
-  if (!looksLikePlannerDoc(nodes) || !hasUnwrappedPlannerWeek(nodes)) return doc;
+function weekCardTimestamp(node: JSONContent): number {
+  for (const child of node.content ?? []) {
+    if (child.type === "paragraph") {
+      const sunday = parseWeekRangeLabel(jsonTextContent(child));
+      if (sunday) return sunday.getTime();
+    }
+  }
+  for (const child of node.content ?? []) {
+    const n = child.type === "heading" ? parseWeekHeading(jsonTextContent(child)) : null;
+    if (n != null) return n;
+  }
+  return 0;
+}
 
+/** Consecutive week cards, newest Sunday first. Same nodes if already ordered. */
+function orderPlannerWeeksNewestFirst(nodes: JSONContent[]): JSONContent[] {
+  let changed = false;
+  const out: JSONContent[] = [];
+  let i = 0;
+  while (i < nodes.length) {
+    const node = nodes[i]!;
+    if (node.type !== "weekCard") {
+      out.push(node);
+      i += 1;
+      continue;
+    }
+    const start = i;
+    while (i < nodes.length && nodes[i]!.type === "weekCard") i += 1;
+    const run = nodes.slice(start, i);
+    const sorted = [...run].sort((a, b) => weekCardTimestamp(b) - weekCardTimestamp(a));
+    if (sorted.some((card, index) => card !== run[index])) changed = true;
+    out.push(...sorted);
+  }
+  return changed ? out : nodes;
+}
+
+function wrapPlannerWeekNodes(nodes: JSONContent[]): JSONContent[] {
   const next: JSONContent[] = [];
   let i = 0;
   while (i < nodes.length) {
@@ -288,8 +333,23 @@ export function normalizeWeeklyPlannerDoc(doc: JSONContent): JSONContent {
       end += 1;
     }
   }
+  return next;
+}
 
-  return { ...doc, content: next };
+/**
+ * Wrap legacy flat Week-N sequences in isolating `weekCard` nodes, then put
+ * newest weeks first. Structure only: text content is unchanged. Never wraps
+ * the New week button.
+ */
+export function normalizeWeeklyPlannerDoc(doc: JSONContent): JSONContent {
+  if (doc.type !== "doc") return doc;
+  const nodes = doc.content ?? [];
+  if (!looksLikePlannerDoc(nodes)) return doc;
+
+  const wrapped = hasUnwrappedPlannerWeek(nodes) ? wrapPlannerWeekNodes(nodes) : nodes;
+  const ordered = orderPlannerWeeksNewestFirst(wrapped);
+  if (wrapped === nodes && ordered === wrapped) return doc;
+  return { ...doc, content: ordered };
 }
 
 /** Inner blocks for one week (heading, days, goals, reflection). */
