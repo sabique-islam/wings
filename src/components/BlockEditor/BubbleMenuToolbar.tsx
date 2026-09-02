@@ -265,7 +265,7 @@ export function BubbleMenuToolbar({ editor, onSetLink }: Props) {
   const target = cardActive ? null : activeLinkTarget(editor);
   const showFormat = shouldShowFormatButtons({
     selectionEmpty: marks.empty,
-    linkActive: marks.link,
+    linkActive: Boolean(target) || marks.link,
     pageRefActive: marks.pageRef,
     cardActive,
   });
@@ -280,7 +280,7 @@ export function BubbleMenuToolbar({ editor, onSetLink }: Props) {
           editable: ed.isEditable,
           from,
           to,
-          linkActive: ed.isActive("link"),
+          linkActive: Boolean(activeLinkTarget(ed)) || ed.isActive("link"),
           pageRefActive: ed.isActive("pageRef"),
           cardActive: ed.isActive("bookmark") || ed.isActive("embed"),
           viewFocused: view.hasFocus() || Boolean(element?.contains(document.activeElement)),

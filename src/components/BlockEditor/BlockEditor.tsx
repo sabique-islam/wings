@@ -36,6 +36,8 @@ import { isSelectionInCodeBlock, type BlockPos } from "./blockUtils";
 import { parseTsv, shouldPasteAsMarkdown, tsvPasteMode } from "./pasteDecision";
 import { isInsideTable } from "./outlineNest";
 import { applyTsvPaste } from "./tableTsv";
+import { wrapUnwrappedPlannerWeeks } from "./templateButton";
+import { normalizeWeeklyPlannerDoc } from "@/lib/weeklyPlanner";
 
 const SERIALIZE_DEBOUNCE_MS = 200;
 const URL_ONLY = /^https?:\/\/[^\s]+$/i;
@@ -114,10 +116,10 @@ export const BlockEditor = memo(function BlockEditor({
     const wanted = title.trim().toLowerCase();
     return pagesRef.current.find((page) => page.title.trim().toLowerCase() === wanted)?.id ?? null;
   }, []);
-  const resolvedContent = useMemo(
-    () => resolveInitialContent(content, contentJson, resolvePageIdByTitle),
-    [entryId, content, contentJson, resolvePageIdByTitle],
-  );
+  const resolvedContent = useMemo(() => {
+    const raw = resolveInitialContent(content, contentJson, resolvePageIdByTitle);
+    return typeof raw === "object" ? normalizeWeeklyPlannerDoc(raw) : raw;
+  }, [entryId, content, contentJson, resolvePageIdByTitle]);
   const lastEmittedMarkdown = useRef(content);
   const lastEmittedJson = useRef<JSONContent | null>(contentJson ?? null);
   const localVersion = useRef(0);
@@ -358,6 +360,11 @@ export const BlockEditor = memo(function BlockEditor({
     if (editor && editor.isEditable !== canEdit) editor.setEditable(canEdit);
   }, [canEdit, editor]);
 
+  useEffect(() => {
+    if (!editor || liveCollab) return;
+    wrapUnwrappedPlannerWeeks(editor);
+  }, [editor, entryId, liveCollab, resolvedContent]);
+
   const pageTitleKey = pages.map((page) => `${page.id}:${page.title}`).join("|");
   useEffect(() => {
     refreshPageRefs();
@@ -417,7 +424,9 @@ export const BlockEditor = memo(function BlockEditor({
     }
     if (localVersion.current !== acceptedVersion.current) return;
     const next = resolveInitialContent(content, contentJson, resolvePageIdByTitle);
-    editor.commands.setContent(next, { emitUpdate: false });
+    const normalized = typeof next === "object" ? normalizeWeeklyPlannerDoc(next) : next;
+    editor.commands.setContent(normalized, { emitUpdate: false });
+    if (typeof normalized === "string") wrapUnwrappedPlannerWeeks(editor);
     lastEmittedMarkdown.current = content;
     lastEmittedJson.current = contentJson ?? null;
     // The document changed without an update transaction, so `localVersion` is
