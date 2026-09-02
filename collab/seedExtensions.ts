@@ -58,6 +58,17 @@ export function getSeedExtensions(): Extensions {
     stubBlock("bookmark"),
     stubBlock("embed"),
     stubBlock("column", "block+"),
+    stubBlock("weekCard", "block+"),
+    Node.create({
+      name: "templateButton",
+      group: "block",
+      atom: true,
+      parseHTML: () => [{ tag: 'div[data-type="template-button"]' }],
+      renderHTML: ({ HTMLAttributes }) => [
+        "div",
+        mergeAttributes({ "data-type": "template-button" }, HTMLAttributes),
+      ],
+    }),
     Node.create({
       name: "columnList",
       group: "block",
