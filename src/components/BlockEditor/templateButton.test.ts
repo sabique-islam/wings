@@ -76,16 +76,19 @@ describe("weekly planner insert", () => {
     editor.destroy();
   });
 
-  it("stamps the next week below the first", () => {
+  it("stamps the next week above the first", () => {
     const editor = makeEditor("<p></p>");
     const now = new Date(2026, 7, 23, 12);
     insertWeeklyPlanner(editor, now);
     expect(stampTemplateButton(editor, buttonPos(editor), now)).toBe(true);
     const weeks = weekHeadings(editor);
     expect(weeks).toHaveLength(2);
-    expect(weeks[1]).toBe(weeks[0]! + 1);
+    expect(weeks[0]).toBe(weeks[1]! + 1);
     expect(columnCounts(editor)).toEqual([5, 5, 5, 5]);
     expect(editor.view.dom.querySelectorAll("[data-type='week-card']")).toHaveLength(2);
+    const cards = editor.view.dom.querySelectorAll("[data-type='week-card']");
+    expect(cards[0]?.textContent).toContain(`Week ${weeks[0]}`);
+    expect(cards[1]?.textContent).toContain(`Week ${weeks[1]}`);
     editor.destroy();
   });
 

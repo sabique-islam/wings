@@ -94,8 +94,8 @@ describe("weekCard isolation", () => {
     );
     const weekText = editor.state.doc.textBetween(weekSel.from, weekSel.to);
     expect(weekText).toContain("Sunday");
-    expect(weekText).toContain("Aug 23");
-    expect(weekText).not.toContain("Aug 30");
+    expect(weekText).toContain("Aug 30");
+    expect(weekText).not.toContain("Aug 23");
     editor.destroy();
   });
 

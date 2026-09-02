@@ -10,6 +10,9 @@ import {
   sundayOf,
   weekNumberStartingSunday,
   weeklyPlannerPageContent,
+  latestPlannerSunday,
+  plannerDayName,
+  weekContainsDate,
   weeklyPlannerWeekContent,
   normalizeWeeklyPlannerDoc,
 } from "./weeklyPlanner";
@@ -58,6 +61,15 @@ describe("weekly planner dates", () => {
     const next = nextPlannerWeek([], null, now);
     expect(next.weekNumber).toBe(currentPlannerWeek(now).weekNumber);
     expect(next.sunday.getTime()).toBe(sundayOf(now).getTime());
+  });
+
+  it("picks the latest Sunday regardless of document order", () => {
+    const older = sundayOf(new Date(2026, 7, 23));
+    const newer = sundayOf(new Date(2026, 7, 30));
+    expect(latestPlannerSunday([newer, older])?.getTime()).toBe(newer.getTime());
+    expect(weekContainsDate(older, new Date(2026, 7, 26, 12))).toBe(true);
+    expect(weekContainsDate(older, new Date(2026, 7, 30, 12))).toBe(false);
+    expect(plannerDayName(new Date(2026, 7, 26, 12))).toBe("Wednesday");
   });
 });
 
@@ -112,9 +124,14 @@ describe("normalizeWeeklyPlannerDoc", () => {
     };
     const before = jsonText(flat);
     const next = normalizeWeeklyPlannerDoc(flat);
-    expect(jsonText(next)).toBe(before);
+    expect(jsonText(next).length).toBe(before.length);
+    expect(jsonText(next)).toContain("Week 34");
+    expect(jsonText(next)).toContain("Week 35");
+    expect(jsonText(next)).toContain("Goals this week");
     expect(next.content?.filter((n) => n.type === "weekCard")).toHaveLength(2);
     expect(next.content?.[0]?.type).toBe("templateButton");
+    expect(jsonText(next.content?.[1] ?? {})).toContain("Week 35");
+    expect(jsonText(next.content?.[2] ?? {})).toContain("Week 34");
     expect(next.content?.[next.content.length - 1]?.type).toBe("paragraph");
   });
 
@@ -133,5 +150,27 @@ describe("normalizeWeeklyPlannerDoc", () => {
       ],
     };
     expect(normalizeWeeklyPlannerDoc(doc)).toEqual(doc);
+  });
+
+  it("reorders already-wrapped weeks newest first without dropping text", () => {
+    const older = weeklyPlannerWeekContent(
+      plannerWeekFromSunday(sundayOf(new Date(2026, 7, 23)), 34),
+    )[0]!;
+    const newer = weeklyPlannerWeekContent(
+      plannerWeekFromSunday(sundayOf(new Date(2026, 7, 30)), 35),
+    )[0]!;
+    const doc = {
+      type: "doc" as const,
+      content: [
+        { type: "templateButton", attrs: { kind: "weekly-planner", label: "New week", contentJson: "[]" } },
+        older,
+        newer,
+      ],
+    };
+    const before = jsonText(doc);
+    const next = normalizeWeeklyPlannerDoc(doc);
+    expect(jsonText(next).length).toBe(before.length);
+    expect(jsonText(next.content?.[1] ?? {})).toContain("Week 35");
+    expect(jsonText(next.content?.[2] ?? {})).toContain("Week 34");
   });
 });

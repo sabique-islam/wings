@@ -22,10 +22,20 @@ test.describe("weekly planner", () => {
     await expect(editor.getByText("Sunday", { exact: true })).toBeVisible();
     await expect(editor.getByText("Groceries", { exact: true })).toBeVisible();
 
+    const todayName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][
+      new Date().getDay()
+    ];
+    await expect(editor.locator("h3.nw-planner-today")).toHaveText(todayName!);
+    await expect(editor.locator("h3.nw-planner-today")).toHaveCount(1);
+
     await page.getByTestId("template-button").click();
     await expect(editor.locator("h2", { hasText: /Week \d+/ })).toHaveCount(2);
     await expect(editor.locator('[data-type="week-card"]')).toHaveCount(2);
     await expect(editor.locator('[data-type="column-list"]')).toHaveCount(4);
+
+    const weekNumbers = await editor.locator('[data-type="week-card"] h2').allTextContents();
+    const parsed = weekNumbers.map((text) => Number(text.match(/\d+/)?.[0] ?? 0));
+    expect(parsed[0]).toBeGreaterThan(parsed[1] ?? 0);
 
     const firstWeek = editor.locator("h2", { hasText: /Week \d+/ }).first();
     await firstWeek.locator(".nw-heading-fold").click();

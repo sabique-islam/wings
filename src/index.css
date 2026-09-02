@@ -1004,6 +1004,21 @@ body.nw-col-resizing * {
 .nw-week-card + .nw-week-card {
   margin-top: 1.5rem;
 }
+.block-editor-content .nw-col:has(.nw-planner-today) {
+  background: hsl(var(--accent-soft));
+  border-radius: 0.5rem;
+  box-shadow: inset 0 0 0 1px hsl(var(--accent-strong) / 0.35);
+}
+.block-editor-content :is(h1, h2, h3).nw-planner-today,
+.block-editor-content :is(h1, h2, h3).nw-planner-today[data-bg] {
+  --nw-heading-fill: hsl(var(--accent-strong));
+  background-color: hsl(var(--accent-strong));
+  color: hsl(var(--accent-strong-fg));
+}
+[data-theme="dark"] .block-editor-content :is(h1, h2, h3).nw-planner-today[data-bg] {
+  background-color: hsl(var(--accent-strong));
+  color: hsl(var(--accent-strong-fg));
+}
 
 .nw-template-button {
   @apply my-2;
