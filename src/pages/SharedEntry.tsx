@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
+import type { JSONContent } from "@tiptap/core";
 import { BlockEditor } from "@/components/BlockEditor/BlockEditor";
 import { LoadingScreen } from "@/components/ui/spinner";
 import { Seo } from "@/components/Seo";
 import { fetchSharedEntry, isValidShareToken } from "@/lib/sharedEntry";
+import { contentLooksFullWidth, pageEditorWidthClass } from "@/lib/editorAppearance";
 
 export default function SharedEntry() {
   const { token } = useParams<{ token: string }>();
   const [content, setContent] = useState<string | null>(null);
+  const [contentJson, setContentJson] = useState<JSONContent | null>(null);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [loading, setLoading] = useState(true);
@@ -27,6 +30,7 @@ export default function SharedEntry() {
         if (cancelled) return;
         if (row) {
           setContent(row.content);
+          setContentJson(row.content_json);
           setTitle(row.title || "");
           setDate(
             new Date(row.created_at).toLocaleDateString("default", {
@@ -70,6 +74,8 @@ export default function SharedEntry() {
     );
   }
 
+  const wide = contentLooksFullWidth(content || "", contentJson);
+
   return (
     <div className="min-h-screen bg-background">
       <Seo title={title || "shared note"} path={`/s/${token ?? ""}`} noIndex />
@@ -82,11 +88,13 @@ export default function SharedEntry() {
         )}
         <span className="text-[10px] text-muted-foreground/50 font-mono shrink-0 hidden sm:block">{date}</span>
       </header>
-      <div className="max-w-2xl mx-auto px-2 sm:px-0">
+      <div className={`${pageEditorWidthClass(wide)} mx-auto px-2 sm:px-6`}>
         <BlockEditor
           key={token}
+          peek
           entryId={`shared-${token ?? "readonly"}`}
           content={content || ""}
+          contentJson={contentJson}
           onChange={() => {}}
           editable={false}
         />
