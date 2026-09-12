@@ -29,6 +29,7 @@ import {
 import { appendLectureMarkdown, installLectureTestHooks, readEditorMarkdown } from "@/lib/lecture/insert";
 import { startLectureSession, type LectureSession } from "@/lib/lecture/session";
 import { getLecturePrefs, setLecturePrefs } from "@/lib/lecture/storage";
+import { setUiSoundsSuspended } from "@/lib/uiSounds";
 import {
   LANGUAGE_LABELS,
   WHISPER_MODELS,
@@ -114,6 +115,7 @@ export function LectureModePanel({ open, onClose, hasPage, canEdit }: Props) {
     const session = sessionRef.current;
     sessionRef.current = null;
     await session?.stop();
+    setUiSoundsSuspended(false);
   }, []);
 
   const start = useCallback(async () => {
@@ -124,6 +126,7 @@ export function LectureModePanel({ open, onClose, hasPage, canEdit }: Props) {
     setElapsedMs(0);
     setProgress(null);
     headingInsertedRef.current = false;
+    setUiSoundsSuspended(true);
     try {
       const session = await startLectureSession(prefs, {
         onPartial: setPartial,
@@ -138,6 +141,7 @@ export function LectureModePanel({ open, onClose, hasPage, canEdit }: Props) {
       });
       sessionRef.current = session;
     } catch (err) {
+      setUiSoundsSuspended(false);
       setStatus("idle");
       setError(err instanceof Error ? err.message : "Could not start Lecture Mode.");
     }

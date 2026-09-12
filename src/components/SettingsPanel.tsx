@@ -25,6 +25,7 @@ import { VaultSettings } from "@/components/VaultSettings";
 import { SITE } from "@/config/site";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { getUiSoundPrefs, playUiSound, setNoteToolSoundsEnabled, setUiSoundsEnabled, UI_SOUNDS_EVENT } from "@/lib/uiSounds";
 
 const USERNAME_CHECK_DEBOUNCE_MS = 350;
 
@@ -242,12 +243,23 @@ export function SettingsPanel() {
   const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [soundPrefs, setSoundPrefs] = useState(getUiSoundPrefs);
   const providerObj = PROVIDERS.find((p) => p.id === provider);
 
   useEffect(() => {
     const handler = () => setOpen(true);
     window.addEventListener("nw:settings", handler);
     return () => window.removeEventListener("nw:settings", handler);
+  }, []);
+
+  useEffect(() => {
+    const onSounds = (event: Event) => {
+      const detail = (event as CustomEvent<ReturnType<typeof getUiSoundPrefs>>).detail;
+      if (detail && typeof detail.enabled === "boolean") setSoundPrefs(detail);
+      else setSoundPrefs(getUiSoundPrefs());
+    };
+    window.addEventListener(UI_SOUNDS_EVENT, onSounds);
+    return () => window.removeEventListener(UI_SOUNDS_EVENT, onSounds);
   }, []);
 
   useEffect(() => {
@@ -352,6 +364,7 @@ export function SettingsPanel() {
     if (!user) return false;
     const { ok, error } = await updateUserPreferences(user.id, patch, user.email);
     if (!ok) {
+      playUiSound("error");
       toast.error("Couldn't save settings", { description: error });
       return false;
     }
@@ -363,6 +376,7 @@ export function SettingsPanel() {
     setSaving(true);
     const ok = await savePref({ display_name: displayName });
     if (ok) {
+      playUiSound("success");
       toast.success("Display name saved");
       window.dispatchEvent(new CustomEvent("nw:profile"));
     }
@@ -386,6 +400,7 @@ export function SettingsPanel() {
       setUsernameStatus("current");
       setUsernameHint(null);
       setUsernameMsg("saved");
+      playUiSound("success");
       toast.success("Username saved");
       window.dispatchEvent(new CustomEvent("nw:profile"));
       if (routeUsername?.toLowerCase() !== next) {
@@ -395,6 +410,7 @@ export function SettingsPanel() {
       setUsernameStatus("taken");
       setUsernameHint(res.error || "error");
       setUsernameMsg(res.error || "error");
+      playUiSound("error");
       toast.error(res.error || "Couldn't save username");
     }
     setSavingUsername(false);
@@ -422,6 +438,17 @@ export function SettingsPanel() {
     setActiveProvider(provider);
     if (apiKey) setApiKeyFor(provider, apiKey); else clearApiKeyFor(provider);
     if (model) setModelFor(provider, model);
+    playUiSound("success");
+  };
+
+  const pickSounds = (enabled: boolean) => {
+    setSoundPrefs((current) => ({ ...current, enabled }));
+    setUiSoundsEnabled(enabled);
+  };
+
+  const pickNoteToolSounds = (enabled: boolean) => {
+    setSoundPrefs((current) => ({ ...current, noteTools: enabled }));
+    setNoteToolSoundsEnabled(enabled);
   };
 
   if (!open) return null;
@@ -579,6 +606,54 @@ export function SettingsPanel() {
                 </Field>
 
                 <EditorAppearanceFields />
+
+                <Field label="interface sounds">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      data-testid="ui-sounds-on"
+                      onClick={() => pickSounds(true)}
+                      className={appearanceOptionClass(soundPrefs.enabled)}
+                    >
+                      on
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="ui-sounds-off"
+                      onClick={() => pickSounds(false)}
+                      className={appearanceOptionClass(!soundPrefs.enabled)}
+                    >
+                      off
+                    </button>
+                  </div>
+                  <p className="text-[10px] font-mono text-ink-2">
+                    every clickable. stored on this device. silent during lecture recording.
+                  </p>
+                </Field>
+
+                <Field label="note tools">
+                  <div className={cn("flex gap-2", !soundPrefs.enabled && "opacity-40 pointer-events-none")}>
+                    <button
+                      type="button"
+                      data-testid="note-tool-sounds-on"
+                      onClick={() => pickNoteToolSounds(true)}
+                      className={appearanceOptionClass(soundPrefs.noteTools)}
+                    >
+                      on
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="note-tool-sounds-off"
+                      onClick={() => pickNoteToolSounds(false)}
+                      className={appearanceOptionClass(!soundPrefs.noteTools)}
+                    >
+                      off
+                    </button>
+                  </div>
+                  <p className="text-[10px] font-mono text-ink-2">
+                    slash menu, bubble bar, block handles, find/replace. turn off if it gets in the way of writing.
+                  </p>
+                </Field>
 
                 {/* Live preview */}
                 <Field label="preview">
