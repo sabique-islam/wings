@@ -56,6 +56,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingScreen } from "@/components/ui/spinner";
 import { Seo } from "@/components/Seo";
+import { playUiSound } from "@/lib/uiSounds";
 
 function resolveEntryOwnerId(
   parentId: string | undefined,
@@ -487,6 +488,7 @@ export default function Index() {
     }
 
     requestCreatePage({ ownerId: user.id, activate: true });
+    playUiSound("tick");
   }, [user, entries, setActiveId, requestCreatePage]);
 
   const handleNewSubpage = useCallback(async (parentId: string) => {

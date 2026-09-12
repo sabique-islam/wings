@@ -25,6 +25,7 @@ import { DitherFilterDefs } from "@/lib/dither/filters";
 import { LoadingScreen } from "@/components/ui/spinner";
 import { Analytics } from "@vercel/analytics/react";
 import { useEffect, useState, type ReactElement } from "react";
+import { startUiSounds } from "@/lib/uiSounds";
 import { getMyUsername } from "@/lib/profile";
 import { isAnalyticsEnabled, type CookieConsent } from "@/components/CookieBanner";
 
@@ -178,11 +179,19 @@ function RequireAuth({ children }: { children: ReactElement }) {
   return children;
 }
 
+function UiSoundsHost() {
+  useEffect(() => {
+    startUiSounds();
+  }, []);
+  return null;
+}
+
 const App = () => (
   <HelmetProvider>
     <QueryClientProvider client={queryClient}>
       <DitherFilterDefs />
       <TooltipProvider>
+        <UiSoundsHost />
         <Toaster />
         <Sonner />
         <AuthProvider>

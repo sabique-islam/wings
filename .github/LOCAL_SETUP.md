@@ -6,7 +6,7 @@ This guide walks through running Wings on your machine from scratch. For a conce
 
 | Tool | Version | Notes |
 |------|---------|-------|
-| [Node.js](https://nodejs.org/) | 18+ | Required by Vite and some tooling |
+| [Node.js](https://nodejs.org/) | 22 LTS or 24 | jsdom 30 does not list Node 25 in `engines`, so npm prints a harmless EBADENGINE warning on 25. |
 | [Bun](https://bun.sh/) | latest | Used for CI, tests, and scripts (`bun.lockb`) |
 | [Git](https://git-scm.com/) | any recent | Clone and branch |
 | [Supabase CLI](https://supabase.com/docs/guides/cli) | optional | Only if you run a local Supabase stack or apply migrations yourself |
