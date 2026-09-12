@@ -22,7 +22,7 @@ export function TurnIntoDropdown({ editor }: { editor: Editor }) {
           Turn <ChevronDown className="h-3 w-3" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[160px]">
+      <DropdownMenuContent align="start" className="min-w-[160px]" data-ui-sound="note-tool">
         {TURN_INTO.map((t) => (
           <DropdownMenuItem key={t.type} onClick={() => turnInto(editor, t.type)}>
             {t.label}
@@ -41,7 +41,7 @@ export function ColorDropdown({ editor }: { editor: Editor }) {
           <Palette className="h-3.5 w-3.5" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-48">
+      <DropdownMenuContent align="start" className="w-48" data-ui-sound="note-tool">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground px-2 py-1">Text color</p>
         <div className="flex flex-wrap gap-1 px-2 pb-2">
           {TEXT_COLORS.map((c) => (

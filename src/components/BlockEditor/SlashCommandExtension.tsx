@@ -549,7 +549,7 @@ export const CommandList = forwardRef<any, CommandListProps>(
 
     if (!items.length) {
       return (
-        <div className="bg-card border border-border rounded-md p-2 shadow-lg">
+        <div className="slash-menu bg-card border border-border rounded-md p-2 shadow-lg" data-ui-sound="note-tool">
           <p className="text-[11px] text-muted-foreground px-2 py-1">No results</p>
         </div>
       );
@@ -566,7 +566,7 @@ export const CommandList = forwardRef<any, CommandListProps>(
     catMap.forEach((catItems, label) => categories.push({ label, items: catItems }));
 
     return (
-      <div className="slash-menu bg-card border border-border rounded-lg shadow-xl overflow-hidden max-h-[380px] overflow-y-auto min-w-[320px]">
+      <div className="slash-menu bg-card border border-border rounded-lg shadow-xl overflow-hidden max-h-[380px] overflow-y-auto min-w-[320px]" data-ui-sound="note-tool">
         {categories.map((cat) => (
           <div key={cat.label}>
             <p className="text-[9px] uppercase tracking-widest text-muted-foreground/50 px-3 pt-2 pb-1">{cat.label}</p>

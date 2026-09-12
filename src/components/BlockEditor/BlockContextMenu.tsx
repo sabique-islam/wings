@@ -53,6 +53,7 @@ export function BlockContextMenu({ editor }: Props) {
   return (
     <div
       className="fixed z-[200] min-w-[160px] rounded-md border border-border bg-popover py-1 shadow-md"
+      data-ui-sound="note-tool"
       style={{ left: anchor.x, top: anchor.y }}
       role="menu"
     >

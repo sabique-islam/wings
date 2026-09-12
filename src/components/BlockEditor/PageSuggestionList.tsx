@@ -61,14 +61,14 @@ export const PageSuggestionList = forwardRef<
 
   if (!optionCount) {
     return (
-      <div className="bg-card border border-border rounded-md p-2 shadow-lg min-w-[200px]">
+      <div className="bg-card border border-border rounded-md p-2 shadow-lg min-w-[200px]" data-ui-sound="note-tool">
         <p className="text-[11px] text-muted-foreground px-2">No pages found</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg shadow-xl overflow-hidden min-w-[240px] max-h-[240px] overflow-y-auto">
+    <div className="bg-card border border-border rounded-lg shadow-xl overflow-hidden min-w-[240px] max-h-[240px] overflow-y-auto" data-ui-sound="note-tool">
       {items.map((item, index) => (
         <button
           key={item.id}

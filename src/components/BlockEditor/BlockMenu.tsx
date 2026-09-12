@@ -76,6 +76,7 @@ export function BlockMenu({ editor, onDeleteBlock }: Props) {
     <div
       ref={menuRef}
       className="block-menu fixed z-50 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[200px] text-sm"
+      data-ui-sound="note-tool"
       style={{ left: anchor.x, top: anchor.y }}
     >
       <button

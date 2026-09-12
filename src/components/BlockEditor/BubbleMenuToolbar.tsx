@@ -368,7 +368,7 @@ export function BubbleMenuToolbar({ editor, onSetLink }: Props) {
                 <Type className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-[120px]">
+            <DropdownMenuContent align="start" className="min-w-[120px]" data-ui-sound="note-tool">
               {FONTS.map((font) => (
                 <DropdownMenuItem
                   key={font.label}

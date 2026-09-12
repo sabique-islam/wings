@@ -132,6 +132,7 @@ export function BlockActionMenu({ editor }: Props) {
     <div
       ref={menuRef}
       className="fixed z-[210] min-w-[240px] rounded-lg border border-border bg-popover shadow-xl overflow-hidden"
+      data-ui-sound="note-tool"
       style={{ left: anchor.x, top: anchor.y }}
     >
       <input

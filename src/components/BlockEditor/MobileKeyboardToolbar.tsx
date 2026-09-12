@@ -121,6 +121,7 @@ export function MobileKeyboardToolbar({ editor, onSetLink }: Props) {
         <DropdownMenuContent
           side="top"
           align="start"
+          data-ui-sound="note-tool"
           onCloseAutoFocus={(event) => event.preventDefault()}
         >
           {MOBILE_TURN_INTO.map((item) => (
