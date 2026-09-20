@@ -1258,7 +1258,34 @@ export default function Index() {
   return (
     <>
       <Seo title={tabTitle} path={tabPath} noIndex />
-    <div className="flex w-full h-screen overflow-hidden min-w-0">
+    <div className="flex h-screen w-full min-w-0 flex-col overflow-hidden">
+      {tabsEnabled && (
+        <PageTabBar
+          tabs={openTabViews}
+          activeKey={tabState.activeKey}
+          onSelect={applyTab}
+          onClose={closeOpenTab}
+          onCloseOthers={(tab) => {
+            const prev = tabStateRef.current;
+            for (const item of prev.tabs) {
+              if (tabKey(item) === tabKey(tab)) continue;
+              closedTabsRef.current = rememberClosedTab(closedTabsRef.current, item);
+            }
+            commitTabState(closeOtherTabs(prev, tabKey(tab)));
+          }}
+          onCloseToRight={(tab) => {
+            const prev = tabStateRef.current;
+            const index = prev.tabs.findIndex((item) => tabKey(item) === tabKey(tab));
+            prev.tabs.slice(index + 1).forEach((item) => {
+              closedTabsRef.current = rememberClosedTab(closedTabsRef.current, item);
+            });
+            commitTabState(closeTabsToRight(prev, tabKey(tab)));
+          }}
+          onMove={(from, to) => setTabState((prev) => moveTab(prev, from, to))}
+          onNew={handleNew}
+        />
+      )}
+      <div className="flex min-h-0 min-w-0 flex-1">
       <JournalSidebar
         allEntries={entries}
         roleMap={roleMap}
@@ -1291,33 +1318,6 @@ export default function Index() {
         onAddToCollection={handleAddToCollection}
       />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {tabsEnabled && (
-          <PageTabBar
-            tabs={openTabViews}
-            activeKey={tabState.activeKey}
-            onSelect={applyTab}
-            onClose={closeOpenTab}
-            onCloseOthers={(tab) => {
-              const prev = tabStateRef.current;
-              for (const item of prev.tabs) {
-                if (tabKey(item) === tabKey(tab)) continue;
-                closedTabsRef.current = rememberClosedTab(closedTabsRef.current, item);
-              }
-              commitTabState(closeOtherTabs(prev, tabKey(tab)));
-            }}
-            onCloseToRight={(tab) => {
-              const prev = tabStateRef.current;
-              const index = prev.tabs.findIndex((item) => tabKey(item) === tabKey(tab));
-              prev.tabs.slice(index + 1).forEach((item) => {
-                closedTabsRef.current = rememberClosedTab(closedTabsRef.current, item);
-              });
-              commitTabState(closeTabsToRight(prev, tabKey(tab)));
-            }}
-            onMove={(from, to) => setTabState((prev) => moveTab(prev, from, to))}
-            onNew={handleNew}
-          />
-        )}
-        <div className="flex min-h-0 flex-1 flex-col">
       {isTrashRoute ? (
         <TrashView
           userId={user?.id || ""}
