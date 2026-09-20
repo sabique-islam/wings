@@ -11,14 +11,17 @@ import {
   openTab,
   popClosedTab,
   pruneMissingTabs,
+  readPageTabs,
   rememberClosedTab,
   setPageTabsEnabled,
   tabFromRoute,
   tabKey,
+  writePageTabs,
 } from "./pageTabs";
 
 afterEach(() => {
   localStorage.removeItem("nw:pageTabsEnabled");
+  localStorage.removeItem("nw:pageTabs:user-1");
 });
 
 const page = (id: string) => ({ kind: "page" as const, id });
@@ -122,5 +125,15 @@ describe("page tabs", () => {
     expect(isPageTabsEnabled()).toBe(false);
     setPageTabsEnabled(true);
     expect(isPageTabsEnabled()).toBe(true);
+  });
+
+  it("caps the tab strip and persists per user", () => {
+    let state = emptyPageTabs();
+    for (let i = 0; i < 45; i += 1) state = openTab(state, page(`p${i}`));
+    expect(state.tabs).toHaveLength(40);
+    expect(state.tabs[0]?.id).toBe("p5");
+    writePageTabs("user-1", state);
+    expect(readPageTabs("user-1").tabs).toHaveLength(40);
+    expect(readPageTabs("user-1").activeKey).toBe("page:p44");
   });
 });
