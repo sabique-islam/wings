@@ -41,6 +41,7 @@ import { StorageChoiceDialog } from "@/components/StorageChoiceDialog";
 import { isTypingTarget, isEditorFocused } from "@/lib/keyboard";
 
 import { JournalSidebar } from "@/components/JournalSidebar";
+import { PageTabBar } from "@/components/PageTabBar";
 import { JournalEditor } from "@/components/JournalEditor";
 import { QuickSwitcher } from "@/components/QuickSwitcher";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -57,6 +58,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { LoadingScreen } from "@/components/ui/spinner";
 import { Seo } from "@/components/Seo";
 import { playUiSound } from "@/lib/uiSounds";
+import {
+  closeOtherTabs,
+  closeTab,
+  closeTabsToRight,
+  cycleTab,
+  emptyPageTabs,
+  findTab,
+  isPageTabsEnabled,
+  moveTab,
+  openTab,
+  PAGE_TABS_ENABLED_EVENT,
+  popClosedTab,
+  pruneMissingTabs,
+  readPageTabs,
+  rememberClosedTab,
+  tabFromRoute,
+  tabKey,
+  writePageTabs,
+  type PageTab,
+  type PageTabsState,
+} from "@/lib/pageTabs";
 
 function resolveEntryOwnerId(
   parentId: string | undefined,
@@ -137,6 +159,11 @@ export default function Index() {
       return false;
     }
   });
+  const [tabsEnabled, setTabsEnabled] = useState(isPageTabsEnabled);
+  const [tabState, setTabState] = useState<PageTabsState>(emptyPageTabs);
+  const tabStateRef = useRef(tabState);
+  tabStateRef.current = tabState;
+  const closedTabsRef = useRef<PageTab[]>([]);
   const [aiOpen, setAiOpen] = useState(false);
   const [lectureOpen, setLectureOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -151,6 +178,28 @@ export default function Index() {
       /* private browsing */
     }
   }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    const onTabs = (event: Event) => {
+      const detail = (event as CustomEvent<boolean>).detail;
+      setTabsEnabled(typeof detail === "boolean" ? detail : isPageTabsEnabled());
+    };
+    window.addEventListener(PAGE_TABS_ENABLED_EVENT, onTabs);
+    return () => window.removeEventListener(PAGE_TABS_ENABLED_EVENT, onTabs);
+  }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      setTabState(emptyPageTabs());
+      return;
+    }
+    setTabState(readPageTabs(userId));
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId || !tabsEnabled) return;
+    writePageTabs(userId, tabState);
+  }, [userId, tabsEnabled, tabState]);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const titleDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -189,6 +238,31 @@ export default function Index() {
     navigate(`${basePath}/c/${id}`);
   }, [navigate, basePath]);
 
+  const applyTab = useCallback((tab: PageTab | null) => {
+    if (!tab) {
+      setActiveId(null);
+      return;
+    }
+    if (tab.kind === "page") setActiveId(tab.id);
+    else if (tab.kind === "collection") openCollection(tab.id);
+    else openTrash();
+  }, [setActiveId, openCollection, openTrash]);
+
+  const commitTabState = useCallback((next: PageTabsState, navigateIfActiveChanged = true) => {
+    const prev = tabStateRef.current;
+    setTabState(next);
+    if (!navigateIfActiveChanged) return;
+    if (prev.activeKey === next.activeKey) return;
+    applyTab(findTab(next, next.activeKey));
+  }, [applyTab]);
+
+  const closeOpenTab = useCallback((tab: PageTab) => {
+    const prev = tabStateRef.current;
+    const key = tabKey(tab);
+    closedTabsRef.current = rememberClosedTab(closedTabsRef.current, tab);
+    commitTabState(closeTab(prev, key));
+  }, [commitTabState]);
+
   useEffect(() => {
     if (isTrashRoute || collectionId) {
       setActiveIdRaw(null);
@@ -196,6 +270,19 @@ export default function Index() {
     }
     setActiveIdRaw(routeId ?? null);
   }, [routeId, collectionId, isTrashRoute]);
+
+  useEffect(() => {
+    if (!tabsEnabled) return;
+    const tab = tabFromRoute({
+      pageId: activeId,
+      collectionId: collectionId ?? null,
+      trash: isTrashRoute,
+    });
+    setTabState((prev) => {
+      if (!tab) return prev.activeKey == null ? prev : { ...prev, activeKey: null };
+      return openTab(prev, tab);
+    });
+  }, [tabsEnabled, activeId, collectionId, isTrashRoute]);
 
   useEffect(() => {
     if (!userId) return;
@@ -377,6 +464,16 @@ export default function Index() {
     setActiveIdRaw(null);
     navigate(basePath || "/app", { replace: true });
   }, [serverSynced, activeId, activeEntry, basePath, navigate, isTrashRoute, collectionId]);
+
+  useEffect(() => {
+    if (!tabsEnabled || !serverSynced) return;
+    setTabState((prev) =>
+      pruneMissingTabs(prev, {
+        pages: new Set(entries.filter((entry) => !entry.deleted_at).map((entry) => entry.id)),
+        collections: new Set(collections.map((row) => row.id)),
+      }),
+    );
+  }, [tabsEnabled, serverSynced, entries, collections]);
 
   const addCreatedEntry = useCallback((entry: Entry, ownerId: string) => {
     setEntries((prev) => [entry, ...prev]);
@@ -907,12 +1004,24 @@ export default function Index() {
       collect(id);
       removed.forEach(forgetLinkIndex);
       setEntries((prev) => prev.filter((e) => !removed.has(e.id)));
-      if (activeId && removed.has(activeId)) setActiveId(null);
+      if (tabsEnabled) {
+        let next = tabStateRef.current;
+        for (const pid of removed) {
+          const key = tabKey({ kind: "page", id: pid });
+          const tab = findTab(next, key);
+          if (!tab) continue;
+          closedTabsRef.current = rememberClosedTab(closedTabsRef.current, tab);
+          next = closeTab(next, key);
+        }
+        commitTabState(next, Boolean(activeId && removed.has(activeId)));
+      } else if (activeId && removed.has(activeId)) {
+        setActiveId(null);
+      }
     } catch (err) {
       console.error("Failed to delete page:", err);
       toast.error("Couldn't delete page", { description: entryErrorMessage(err) });
     }
-  }, [activeId, setActiveId]);
+  }, [activeId, setActiveId, tabsEnabled, commitTabState]);
 
   const handleTogglePin = useCallback(async (id: string, pinned: boolean) => {
     try {
@@ -956,11 +1065,22 @@ export default function Index() {
     try {
       await deleteCollection(userId, id);
       setCollections((prev) => prev.filter((row) => row.id !== id));
-      if (collectionId === id) navigate(basePath || "/app");
+      if (tabsEnabled) {
+        const key = tabKey({ kind: "collection", id });
+        const tab = findTab(tabStateRef.current, key);
+        if (tab) {
+          closedTabsRef.current = rememberClosedTab(closedTabsRef.current, tab);
+          commitTabState(closeTab(tabStateRef.current, key), collectionId === id);
+        } else if (collectionId === id) {
+          navigate(basePath || "/app");
+        }
+      } else if (collectionId === id) {
+        navigate(basePath || "/app");
+      }
     } catch (err) {
       toast.error("Couldn't delete collection", { description: entryErrorMessage(err) });
     }
-  }, [userId, collectionId, navigate, basePath]);
+  }, [userId, collectionId, navigate, basePath, tabsEnabled, commitTabState]);
 
   const handleAddToCollection = useCallback(async (id: string, entryId: string) => {
     if (!userId) return;
@@ -1026,6 +1146,48 @@ export default function Index() {
   }, [handleNew, toggleSidebar]);
 
   useEffect(() => {
+    if (!tabsEnabled) return;
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const next = cycleTab(tabStateRef.current, e.shiftKey ? -1 : 1);
+        commitTabState(next);
+        return;
+      }
+      if (e.shiftKey && (e.key === "t" || e.key === "T")) {
+        e.preventDefault();
+        const popped = popClosedTab(closedTabsRef.current);
+        closedTabsRef.current = popped.stack;
+        if (!popped.tab) return;
+        const next = openTab(tabStateRef.current, popped.tab);
+        setTabState(next);
+        applyTab(popped.tab);
+        return;
+      }
+      if (e.shiftKey && (e.key === "[" || e.key === "{")) {
+        e.preventDefault();
+        commitTabState(cycleTab(tabStateRef.current, -1));
+        return;
+      }
+      if (e.shiftKey && (e.key === "]" || e.key === "}")) {
+        e.preventDefault();
+        commitTabState(cycleTab(tabStateRef.current, 1));
+        return;
+      }
+      if (!e.shiftKey && (e.key === "w" || e.key === "W")) {
+        const current = findTab(tabStateRef.current, tabStateRef.current.activeKey);
+        if (!current) return;
+        e.preventDefault();
+        closeOpenTab(current);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [tabsEnabled, commitTabState, applyTab, closeOpenTab]);
+
+  useEffect(() => {
     const handler = (e: Event) => {
       const pageId = (e as CustomEvent).detail;
       if (pageId) setActiveId(pageId);
@@ -1078,6 +1240,15 @@ export default function Index() {
   const activeCollection = collectionId
     ? collections.find((row) => row.id === collectionId) ?? null
     : null;
+  const openTabViews = tabState.tabs.map((tab) => {
+    if (tab.kind === "trash") return { tab, title: "Trash" };
+    if (tab.kind === "collection") {
+      const row = collections.find((item) => item.id === tab.id);
+      return { tab, title: row?.name?.trim() || "Untitled" };
+    }
+    const entry = entries.find((item) => item.id === tab.id);
+    return { tab, title: entry ? getEntryTitle(entry) : "Untitled" };
+  });
 
   if (loading) {
     return <LoadingScreen variant="gyro" />;
@@ -1118,6 +1289,34 @@ export default function Index() {
         onDeleteCollection={handleDeleteCollection}
         onAddToCollection={handleAddToCollection}
       />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {tabsEnabled && (
+          <PageTabBar
+            tabs={openTabViews}
+            activeKey={tabState.activeKey}
+            onSelect={applyTab}
+            onClose={closeOpenTab}
+            onCloseOthers={(tab) => {
+              const prev = tabStateRef.current;
+              for (const item of prev.tabs) {
+                if (tabKey(item) === tabKey(tab)) continue;
+                closedTabsRef.current = rememberClosedTab(closedTabsRef.current, item);
+              }
+              commitTabState(closeOtherTabs(prev, tabKey(tab)));
+            }}
+            onCloseToRight={(tab) => {
+              const prev = tabStateRef.current;
+              const index = prev.tabs.findIndex((item) => tabKey(item) === tabKey(tab));
+              prev.tabs.slice(index + 1).forEach((item) => {
+                closedTabsRef.current = rememberClosedTab(closedTabsRef.current, item);
+              });
+              commitTabState(closeTabsToRight(prev, tabKey(tab)));
+            }}
+            onMove={(from, to) => setTabState((prev) => moveTab(prev, from, to))}
+            onNew={handleNew}
+          />
+        )}
+        <div className="flex min-h-0 flex-1 flex-col">
       {isTrashRoute ? (
         <TrashView
           userId={user?.id || ""}
@@ -1160,6 +1359,8 @@ export default function Index() {
         collabEnabled={collabEnabled}
       />
       )}
+        </div>
+      </div>
       <QuickSwitcher
         entries={entries}
         userId={userId}
