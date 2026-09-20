@@ -43,6 +43,14 @@ import {
 import { matchCollection, type CollectionInfo } from "@/lib/collections";
 import { isLocalEntry } from "@/lib/localContent";
 import { isDescendantOf, type DropPlacement } from "@/lib/pageOrder";
+import {
+  isSidebarSectionCollapsed,
+  monthSectionId,
+  readCollapsedSidebarSections,
+  SIDEBAR_SECTION,
+  toggleCollapsedSection,
+  writeCollapsedSidebarSections,
+} from "@/lib/sidebarSections";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import {
@@ -151,6 +159,7 @@ export const JournalSidebar = memo(function JournalSidebar({
   const [search, setSearch] = useState("");
   const [searching, setSearching] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(readCollapsedSidebarSections);
   const [pendingTrashId, setPendingTrashId] = useState<string | null>(null);
   const [trashDropActive, setTrashDropActive] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -181,6 +190,17 @@ export const JournalSidebar = memo(function JournalSidebar({
       return next;
     });
   };
+
+  const toggleSection = (id: string) => {
+    setCollapsedSections((prev) => {
+      const next = toggleCollapsedSection(prev, id);
+      writeCollapsedSidebarSections(next);
+      return next;
+    });
+  };
+
+  const sectionCollapsed = (id: string) =>
+    isSidebarSectionCollapsed(collapsedSections, id, Boolean(search.trim()));
 
   const openSearch = () => {
     if (railCollapsed) onCollapsedChange(false);
@@ -413,13 +433,19 @@ export const JournalSidebar = memo(function JournalSidebar({
               </div>
 
               {filteredPinned.length > 0 && (
-                <SidebarSection title="Pinned">
+                <SidebarSection
+                  title="Pinned"
+                  collapsed={sectionCollapsed(SIDEBAR_SECTION.pinned)}
+                  onToggle={() => toggleSection(SIDEBAR_SECTION.pinned)}
+                >
                   {filteredPinned.map((e) => renderEntry(e))}
                 </SidebarSection>
               )}
 
               <SidebarSection
                 title="Collections"
+                collapsed={sectionCollapsed(SIDEBAR_SECTION.collections)}
+                onToggle={() => toggleSection(SIDEBAR_SECTION.collections)}
                 action={
                   <button
                     type="button"
@@ -553,24 +579,48 @@ export const JournalSidebar = memo(function JournalSidebar({
                   setDragging(null);
                 }}
               >
-                <SidebarSection title="Pages">
+                <SidebarSection
+                  title="Pages"
+                  collapsed={sectionCollapsed(SIDEBAR_SECTION.pages)}
+                  onToggle={() => toggleSection(SIDEBAR_SECTION.pages)}
+                >
                   {filteredMonths.length === 0 ? (
-                    <p className="px-2 py-1 text-xs text-muted-foreground">{q ? "no matches" : "no pages yet"}</p>
+                    <li className="px-2 py-1 text-xs text-muted-foreground list-none">
+                      {q ? "no matches" : "no pages yet"}
+                    </li>
                   ) : (
-                    filteredMonths.map((month) => (
-                      <div key={month.key} className="mb-3">
-                        <p className="px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground select-none">
-                          {month.label}
-                        </p>
-                        <ul className="flex flex-col gap-px">{month.entries.map((e) => renderEntry(e))}</ul>
-                      </div>
-                    ))
+                    filteredMonths.map((month) => {
+                      const monthId = monthSectionId(month.key);
+                      const monthCollapsed = sectionCollapsed(monthId);
+                      return (
+                        <li key={month.key} className="mb-2 last:mb-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleSection(monthId)}
+                            aria-expanded={!monthCollapsed}
+                            className="flex w-full items-center px-2 pb-1 text-[10px] font-medium tracking-wide text-muted-foreground hover:text-sidebar-foreground select-none"
+                          >
+                            <ChevronRight
+                              className={cn("h-3 w-3 mr-0.5 shrink-0 transition-transform", !monthCollapsed && "rotate-90")}
+                            />
+                            <span className="truncate">{month.label}</span>
+                          </button>
+                          {!monthCollapsed && (
+                            <ul className="flex flex-col gap-px">{month.entries.map((e) => renderEntry(e))}</ul>
+                          )}
+                        </li>
+                      );
+                    })
                   )}
                 </SidebarSection>
               </div>
 
               {filteredShared.length > 0 && (
-                <SidebarSection title="Shared with me">
+                <SidebarSection
+                  title="Shared with me"
+                  collapsed={sectionCollapsed(SIDEBAR_SECTION.shared)}
+                  onToggle={() => toggleSection(SIDEBAR_SECTION.shared)}
+                >
                   {filteredShared.map((e) => renderEntry(e))}
                 </SidebarSection>
               )}
@@ -660,14 +710,34 @@ function NavRow({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   );
 }
 
-function SidebarSection({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+function SidebarSection({
+  title,
+  children,
+  action,
+  collapsed,
+  onToggle,
+}: {
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
+  collapsed: boolean;
+  onToggle: () => void;
+}) {
   return (
     <div className="mb-4">
       <div className="flex items-center">
-        <h3 className="px-2 pb-1 flex-1 text-[11px] font-medium tracking-wide text-muted-foreground select-none">{title}</h3>
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          className="flex min-w-0 flex-1 items-center px-2 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground hover:text-sidebar-foreground select-none"
+        >
+          <ChevronRight className={cn("h-3 w-3 mr-0.5 shrink-0 transition-transform", !collapsed && "rotate-90")} />
+          <span className="truncate">{title}</span>
+        </button>
         {action ? <div className="pr-1 pb-1">{action}</div> : null}
       </div>
-      <ul className="flex flex-col gap-px">{children}</ul>
+      {!collapsed && <ul className="flex flex-col gap-px">{children}</ul>}
     </div>
   );
 }
