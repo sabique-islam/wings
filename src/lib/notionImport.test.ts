@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   csvToDatabaseHtml,
+  looksLikeNotionExport,
   normalizeNotionMarkdown,
   parentKeyForNotionPath,
   stripNotionTitleId,
@@ -14,6 +15,10 @@ describe("stripNotionTitleId", () => {
   it("leaves ordinary titles alone", () => {
     expect(stripNotionTitleId("Just a page")).toBe("Just a page");
   });
+
+  it("strips a leftover em dash after the Notion id", () => {
+    expect(stripNotionTitleId("DBMS notes — 3ddaf5bef03881ab8e29dbba87e6c470")).toBe("DBMS notes");
+  });
 });
 
 describe("normalizeNotionMarkdown", () => {
@@ -26,6 +31,11 @@ describe("normalizeNotionMarkdown", () => {
 
   it("converts Notion page links into wikilinks", () => {
     const { body } = normalizeNotionMarkdown("# Hub\n\nSee [Notes](Notes%20abc.md).");
+    expect(body).toContain("[[Notes]]");
+  });
+
+  it("converts Notion HTML page links into wikilinks", () => {
+    const { body } = normalizeNotionMarkdown("# Hub\n\nSee [Notes](Notes%20abc.html).");
     expect(body).toContain("[[Notes]]");
   });
 });
@@ -46,5 +56,12 @@ describe("parentKeyForNotionPath", () => {
 
   it("returns null for top-level files", () => {
     expect(parentKeyForNotionPath("Notes.md")).toBeNull();
+  });
+});
+
+describe("looksLikeNotionExport", () => {
+  it("treats UUID-named HTML as a Notion export", () => {
+    const file = new File(["<html></html>"], "DBMS notes 3ddaf5bef03881ab8e29dbba87e6c470.html");
+    expect(looksLikeNotionExport([file])).toBe(true);
   });
 });
