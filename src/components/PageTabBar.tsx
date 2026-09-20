@@ -49,7 +49,7 @@ export function PageTabBar({
 
   useEffect(() => {
     const active = scrollerRef.current?.querySelector('[aria-selected="true"]');
-    if (active instanceof HTMLElement) {
+    if (active instanceof HTMLElement && typeof active.scrollIntoView === "function") {
       active.scrollIntoView({ block: "nearest", inline: "nearest" });
     }
   }, [activeKey, tabs.length]);
