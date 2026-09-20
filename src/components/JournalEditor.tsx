@@ -281,7 +281,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
   useEffect(() => refreshPageEmbeds(), [allEntries]);
 
   return (
-    <div className="flex-1 flex flex-col h-screen min-w-0 w-full">
+    <div className="flex-1 flex flex-col h-full min-w-0 w-full">
       <header className="h-12 flex items-center px-2 sm:px-3 border-b border-border-subtle gap-1 sm:gap-2 shrink-0 overflow-x-auto">
         <button onClick={onToggleSidebar} className="text-muted-foreground hover:text-foreground transition-colors" title="Toggle sidebar (⌘B)">
           <PanelLeft className="h-4 w-4" />

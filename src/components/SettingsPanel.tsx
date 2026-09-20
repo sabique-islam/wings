@@ -26,6 +26,7 @@ import { SITE } from "@/config/site";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { getUiSoundPrefs, playUiSound, setNoteToolSoundsEnabled, setUiSoundsEnabled, UI_SOUNDS_EVENT } from "@/lib/uiSounds";
+import { isPageTabsEnabled, PAGE_TABS_ENABLED_EVENT, setPageTabsEnabled } from "@/lib/pageTabs";
 
 const USERNAME_CHECK_DEBOUNCE_MS = 350;
 
@@ -244,6 +245,7 @@ export function SettingsPanel() {
   const [model, setModel] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [soundPrefs, setSoundPrefs] = useState(getUiSoundPrefs);
+  const [pageTabsEnabled, setPageTabsOn] = useState(isPageTabsEnabled);
   const providerObj = PROVIDERS.find((p) => p.id === provider);
 
   useEffect(() => {
@@ -260,6 +262,15 @@ export function SettingsPanel() {
     };
     window.addEventListener(UI_SOUNDS_EVENT, onSounds);
     return () => window.removeEventListener(UI_SOUNDS_EVENT, onSounds);
+  }, []);
+
+  useEffect(() => {
+    const onTabs = (event: Event) => {
+      const detail = (event as CustomEvent<boolean>).detail;
+      setPageTabsOn(typeof detail === "boolean" ? detail : isPageTabsEnabled());
+    };
+    window.addEventListener(PAGE_TABS_ENABLED_EVENT, onTabs);
+    return () => window.removeEventListener(PAGE_TABS_ENABLED_EVENT, onTabs);
   }, []);
 
   useEffect(() => {
@@ -451,6 +462,11 @@ export function SettingsPanel() {
     setNoteToolSoundsEnabled(enabled);
   };
 
+  const pickPageTabs = (enabled: boolean) => {
+    setPageTabsOn(enabled);
+    setPageTabsEnabled(enabled);
+  };
+
   if (!open) return null;
 
   return (
@@ -603,6 +619,30 @@ export function SettingsPanel() {
                       <div className="w-7 h-7 rounded-full border-2 border-dashed border-ink-3 flex items-center justify-center text-ink-2 text-[10px] cursor-pointer hover:border-foreground transition-colors">+</div>
                     </label>
                   </div>
+                </Field>
+
+                <Field label="page tabs">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      data-testid="page-tabs-on"
+                      onClick={() => pickPageTabs(true)}
+                      className={appearanceOptionClass(pageTabsEnabled)}
+                    >
+                      on
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="page-tabs-off"
+                      onClick={() => pickPageTabs(false)}
+                      className={appearanceOptionClass(!pageTabsEnabled)}
+                    >
+                      off
+                    </button>
+                  </div>
+                  <p className="text-[10px] font-mono text-ink-3">
+                    Browser-style tabs for open pages. ⌘W closes, ⌘⇧[ / ⌘⇧] switches, middle-click closes.
+                  </p>
                 </Field>
 
                 <EditorAppearanceFields />
