@@ -670,7 +670,7 @@ export const JournalSidebar = memo(function JournalSidebar({
 
   return (
     <>
-      <aside className="relative shrink-0 h-screen">{sidebarBody}</aside>
+      <aside className="relative h-full shrink-0">{sidebarBody}</aside>
       {trashConfirm}
     </>
   );
