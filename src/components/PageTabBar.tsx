@@ -102,9 +102,27 @@ export function PageTabBar({
                     setDragging(null);
                     setDropIndex(null);
                   }}
+                  tabIndex={active ? 0 : -1}
+                  data-testid="page-tab"
+                  data-tab-key={key}
                   onClick={() => onSelect(item.tab)}
+                  onMouseDown={(event) => {
+                    if (event.button === 1) event.preventDefault();
+                  }}
                   onAuxClick={(event) => {
                     if (event.button === 1) {
+                      event.preventDefault();
+                      onClose(item.tab);
+                    }
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
+                      event.preventDefault();
+                      const next = tabs[index + (event.key === "ArrowRight" ? 1 : -1)];
+                      if (next) onSelect(next.tab);
+                      return;
+                    }
+                    if (event.key === "Delete" || event.key === "Backspace") {
                       event.preventDefault();
                       onClose(item.tab);
                     }

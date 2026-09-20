@@ -467,13 +467,14 @@ export default function Index() {
 
   useEffect(() => {
     if (!tabsEnabled || !serverSynced) return;
-    setTabState((prev) =>
-      pruneMissingTabs(prev, {
-        pages: new Set(entries.filter((entry) => !entry.deleted_at).map((entry) => entry.id)),
-        collections: new Set(collections.map((row) => row.id)),
-      }),
-    );
-  }, [tabsEnabled, serverSynced, entries, collections]);
+    const prev = tabStateRef.current;
+    const next = pruneMissingTabs(prev, {
+      pages: new Set(entries.filter((entry) => !entry.deleted_at).map((entry) => entry.id)),
+      collections: new Set(collections.map((row) => row.id)),
+    });
+    if (next === prev) return;
+    commitTabState(next, prev.activeKey !== next.activeKey);
+  }, [tabsEnabled, serverSynced, entries, collections, commitTabState]);
 
   const addCreatedEntry = useCallback((entry: Entry, ownerId: string) => {
     setEntries((prev) => [entry, ...prev]);
