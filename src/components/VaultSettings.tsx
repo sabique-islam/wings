@@ -448,7 +448,7 @@ export function VaultSettings({ userId }: { userId: string | null }) {
           ref={notionInputRef}
           type="file"
           className="hidden"
-          accept=".md,.markdown,.csv,text/markdown,text/csv"
+          accept=".md,.markdown,.csv,.html,.htm,text/markdown,text/csv,text/html"
           multiple
           onChange={(e) => void handleNotionImport(e)}
         />
@@ -561,9 +561,9 @@ export function VaultSettings({ userId }: { userId: string | null }) {
 
       <div className="rounded-lg border border-border-subtle p-3 space-y-2">
         <p className="text-sm text-ink-1 font-sans">
-          Import a Notion export (Markdown &amp; CSV). Pick the unzipped folder or select the
+          Import a Notion export (Markdown, CSV, or HTML). Pick the unzipped folder or select the
           exported <span className="font-mono">.md</span> / <span className="font-mono">.csv</span>{" "}
-          files.
+          / <span className="font-mono">.html</span> files.
         </p>
         <button
           type="button"
@@ -578,7 +578,7 @@ export function VaultSettings({ userId }: { userId: string | null }) {
           ref={notionInputRef}
           type="file"
           className="hidden"
-          accept=".md,.markdown,.csv,text/markdown,text/csv"
+          accept=".md,.markdown,.csv,.html,.htm,text/markdown,text/csv,text/html"
           multiple
           onChange={(e) => void handleNotionImport(e)}
         />

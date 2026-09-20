@@ -18,7 +18,7 @@ import { isLocalEntry } from "@/lib/localContent";
 import { requestEditorSerialize } from "@/lib/editorPayload";
 import { focusEndOfPage } from "@/components/BlockEditor/focusEndOfPage";
 import { exportSingleEntry, exportSingleAsJson, importFile } from "@/lib/export";
-import { importNotionFiles } from "@/lib/notionImport";
+import { importNotionFiles, looksLikeNotionExport } from "@/lib/notionImport";
 import { toast } from "sonner";
 import { uploadImage } from "@/lib/imageUpload";
 import { InlineAIMenu } from "@/components/InlineAIMenu";
@@ -79,9 +79,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
     try {
-      const looksLikeNotion =
-        files.length > 1 ||
-        files.some((f) => /\.csv$/i.test(f.name) || /\s[a-f0-9]{32}\.(md|markdown)$/i.test(f.name));
+      const looksLikeNotion = looksLikeNotionExport(files);
       let total = 0;
       if (looksLikeNotion) {
         const created = await importNotionFiles(files, userId);
@@ -426,7 +424,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
               <input
                 ref={importInputRef}
                 type="file"
-                accept=".md,.markdown,.json,.csv,text/markdown,application/json,text/csv"
+                accept=".md,.markdown,.json,.csv,.html,.htm,text/markdown,application/json,text/csv,text/html"
                 multiple
                 className="hidden"
                 onChange={handleImport}

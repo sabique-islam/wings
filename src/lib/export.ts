@@ -1,6 +1,7 @@
 import { Entry } from "@/lib/journal";
 import { createEntry } from "@/lib/journal";
 import { serializeVaultMarkdown, titleFromContent, slug } from "@/lib/vault/frontmatter";
+import { isHtmlFileName, parseHtmlImport, stripExportTitleId } from "@/lib/htmlImport";
 
 export function exportSingleEntry(entry: Entry): void {
   const title = titleFromContent(entry.content);
@@ -105,9 +106,11 @@ export function parseJsonImport(raw: string): ImportedEntry[] {
 
 export async function importFile(file: File, userId: string): Promise<Entry[]> {
   const text = await file.text();
-  const items =
-    file.name.toLowerCase().endsWith(".json") || file.type.includes("json")
-      ? parseJsonImport(text)
+  const lower = file.name.toLowerCase();
+  const items = lower.endsWith(".json") || file.type.includes("json")
+    ? parseJsonImport(text)
+    : isHtmlFileName(file.name) || file.type.includes("html")
+      ? [htmlImportItem(file.name, text)]
       : parseMarkdownImport(text);
 
   const created: Entry[] = [];
@@ -119,6 +122,11 @@ export async function importFile(file: File, userId: string): Promise<Entry[]> {
     created.push(entry);
   }
   return created;
+}
+
+function htmlImportItem(fileName: string, raw: string): ImportedEntry {
+  const parsed = parseHtmlImport(raw, stripExportTitleId(fileName.replace(/\.html?$/i, "")));
+  return { title: parsed.title, content: parsed.body };
 }
 
 function titleOf(entry: Entry): string {

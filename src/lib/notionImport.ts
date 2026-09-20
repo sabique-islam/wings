@@ -8,6 +8,7 @@
 import { createEntry } from "@/lib/journal";
 import type { Entry } from "@/lib/journal";
 import { defaultDatabaseAttrs, type DatabaseColumn, type DatabaseRow } from "@/components/BlockEditor/DatabaseExtension";
+import { isHtmlFileName, parseHtmlImport, stripExportTitleId } from "@/lib/htmlImport";
 
 export interface NotionImportItem {
   title: string;
@@ -18,7 +19,9 @@ export interface NotionImportItem {
 
 /** Strip Notion's trailing UUID from page titles: `My Page abcdef123456...`. */
 export function stripNotionTitleId(title: string): string {
-  return title.replace(/\s+[a-f0-9]{32}$/i, "").trim() || title.trim();
+  const withoutId = title.replace(/\s+[a-f0-9]{32}$/i, "");
+  if (withoutId === title) return title.trim();
+  return withoutId.replace(/\s+[—–-]\s*$/, "").trim() || title.trim();
 }
 
 /**
@@ -28,7 +31,7 @@ export function stripNotionTitleId(title: string): string {
 export function normalizeNotionMarkdown(raw: string, fallbackTitle?: string): { title: string; body: string } {
   let text = raw.replace(/^\uFEFF/, "").trim();
   // Notion page mentions: [Page Name](Page%20Name%20uuid.md) → [[Page Name]]
-  text = text.replace(/\[([^\]]+)\]\(([^)]+\.md)\)/g, (_m, label) => `[[${stripNotionTitleId(String(label))}]]`);
+  text = text.replace(/\[([^\]]+)\]\(([^)]+\.(?:md|markdown|html|htm))\)/gi, (_m, label) => `[[${stripNotionTitleId(String(label))}]]`);
   // Notion callouts: <aside>…</aside> or > [!NOTE]
   text = text.replace(/<aside>\s*([\s\S]*?)\s*<\/aside>/gi, (_m, inner) => {
     const clean = String(inner).replace(/<[^>]+>/g, "").trim();
@@ -186,9 +189,28 @@ export async function importNotionFiles(files: File[], userId: string): Promise<
         content: text,
         relativePath,
       });
+      continue;
+    }
+
+    if (isHtmlFileName(name)) {
+      const base = name.replace(/\.html?$/i, "");
+      const parsed = parseHtmlImport(text, stripExportTitleId(base));
+      items.push({
+        title: parsed.title,
+        content: parsed.body,
+        relativePath: relativePath.replace(/\.html?$/i, ".md"),
+      });
     }
   }
 
-  if (items.length === 0) throw new Error("No Notion markdown or CSV files found");
+  if (items.length === 0) throw new Error("No Notion markdown, HTML, or CSV files found");
   return importNotionItems(userId, items);
+}
+
+/** True when the picker looks like a Notion zip (several pages, CSV, or UUID filenames). */
+export function looksLikeNotionExport(files: File[]): boolean {
+  if (files.length > 1) return true;
+  return files.some(
+    (f) => /\.csv$/i.test(f.name) || /\s[a-f0-9]{32}\.(md|markdown|html|htm)$/i.test(f.name),
+  );
 }
