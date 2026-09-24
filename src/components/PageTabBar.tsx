@@ -131,7 +131,10 @@ export function PageTabBar({
                     event.preventDefault();
                     const dragged = readDraggedTab(event);
                     if (!dragged) return;
-                    if (dragged.paneId === paneId && splitTarget !== index) {
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const relativeX = event.clientX - rect.left;
+                    const centerDrop = relativeX > rect.width * 0.25 && relativeX < rect.width * 0.75;
+                    if (dragged.paneId === paneId && !centerDrop) {
                       onMove(dragged.index, index);
                     } else {
                       onDropTab(dragged.key, dragged.paneId, key);
