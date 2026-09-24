@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { Fragment, useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { fetchEntries, syncWorkspaceEntries, updateEntry, updateEntryTitle, moveEntry, saveEntryOrder, deleteEntry, togglePin, getBreadcrumbTrail, Entry, getEntryTitle, findReusableBlankDraft, normalizeEntryTitle, ShareRole } from "@/lib/journal";
@@ -42,6 +42,11 @@ import { isTypingTarget, isEditorFocused } from "@/lib/keyboard";
 
 import { JournalSidebar } from "@/components/JournalSidebar";
 import { PageTabBar } from "@/components/PageTabBar";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { JournalEditor } from "@/components/JournalEditor";
 import { QuickSwitcher } from "@/components/QuickSwitcher";
 import { CommandPalette } from "@/components/CommandPalette";
@@ -59,14 +64,11 @@ import { LoadingScreen } from "@/components/ui/spinner";
 import { Seo } from "@/components/Seo";
 import { playUiSound } from "@/lib/uiSounds";
 import {
-  closeOtherTabs,
   closeTab,
-  closeTabsToRight,
   cycleTab,
   emptyPageTabs,
   findTab,
   isPageTabsEnabled,
-  moveTab,
   openTab,
   PAGE_TABS_ENABLED_EVENT,
   popClosedTab,
@@ -79,6 +81,19 @@ import {
   type PageTab,
   type PageTabsState,
 } from "@/lib/pageTabs";
+import {
+  emptyPageSplitState,
+  focusPaneTab,
+  moveTabToPane,
+  moveTabWithinPane,
+  normalizePageSplitState,
+  readPageSplitState,
+  removeTabsFromPanes,
+  setPaneSizes,
+  splitTabOnto,
+  writePageSplitState,
+  type PageSplitState,
+} from "@/lib/pageSplits";
 
 function resolveEntryOwnerId(
   parentId: string | undefined,
@@ -163,6 +178,11 @@ export default function Index() {
   const [tabState, setTabState] = useState<PageTabsState>(emptyPageTabs);
   const tabStateRef = useRef(tabState);
   tabStateRef.current = tabState;
+  const [splitState, setSplitState] = useState<PageSplitState>(emptyPageSplitState);
+  const splitStateRef = useRef(splitState);
+  splitStateRef.current = splitState;
+  const nextPaneIdRef = useRef(1);
+  const [restoredTabsForUser, setRestoredTabsForUser] = useState<string | null>(null);
   const closedTabsRef = useRef<PageTab[]>([]);
   const [aiOpen, setAiOpen] = useState(false);
   const [lectureOpen, setLectureOpen] = useState(false);
@@ -170,7 +190,9 @@ export default function Index() {
   // Distinct from `loading`: the cached paint clears `loading` early, but a
   // page missing from the mirror is not yet proof the page is gone.
   const [serverSynced, setServerSynced] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveStatuses, setSaveStatuses] = useState<
+    Record<string, "idle" | "saving" | "saved" | "error">
+  >({});
   useEffect(() => {
     try {
       localStorage.setItem("nw:sidebarCollapsed", sidebarCollapsed ? "1" : "0");
@@ -191,21 +213,45 @@ export default function Index() {
   useEffect(() => {
     if (!userId) {
       setTabState(emptyPageTabs());
+      setSplitState(emptyPageSplitState());
+      setRestoredTabsForUser(null);
       return;
     }
     setTabState(readPageTabs(userId));
+    setSplitState(readPageSplitState(userId));
+    setRestoredTabsForUser(userId);
   }, [userId]);
 
   useEffect(() => {
-    if (!userId || !tabsEnabled) return;
+    if (!userId || !tabsEnabled || restoredTabsForUser !== userId) return;
     writePageTabs(userId, tabState);
-  }, [userId, tabsEnabled, tabState]);
+  }, [userId, tabsEnabled, tabState, restoredTabsForUser]);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const titleDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const savedFlashRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    if (!tabsEnabled || restoredTabsForUser !== userId) return;
+    setSplitState((current) =>
+      normalizePageSplitState(current, tabState.tabs, tabState.activeKey),
+    );
+  }, [tabsEnabled, tabState.tabs, tabState.activeKey, restoredTabsForUser, userId]);
+
+  useEffect(() => {
+    if (!userId || !tabsEnabled || restoredTabsForUser !== userId) return;
+    writePageSplitState(userId, splitState);
+  }, [userId, tabsEnabled, splitState, restoredTabsForUser]);
+
+  const debounceRefs = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const titleDebounceRefs = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const savedFlashRefs = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const creatingRef = useRef(false);
-  const pendingPayloadRef = useRef<EditorChangePayload | null>(null);
+  const pendingPayloadsRef = useRef(new Map<string, EditorChangePayload>());
+  const setEntrySaveStatus = useCallback(
+    (entryId: string, status: "idle" | "saving" | "saved" | "error") => {
+      setSaveStatuses((current) =>
+        current[entryId] === status ? current : { ...current, [entryId]: status },
+      );
+    },
+    [],
+  );
   const [sharedEntryIds, setSharedEntryIds] = useState<Set<string>>(() => new Set());
   const [defaultStorage, setDefaultStorage] = useState<DefaultContentStorage>("cloud");
   const [storageDialogOpen, setStorageDialogOpen] = useState(false);
@@ -222,6 +268,14 @@ export default function Index() {
   // stable identity across the state updates each save produces.
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
+
+  useEffect(() => {
+    return () => {
+      debounceRefs.current.forEach(clearTimeout);
+      titleDebounceRefs.current.forEach(clearTimeout);
+      savedFlashRefs.current.forEach(clearTimeout);
+    };
+  }, []);
 
   const setActiveId = useCallback((id: string | null) => {
     setActiveIdRaw(id);
@@ -260,7 +314,80 @@ export default function Index() {
     const prev = tabStateRef.current;
     const key = tabKey(tab);
     closedTabsRef.current = rememberClosedTab(closedTabsRef.current, tab);
-    commitTabState(closeTab(prev, key));
+    const nextSplit = removeTabsFromPanes(splitStateRef.current, new Set([key]));
+    setSplitState(nextSplit);
+    const closed = closeTab(prev, key);
+    const focusedPane =
+      nextSplit.panes.find((pane) => pane.id === nextSplit.activePaneId) ?? nextSplit.panes[0];
+    const next = prev.activeKey === key
+      ? { ...closed, activeKey: focusedPane?.activeKey ?? closed.activeKey }
+      : closed;
+    commitTabState(next);
+  }, [commitTabState]);
+
+  const selectTabInPane = useCallback((paneId: string, tab: PageTab) => {
+    const key = tabKey(tab);
+    setSplitState((current) => focusPaneTab(current, paneId, key));
+    setTabState((current) => ({ ...current, activeKey: key }));
+    applyTab(tab);
+  }, [applyTab]);
+
+  const focusPane = useCallback((paneId: string) => {
+    const pane = splitStateRef.current.panes.find((item) => item.id === paneId);
+    if (!pane || paneId === splitStateRef.current.activePaneId) return;
+    const tab = findTab(tabStateRef.current, pane.activeKey);
+    if (!tab) return;
+    selectTabInPane(paneId, tab);
+  }, [selectTabInPane]);
+
+  const dropTabOnTab = useCallback(
+    (draggedKey: string, sourcePaneId: string, targetKey: string) => {
+      const current = splitStateRef.current;
+      const targetPane = current.panes.find((pane) => pane.tabKeys.includes(targetKey));
+      if (!targetPane) return;
+      const next = sourcePaneId === targetPane.id
+        ? splitTabOnto(current, draggedKey, targetKey, `pane-${nextPaneIdRef.current++}`)
+        : moveTabToPane(current, draggedKey, targetPane.id, targetKey);
+      if (next === current) return;
+      setSplitState(next);
+      const tab = findTab(tabStateRef.current, draggedKey);
+      if (tab) {
+        setTabState((state) => ({ ...state, activeKey: draggedKey }));
+        applyTab(tab);
+      }
+    },
+    [applyTab],
+  );
+
+  const closeOtherTabsInPane = useCallback((paneId: string, tab: PageTab) => {
+    const key = tabKey(tab);
+    const pane = splitStateRef.current.panes.find((item) => item.id === paneId);
+    if (!pane) return;
+    const removedKeys = new Set(pane.tabKeys.filter((item) => item !== key));
+    let nextTabs = tabStateRef.current;
+    for (const removedKey of removedKeys) {
+      const removed = findTab(nextTabs, removedKey);
+      if (removed) closedTabsRef.current = rememberClosedTab(closedTabsRef.current, removed);
+      nextTabs = closeTab(nextTabs, removedKey);
+    }
+    setSplitState(removeTabsFromPanes(splitStateRef.current, removedKeys));
+    commitTabState({ ...nextTabs, activeKey: key });
+  }, [commitTabState]);
+
+  const closeTabsToRightInPane = useCallback((paneId: string, tab: PageTab) => {
+    const key = tabKey(tab);
+    const pane = splitStateRef.current.panes.find((item) => item.id === paneId);
+    const index = pane?.tabKeys.indexOf(key) ?? -1;
+    if (!pane || index < 0) return;
+    const removedKeys = new Set(pane.tabKeys.slice(index + 1));
+    let nextTabs = tabStateRef.current;
+    for (const removedKey of removedKeys) {
+      const removed = findTab(nextTabs, removedKey);
+      if (removed) closedTabsRef.current = rememberClosedTab(closedTabsRef.current, removed);
+      nextTabs = closeTab(nextTabs, removedKey);
+    }
+    setSplitState(removeTabsFromPanes(splitStateRef.current, removedKeys));
+    commitTabState(nextTabs);
   }, [commitTabState]);
 
   useEffect(() => {
@@ -342,13 +469,13 @@ export default function Index() {
           }
           clearPendingWrite(pw.entryId);
           clearDraft(pw.entryId);
+          setEntrySaveStatus(pw.entryId, "idle");
         } catch {
           // Network or auth still down — leave queued for the next session.
         }
       }
-      if (activeId) setSaveStatus("idle");
     })();
-  }, [userId, loading, activeId]);
+  }, [userId, loading, setEntrySaveStatus]);
 
   const loadEntries = useCallback(async (opts: { refreshShares?: boolean } = {}) => {
     if (!userId) return;
@@ -450,11 +577,6 @@ export default function Index() {
   }, []);
 
   const activeEntry = entries.find((e) => e.id === activeId) ?? null;
-  const breadcrumbTrail = activeId ? getBreadcrumbTrail(entries, activeId) : [];
-  // Known before the editor mounts: TipTap cannot switch into collaborative
-  // mode later without throwing away the editor the user is typing in.
-  const collabEnabled =
-    Boolean(activeId && sharedEntryIds.has(activeId)) && Boolean(import.meta.env.VITE_COLLAB_URL);
 
   // Redirect when URL points to a missing/deleted page
   useEffect(() => {
@@ -625,31 +747,30 @@ export default function Index() {
   const handleChange = useCallback((entryId: string, payload: EditorChangePayload) => {
     saveDraftThrottled(entryId, { markdown: payload.markdown, json: payload.json });
     scheduleLinkIndex(entryId, payload.json, payload.markdown);
-    // Stale serialize from a note we already left — draft only, no autosave / pending ref.
-    if (entryId !== activeId) return;
-
-    pendingPayloadRef.current = payload;
+    pendingPayloadsRef.current.set(entryId, payload);
 
     // While Yjs collab is live, Hocuspocus owns persistence — skip full-doc UPDATE.
-    if (collabEnabled) return;
+    const entryCollabEnabled =
+      sharedEntryIds.has(entryId) && Boolean(import.meta.env.VITE_COLLAB_URL);
+    if (entryCollabEnabled) return;
 
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      if (!activeId) return;
+    const pendingTimer = debounceRefs.current.get(entryId);
+    if (pendingTimer) clearTimeout(pendingTimer);
+    const timer = setTimeout(async () => {
       // Typing emits JSON only, so ask the editor for markdown now — `content`
       // and `content_json` must come from one serialize of one document.
-      const pending = pendingPayloadRef.current;
-      const toSave = requestEditorSerialize(activeId) ?? (isFullPayload(pending) ? pending : null);
+      const pending = pendingPayloadsRef.current.get(entryId);
+      const toSave = requestEditorSerialize(entryId) ?? (isFullPayload(pending) ? pending : null);
       if (!toSave) return;
-      pendingPayloadRef.current = toSave;
-      const existing = entriesRef.current.find((e) => e.id === activeId);
+      pendingPayloadsRef.current.set(entryId, toSave);
+      const existing = entriesRef.current.find((e) => e.id === entryId);
       const existingContent = existing ? getCanonicalContent(existing) : "";
       if (existing && shouldBlockEmptySave(existingContent, toSave.markdown)) {
         console.warn("[wings] blocked empty autosave over existing content");
         return;
       }
       if (existing && isSameEditorPayload(existing, toSave)) return;
-      setSaveStatus("saving");
+      setEntrySaveStatus(entryId, "saving");
       // Durable locally before the network is attempted, so a refresh while the
       // request is in flight still shows what was typed.
       if (userId && existing) {
@@ -659,24 +780,24 @@ export default function Index() {
         if (existing && isLocalEntry(existing)) {
           await persistEntryBody(userId!, existing, entriesRef.current, toSave);
         } else {
-          await updateEntry(activeId, toSave);
+          await updateEntry(entryId, toSave);
         }
         setEntries((prev) =>
           prev.map((e) =>
-            e.id === activeId
+            e.id === entryId
               ? { ...e, content: toSave.markdown, content_json: toSave.json }
               : e,
           ),
         );
-        clearDraft(activeId);
-        clearPendingWrite(activeId);
+        clearDraft(entryId);
+        clearPendingWrite(entryId);
         if (!existing || !isLocalEntry(existing)) {
-          void recordEntryVersion(activeId, userId ?? null, {
+          void recordEntryVersion(entryId, userId ?? null, {
             content: toSave.markdown,
             content_json: toSave.json,
           });
         }
-        setSaveStatus("saved");
+        setEntrySaveStatus(entryId, "saved");
         if (userId && existing && !isLocalEntry(existing)) {
           void mirrorEntryToVault(
             userId,
@@ -684,14 +805,19 @@ export default function Index() {
             entriesRef.current,
           );
         }
-        if (savedFlashRef.current) clearTimeout(savedFlashRef.current);
-        savedFlashRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
+        const savedTimer = savedFlashRefs.current.get(entryId);
+        if (savedTimer) clearTimeout(savedTimer);
+        savedFlashRefs.current.set(
+          entryId,
+          setTimeout(() => setEntrySaveStatus(entryId, "idle"), 1500),
+        );
       } catch {
-        queuePendingWrite(activeId, { markdown: toSave.markdown, json: toSave.json });
-        setSaveStatus("error");
+        queuePendingWrite(entryId, { markdown: toSave.markdown, json: toSave.json });
+        setEntrySaveStatus(entryId, "error");
       }
     }, SAVE_DEBOUNCE_MS);
-  }, [activeId, collabEnabled, userId]);
+    debounceRefs.current.set(entryId, timer);
+  }, [sharedEntryIds, userId, setEntrySaveStatus]);
 
   // Turn selected blocks into a sub-page. The editor has already removed them
   // and left the cursor where they were, so the link lands in their place.
@@ -822,20 +948,21 @@ export default function Index() {
     }
   }, [activeId, userId]);
 
-  const handleTitleChange = useCallback((title: string) => {
-    if (!activeId) return;
-    setEntries((prev) => prev.map((e) => (e.id === activeId ? { ...e, title } : e)));
-    if (titleDebounceRef.current) clearTimeout(titleDebounceRef.current);
-    titleDebounceRef.current = setTimeout(async () => {
-      if (activeId) {
+  const handleTitleChange = useCallback((entryId: string, title: string) => {
+    setEntries((prev) => prev.map((e) => (e.id === entryId ? { ...e, title } : e)));
+    const pendingTimer = titleDebounceRefs.current.get(entryId);
+    if (pendingTimer) clearTimeout(pendingTimer);
+    titleDebounceRefs.current.set(
+      entryId,
+      setTimeout(async () => {
         try {
-          await updateEntryTitle(activeId, title);
+          await updateEntryTitle(entryId, title);
         } catch {
           toast.error("Couldn't save title");
         }
-      }
-    }, 500);
-  }, [activeId]);
+      }, 500),
+    );
+  }, []);
 
   const handleMovePage = useCallback((draggedId: string, parentId: string | null) => {
     const current = entriesRef.current.find((e) => e.id === draggedId);
@@ -931,68 +1058,67 @@ export default function Index() {
     };
   }, [userId, loadEntries]);
 
-  const flushEditor = useCallback(() => {
-    if (!activeId) return;
-    const payload = requestEditorSerialize(activeId);
+  const flushEditor = useCallback((entryId: string) => {
+    const payload = requestEditorSerialize(entryId);
     if (!payload) return;
-    pendingPayloadRef.current = payload;
-    saveDraft(activeId, payload);
+    pendingPayloadsRef.current.set(entryId, payload);
+    saveDraft(entryId, payload);
+  }, []);
+
+  const visibleEntryIds = useCallback(() => {
+    const ids = new Set<string>(pendingPayloadsRef.current.keys());
+    for (const pane of splitStateRef.current.panes) {
+      const tab = findTab(tabStateRef.current, pane.activeKey);
+      if (tab?.kind === "page") ids.add(tab.id);
+    }
+    if (activeId) ids.add(activeId);
+    return ids;
   }, [activeId]);
 
-  /** On page switch, persist draft for the note we're leaving. */
-  const flushDraftForEntry = useCallback((entryId: string) => {
-    if (entryId !== activeId) return;
-    // Its editor is still mounted at this point, so take a full serialize
-    // rather than the JSON-only payload the typing path leaves behind.
-    const payload = requestEditorSerialize(entryId) ?? pendingPayloadRef.current;
-    if (payload) saveDraft(entryId, payload);
-  }, [activeId]);
+  const flushVisibleEditors = useCallback(() => {
+    visibleEntryIds().forEach(flushEditor);
+  }, [flushEditor, visibleEntryIds]);
 
   useEffect(() => {
     const onHide = () => {
-      if (document.visibilityState === "hidden") flushEditor();
+      if (document.visibilityState === "hidden") flushVisibleEditors();
     };
     window.addEventListener("visibilitychange", onHide);
-    window.addEventListener("beforeunload", flushEditor);
+    window.addEventListener("beforeunload", flushVisibleEditors);
     return () => {
       window.removeEventListener("visibilitychange", onHide);
-      window.removeEventListener("beforeunload", flushEditor);
+      window.removeEventListener("beforeunload", flushVisibleEditors);
     };
-  }, [flushEditor]);
-
-  useEffect(() => {
-    const leavingId = activeId;
-    return () => {
-      if (leavingId) flushDraftForEntry(leavingId);
-    };
-  }, [activeId, flushDraftForEntry]);
+  }, [flushVisibleEditors]);
 
   useEffect(() => {
     const onCollabFlush = async () => {
-      if (!activeId) return;
-      flushEditor();
-      const toSave = pendingPayloadRef.current;
-      if (!isFullPayload(toSave)) return;
-      const existing = entriesRef.current.find((e) => e.id === activeId);
-      if (existing && isLocalEntry(existing)) return;
-      if (existing && shouldBlockEmptySave(getCanonicalContent(existing), toSave.markdown)) {
-        console.warn("[wings] blocked empty collab flush over existing content");
-        return;
-      }
-      try {
-        await updateEntry(activeId, toSave);
-        clearDraft(activeId);
-        void recordEntryVersion(activeId, userId ?? null, {
-          content: toSave.markdown,
-          content_json: toSave.json,
-        });
-      } catch {
-        queuePendingWrite(activeId, { markdown: toSave.markdown, json: toSave.json });
+      for (const entryId of visibleEntryIds()) {
+        if (!sharedEntryIds.has(entryId)) continue;
+        flushEditor(entryId);
+        const toSave = pendingPayloadsRef.current.get(entryId);
+        if (!isFullPayload(toSave)) continue;
+        const existing = entriesRef.current.find((e) => e.id === entryId);
+        if (existing && isLocalEntry(existing)) continue;
+        if (existing && shouldBlockEmptySave(getCanonicalContent(existing), toSave.markdown)) {
+          console.warn("[wings] blocked empty collab flush over existing content");
+          continue;
+        }
+        try {
+          await updateEntry(entryId, toSave);
+          clearDraft(entryId);
+          void recordEntryVersion(entryId, userId ?? null, {
+            content: toSave.markdown,
+            content_json: toSave.json,
+          });
+        } catch {
+          queuePendingWrite(entryId, { markdown: toSave.markdown, json: toSave.json });
+        }
       }
     };
     window.addEventListener("nw:collab-flush", onCollabFlush);
     return () => window.removeEventListener("nw:collab-flush", onCollabFlush);
-  }, [activeId, flushEditor, userId]);
+  }, [flushEditor, sharedEntryIds, userId, visibleEntryIds]);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -1238,9 +1364,6 @@ export default function Index() {
       : activeId
         ? `${basePath}/n/${activeId}`
         : basePath || "/app";
-  const activeCollection = collectionId
-    ? collections.find((row) => row.id === collectionId) ?? null
-    : null;
   const openTabViews = tabState.tabs.map((tab) => {
     if (tab.kind === "trash") return { tab, title: "Trash" };
     if (tab.kind === "collection") {
@@ -1250,6 +1373,79 @@ export default function Index() {
     const entry = entries.find((item) => item.id === tab.id);
     return { tab, title: entry ? getEntryTitle(entry) : "Untitled" };
   });
+  const tabViewsByKey = new Map(openTabViews.map((view) => [tabKey(view.tab), view]));
+  const displaySplitState = tabsEnabled
+    ? normalizePageSplitState(splitState, tabState.tabs, tabState.activeKey)
+    : emptyPageSplitState();
+
+  const renderTabContent = (tab: PageTab | null, paneId: string, focused: boolean) => {
+    if (tab?.kind === "trash") {
+      return (
+        <TrashView
+          userId={user?.id || ""}
+          onToggleSidebar={toggleSidebar}
+          onRestored={() => void loadEntries({ refreshShares: true })}
+        />
+      );
+    }
+    if (tab?.kind === "collection") {
+      const collection = collections.find((row) => row.id === tab.id) ?? null;
+      if (collection) {
+        return (
+          <CollectionView
+            collection={collection}
+            entries={entries}
+            onToggleSidebar={toggleSidebar}
+            onSelect={(id) => {
+              setSplitState((current) => ({ ...current, activePaneId: paneId }));
+              setActiveId(id);
+            }}
+            onEdit={() => setCollectionDraft(collection)}
+          />
+        );
+      }
+    }
+
+    const paneEntry = tab?.kind === "page"
+      ? entries.find((entry) => entry.id === tab.id) ?? null
+      : null;
+    const paneEntryId = paneEntry?.id ?? null;
+    return (
+      <JournalEditor
+        entry={paneEntry}
+        allEntries={entries}
+        roleMap={roleMap}
+        userId={user?.id || ""}
+        onChange={handleChange}
+        onTitleChange={handleTitleChange}
+        onDelete={handleDelete}
+        onTogglePin={handleTogglePin}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={toggleSidebar}
+        breadcrumbTrail={paneEntryId ? getBreadcrumbTrail(entries, paneEntryId) : []}
+        onNavigate={(id) => {
+          setSplitState((current) => ({ ...current, activePaneId: paneId }));
+          setActiveId(id);
+        }}
+        onNewSubpage={handleNewSubpage}
+        onUpdateEntry={handleUpdateEntry}
+        userRole={paneEntryId ? (roleMap[paneEntryId] || "owner") : "owner"}
+        onNewSubpageWithTitle={handleNewSubpageWithTitle}
+        onRestoreVersion={handleRestoreVersion}
+        onOpenAI={openAI}
+        onOpenLecture={openLecture}
+        onNew={handleNew}
+        onImported={() => void loadEntries()}
+        onPromoteToCloud={handlePromoteToCloud}
+        saveStatus={paneEntryId ? (saveStatuses[paneEntryId] ?? "idle") : "idle"}
+        collabEnabled={
+          Boolean(paneEntryId && sharedEntryIds.has(paneEntryId)) &&
+          Boolean(import.meta.env.VITE_COLLAB_URL)
+        }
+        active={focused}
+      />
+    );
+  };
 
   if (loading) {
     return <LoadingScreen variant="gyro" />;
@@ -1259,32 +1455,6 @@ export default function Index() {
     <>
       <Seo title={tabTitle} path={tabPath} noIndex />
     <div className="flex h-screen w-full min-w-0 flex-col overflow-hidden">
-      {tabsEnabled && (
-        <PageTabBar
-          tabs={openTabViews}
-          activeKey={tabState.activeKey}
-          onSelect={applyTab}
-          onClose={closeOpenTab}
-          onCloseOthers={(tab) => {
-            const prev = tabStateRef.current;
-            for (const item of prev.tabs) {
-              if (tabKey(item) === tabKey(tab)) continue;
-              closedTabsRef.current = rememberClosedTab(closedTabsRef.current, item);
-            }
-            commitTabState(closeOtherTabs(prev, tabKey(tab)));
-          }}
-          onCloseToRight={(tab) => {
-            const prev = tabStateRef.current;
-            const index = prev.tabs.findIndex((item) => tabKey(item) === tabKey(tab));
-            prev.tabs.slice(index + 1).forEach((item) => {
-              closedTabsRef.current = rememberClosedTab(closedTabsRef.current, item);
-            });
-            commitTabState(closeTabsToRight(prev, tabKey(tab)));
-          }}
-          onMove={(from, to) => setTabState((prev) => moveTab(prev, from, to))}
-          onNew={handleNew}
-        />
-      )}
       <div className="flex min-h-0 min-w-0 flex-1">
       <JournalSidebar
         allEntries={entries}
@@ -1317,49 +1487,85 @@ export default function Index() {
         onDeleteCollection={handleDeleteCollection}
         onAddToCollection={handleAddToCollection}
       />
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {isTrashRoute ? (
-        <TrashView
-          userId={user?.id || ""}
-          onToggleSidebar={toggleSidebar}
-          onRestored={() => void loadEntries({ refreshShares: true })}
-        />
-      ) : activeCollection ? (
-        <CollectionView
-          collection={activeCollection}
-          entries={entries}
-          onToggleSidebar={toggleSidebar}
-          onSelect={setActiveId}
-          onEdit={() => setCollectionDraft(activeCollection)}
-        />
-      ) : (
-      <JournalEditor
-        entry={activeEntry}
-        allEntries={entries}
-        roleMap={roleMap}
-        userId={user?.id || ""}
-        onChange={handleChange}
-        onTitleChange={handleTitleChange}
-        onDelete={handleDelete}
-        onTogglePin={handleTogglePin}
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={toggleSidebar}
-        breadcrumbTrail={breadcrumbTrail}
-        onNavigate={setActiveId}
-        onNewSubpage={handleNewSubpage}
-        onUpdateEntry={handleUpdateEntry}
-        userRole={activeId ? (roleMap[activeId] || "owner") : "owner"}
-        onNewSubpageWithTitle={handleNewSubpageWithTitle}
-        onRestoreVersion={handleRestoreVersion}
-        onOpenAI={openAI}
-        onOpenLecture={openLecture}
-        onNew={handleNew}
-        onImported={() => void loadEntries()}
-        onPromoteToCloud={handlePromoteToCloud}
-        saveStatus={saveStatus}
-        collabEnabled={collabEnabled}
-      />
-      )}
+      <div className="flex min-h-0 min-w-0 flex-1">
+        {tabsEnabled ? (
+          <ResizablePanelGroup
+            key={displaySplitState.panes.map((pane) => pane.id).join(":")}
+            id="page-split-panes"
+            orientation="horizontal"
+            defaultLayout={Object.fromEntries(
+              displaySplitState.panes.map((pane, index) => [
+                pane.id,
+                displaySplitState.sizes[index] ?? 100 / displaySplitState.panes.length,
+              ]),
+            )}
+            onLayoutChanged={(layout, meta) => {
+              if (!meta.isUserInteraction) return;
+              setSplitState((current) =>
+                setPaneSizes(
+                  current,
+                  current.panes.map((pane) => layout[pane.id] ?? 100 / current.panes.length),
+                ),
+              );
+            }}
+          >
+            {displaySplitState.panes.map((pane, index) => {
+              const paneTab = findTab(tabState, pane.activeKey);
+              const focused = pane.id === displaySplitState.activePaneId;
+              const paneTabs = pane.tabKeys
+                .map((key) => tabViewsByKey.get(key))
+                .filter((view): view is NonNullable<typeof view> => Boolean(view));
+              return (
+                <Fragment key={pane.id}>
+                  {index > 0 && <ResizableHandle withHandle />}
+                  <ResizablePanel
+                    id={pane.id}
+                    defaultSize={`${displaySplitState.sizes[index] ?? 100 / displaySplitState.panes.length}%`}
+                    minSize="20%"
+                    className="min-w-0"
+                  >
+                    <section
+                      className="flex h-full min-w-0 flex-col"
+                      data-testid="page-split-pane"
+                      data-pane-id={pane.id}
+                      data-focused={focused ? "true" : "false"}
+                      onMouseDownCapture={() => focusPane(pane.id)}
+                    >
+                      <PageTabBar
+                        paneId={pane.id}
+                        tabs={paneTabs}
+                        activeKey={pane.activeKey}
+                        onSelect={(tab) => selectTabInPane(pane.id, tab)}
+                        onClose={closeOpenTab}
+                        onCloseOthers={(tab) => closeOtherTabsInPane(pane.id, tab)}
+                        onCloseToRight={(tab) => closeTabsToRightInPane(pane.id, tab)}
+                        onMove={(from, to) =>
+                          setSplitState((current) => moveTabWithinPane(current, pane.id, from, to))
+                        }
+                        onDropTab={dropTabOnTab}
+                        onNew={() => {
+                          focusPane(pane.id);
+                          handleNew();
+                        }}
+                      />
+                      <div className="min-h-0 flex-1">
+                        {renderTabContent(paneTab, pane.id, focused)}
+                      </div>
+                    </section>
+                  </ResizablePanel>
+                </Fragment>
+              );
+            })}
+          </ResizablePanelGroup>
+        ) : (
+          <div className="min-h-0 min-w-0 flex-1">
+            {renderTabContent(
+              tabFromRoute({ pageId: activeId, collectionId, trash: isTrashRoute }),
+              "main",
+              true,
+            )}
+          </div>
+        )}
         </div>
       </div>
       <QuickSwitcher
