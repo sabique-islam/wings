@@ -160,3 +160,46 @@ test.describe("Page peek", () => {
     await expect(editor.locator('[data-type="callout"]')).toHaveCount(1);
   });
 });
+
+test.describe("Split editor isolation", () => {
+  test("each mounted editor serializes only its own page", async ({ page }) => {
+    await page.goto("/__editor-e2e?split=1");
+    const primary = page.getByTestId("primary-editor-pane").locator(".ProseMirror");
+    const secondary = page.getByTestId("secondary-editor-pane").locator(".ProseMirror");
+
+    await primary.click();
+    await page.keyboard.type("left pane text");
+    await secondary.click();
+    await page.keyboard.type("right pane text");
+
+    await expect(page.getByTestId("stored-text")).toContainText("left pane text");
+    await expect(page.getByTestId("split-stored-text")).toContainText("right pane text");
+
+    const serialized = await page.evaluate(() => {
+      const testWindow = window as typeof window & {
+        __nw_testSerializeEntry?: (entryId: string) => { markdown?: string } | null;
+        __nw_getMarkdown?: () => string;
+      };
+      return {
+        primary: testWindow.__nw_testSerializeEntry?.("e2e-harness")?.markdown ?? null,
+        secondary: testWindow.__nw_testSerializeEntry?.("e2e-split")?.markdown ?? null,
+        focused: testWindow.__nw_getMarkdown?.() ?? null,
+      };
+    });
+
+    expect(serialized.primary).toContain("left pane text");
+    expect(serialized.primary).not.toContain("right pane text");
+    expect(serialized.secondary).toContain("right pane text");
+    expect(serialized.secondary).not.toContain("left pane text");
+    expect(serialized.focused).toContain("right pane text");
+
+    await primary.click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window as typeof window & { __nw_getMarkdown?: () => string }).__nw_getMarkdown?.(),
+        ),
+      )
+      .toContain("left pane text");
+  });
+});

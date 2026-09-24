@@ -7,6 +7,7 @@ import { requestEditorSerialize, type EditorChangePayload } from "@/lib/editorPa
 import { patchEditorAppearance } from "@/lib/editorAppearance";
 
 const ENTRY_ID = "e2e-harness";
+const SPLIT_ENTRY_ID = "e2e-split";
 
 /** Workspace so the `@` and `[[` page pickers have something to offer. */
 const INITIAL_PAGES = [
@@ -24,7 +25,10 @@ function getE2EPagePreview(pageId: string) {
 }
 
 export default function EditorE2E() {
+  const splitMode = new URLSearchParams(window.location.search).has("split");
   const [content, setContent] = useState("");
+  const [splitContent, setSplitContent] = useState("");
+  const [primaryEntryId, setPrimaryEntryId] = useState(ENTRY_ID);
   const [preview, setPreview] = useState("");
   const [aiText, setAiText] = useState("");
   const [requestedPage, setRequestedPage] = useState("");
@@ -57,6 +61,12 @@ export default function EditorE2E() {
     setAiText(requestMarkdown);
   }, []);
 
+  const handleSplitChange = useCallback((payload: EditorChangePayload) => {
+    const storedMarkdown =
+      payload.markdown ?? requestEditorSerialize(SPLIT_ENTRY_ID)?.markdown ?? "";
+    setSplitContent(storedMarkdown);
+  }, []);
+
   const openLecture = useCallback(() => setLectureOpen(true), []);
 
   useEffect(() => {
@@ -65,19 +75,53 @@ export default function EditorE2E() {
     return () => window.removeEventListener("nw:lecture", open);
   }, []);
 
+  useEffect(() => {
+    if (!splitMode) return;
+    const testWindow = window as typeof window & {
+      __nw_testSerializeEntry?: (entryId: string) => EditorChangePayload | null;
+    };
+    testWindow.__nw_testSerializeEntry = requestEditorSerialize;
+    return () => {
+      delete testWindow.__nw_testSerializeEntry;
+    };
+  }, [splitMode]);
+
   return (
     <main className="min-h-screen bg-background text-foreground p-6">
-      <div className="max-w-3xl mx-auto border border-border rounded-md min-h-[360px] p-4">
-        <BlockEditor
-          key={mount}
-          entryId={ENTRY_ID}
-          content={content}
-          onChange={handleChange}
-          pages={pages}
-          getPagePreview={getE2EPagePreview}
-          onNewPage={setRequestedPage}
-          onLecture={openLecture}
-        />
+      <div className={splitMode ? "mx-auto flex max-w-6xl gap-4" : "mx-auto max-w-3xl"}>
+        <div
+          className="min-h-[360px] min-w-0 flex-1 border border-border rounded-md p-4"
+          data-testid="primary-editor-pane"
+          onMouseDownCapture={() => setPrimaryEntryId(ENTRY_ID)}
+        >
+          <BlockEditor
+            key={mount}
+            entryId={ENTRY_ID}
+            content={content}
+            onChange={handleChange}
+            pages={pages}
+            getPagePreview={getE2EPagePreview}
+            onNewPage={setRequestedPage}
+            onLecture={openLecture}
+            hostGlobals={primaryEntryId === ENTRY_ID}
+          />
+        </div>
+        {splitMode && (
+          <div
+            className="min-h-[360px] min-w-0 flex-1 border border-border rounded-md p-4"
+            data-testid="secondary-editor-pane"
+            onMouseDownCapture={() => setPrimaryEntryId(SPLIT_ENTRY_ID)}
+          >
+            <BlockEditor
+              entryId={SPLIT_ENTRY_ID}
+              content={splitContent}
+              onChange={handleSplitChange}
+              pages={pages}
+              getPagePreview={getE2EPagePreview}
+              hostGlobals={primaryEntryId === SPLIT_ENTRY_ID}
+            />
+          </div>
+        )}
         <PagePeekHost
           entries={peekEntries}
           pages={pages}
@@ -122,6 +166,7 @@ export default function EditorE2E() {
       </button>
       <section aria-label="editor parity" className="sr-only">
         <pre data-testid="stored-text">{content}</pre>
+        <pre data-testid="split-stored-text">{splitContent}</pre>
         <pre data-testid="markdown-preview">{preview}</pre>
         <pre data-testid="ai-request-text">{aiText}</pre>
         <pre data-testid="requested-page">{requestedPage}</pre>
