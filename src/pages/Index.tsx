@@ -92,6 +92,7 @@ import {
   setPaneSizes,
   splitTabOnto,
   writePageSplitState,
+  MAX_SPLIT_PANES,
   type PageSplitState,
 } from "@/lib/pageSplits";
 
@@ -345,9 +346,20 @@ export default function Index() {
       const current = splitStateRef.current;
       const targetPane = current.panes.find((pane) => pane.tabKeys.includes(targetKey));
       if (!targetPane) return;
-      const next = sourcePaneId === targetPane.id
-        ? splitTabOnto(current, draggedKey, targetKey, `pane-${nextPaneIdRef.current++}`)
-        : moveTabToPane(current, draggedKey, targetPane.id, targetKey);
+      let next: PageSplitState;
+      if (sourcePaneId === targetPane.id) {
+        if (current.panes.length >= MAX_SPLIT_PANES) {
+          toast.info(`You can open up to ${MAX_SPLIT_PANES} split panes`);
+          return;
+        }
+        let newPaneId = `pane-${nextPaneIdRef.current++}`;
+        while (current.panes.some((pane) => pane.id === newPaneId)) {
+          newPaneId = `pane-${nextPaneIdRef.current++}`;
+        }
+        next = splitTabOnto(current, draggedKey, targetKey, newPaneId);
+      } else {
+        next = moveTabToPane(current, draggedKey, targetPane.id, targetKey);
+      }
       if (next === current) return;
       setSplitState(next);
       const tab = findTab(tabStateRef.current, draggedKey);
@@ -769,7 +781,10 @@ export default function Index() {
         console.warn("[wings] blocked empty autosave over existing content");
         return;
       }
-      if (existing && isSameEditorPayload(existing, toSave)) return;
+      if (existing && isSameEditorPayload(existing, toSave)) {
+        pendingPayloadsRef.current.delete(entryId);
+        return;
+      }
       setEntrySaveStatus(entryId, "saving");
       // Durable locally before the network is attempted, so a refresh while the
       // request is in flight still shows what was typed.
@@ -791,6 +806,7 @@ export default function Index() {
         );
         clearDraft(entryId);
         clearPendingWrite(entryId);
+        pendingPayloadsRef.current.delete(entryId);
         if (!existing || !isLocalEntry(existing)) {
           void recordEntryVersion(entryId, userId ?? null, {
             content: toSave.markdown,
@@ -1107,6 +1123,7 @@ export default function Index() {
         try {
           await updateEntry(entryId, toSave);
           clearDraft(entryId);
+          pendingPayloadsRef.current.delete(entryId);
           void recordEntryVersion(entryId, userId ?? null, {
             content: toSave.markdown,
             content_json: toSave.json,
@@ -1129,7 +1146,16 @@ export default function Index() {
         entriesRef.current.filter((e) => e.parent_id === pid).forEach((e) => collect(e.id));
       };
       collect(id);
-      removed.forEach(forgetLinkIndex);
+      removed.forEach((entryId) => {
+        forgetLinkIndex(entryId);
+        const saveTimer = debounceRefs.current.get(entryId);
+        if (saveTimer) clearTimeout(saveTimer);
+        const titleTimer = titleDebounceRefs.current.get(entryId);
+        if (titleTimer) clearTimeout(titleTimer);
+        debounceRefs.current.delete(entryId);
+        titleDebounceRefs.current.delete(entryId);
+        pendingPayloadsRef.current.delete(entryId);
+      });
       setEntries((prev) => prev.filter((e) => !removed.has(e.id)));
       if (tabsEnabled) {
         let next = tabStateRef.current;
@@ -1377,6 +1403,17 @@ export default function Index() {
   const displaySplitState = tabsEnabled
     ? normalizePageSplitState(splitState, tabState.tabs, tabState.activeKey)
     : emptyPageSplitState();
+  const renderedSplitState = tabState.activeKey
+    ? displaySplitState
+    : {
+        panes: [{
+          id: displaySplitState.activePaneId,
+          tabKeys: tabState.tabs.map(tabKey),
+          activeKey: null,
+        }],
+        activePaneId: displaySplitState.activePaneId,
+        sizes: [100],
+      };
 
   const renderTabContent = (tab: PageTab | null, paneId: string, focused: boolean) => {
     if (tab?.kind === "trash") {
@@ -1412,6 +1449,7 @@ export default function Index() {
     const paneEntryId = paneEntry?.id ?? null;
     return (
       <JournalEditor
+        key={paneEntryId ?? `${paneId}:home`}
         entry={paneEntry}
         allEntries={entries}
         roleMap={roleMap}
@@ -1447,6 +1485,31 @@ export default function Index() {
     );
   };
 
+  const renderPaneTabBar = (pane: PageSplitState["panes"][number]) => {
+    const paneTabs = pane.tabKeys
+      .map((key) => tabViewsByKey.get(key))
+      .filter((view): view is NonNullable<typeof view> => Boolean(view));
+    return (
+      <PageTabBar
+        paneId={pane.id}
+        tabs={paneTabs}
+        activeKey={pane.activeKey}
+        onSelect={(tab) => selectTabInPane(pane.id, tab)}
+        onClose={closeOpenTab}
+        onCloseOthers={(tab) => closeOtherTabsInPane(pane.id, tab)}
+        onCloseToRight={(tab) => closeTabsToRightInPane(pane.id, tab)}
+        onMove={(from, to) =>
+          setSplitState((current) => moveTabWithinPane(current, pane.id, from, to))
+        }
+        onDropTab={dropTabOnTab}
+        onNew={() => {
+          focusPane(pane.id);
+          handleNew();
+        }}
+      />
+    );
+  };
+
   if (loading) {
     return <LoadingScreen variant="gyro" />;
   }
@@ -1455,6 +1518,8 @@ export default function Index() {
     <>
       <Seo title={tabTitle} path={tabPath} noIndex />
     <div className="flex h-screen w-full min-w-0 flex-col overflow-hidden">
+      {tabsEnabled && renderedSplitState.panes.length === 1 &&
+        renderPaneTabBar(renderedSplitState.panes[0]!)}
       <div className="flex min-h-0 min-w-0 flex-1">
       <JournalSidebar
         allEntries={entries}
@@ -1490,13 +1555,13 @@ export default function Index() {
       <div className="flex min-h-0 min-w-0 flex-1">
         {tabsEnabled ? (
           <ResizablePanelGroup
-            key={displaySplitState.panes.map((pane) => pane.id).join(":")}
+            key={renderedSplitState.panes.map((pane) => pane.id).join(":")}
             id="page-split-panes"
             orientation="horizontal"
             defaultLayout={Object.fromEntries(
-              displaySplitState.panes.map((pane, index) => [
+              renderedSplitState.panes.map((pane, index) => [
                 pane.id,
-                displaySplitState.sizes[index] ?? 100 / displaySplitState.panes.length,
+                renderedSplitState.sizes[index] ?? 100 / renderedSplitState.panes.length,
               ]),
             )}
             onLayoutChanged={(layout, meta) => {
@@ -1509,45 +1574,30 @@ export default function Index() {
               );
             }}
           >
-            {displaySplitState.panes.map((pane, index) => {
+            {renderedSplitState.panes.map((pane, index) => {
               const paneTab = findTab(tabState, pane.activeKey);
-              const focused = pane.id === displaySplitState.activePaneId;
-              const paneTabs = pane.tabKeys
-                .map((key) => tabViewsByKey.get(key))
-                .filter((view): view is NonNullable<typeof view> => Boolean(view));
+              const focused = pane.id === renderedSplitState.activePaneId;
               return (
                 <Fragment key={pane.id}>
                   {index > 0 && <ResizableHandle withHandle />}
                   <ResizablePanel
                     id={pane.id}
-                    defaultSize={`${displaySplitState.sizes[index] ?? 100 / displaySplitState.panes.length}%`}
+                    defaultSize={`${renderedSplitState.sizes[index] ?? 100 / renderedSplitState.panes.length}%`}
                     minSize="20%"
                     className="min-w-0"
                   >
                     <section
-                      className="flex h-full min-w-0 flex-col"
+                      className={`flex h-full min-w-0 flex-col ${
+                        focused && renderedSplitState.panes.length > 1
+                          ? "ring-1 ring-inset ring-accent-strong/30"
+                          : ""
+                      }`}
                       data-testid="page-split-pane"
                       data-pane-id={pane.id}
                       data-focused={focused ? "true" : "false"}
                       onMouseDownCapture={() => focusPane(pane.id)}
                     >
-                      <PageTabBar
-                        paneId={pane.id}
-                        tabs={paneTabs}
-                        activeKey={pane.activeKey}
-                        onSelect={(tab) => selectTabInPane(pane.id, tab)}
-                        onClose={closeOpenTab}
-                        onCloseOthers={(tab) => closeOtherTabsInPane(pane.id, tab)}
-                        onCloseToRight={(tab) => closeTabsToRightInPane(pane.id, tab)}
-                        onMove={(from, to) =>
-                          setSplitState((current) => moveTabWithinPane(current, pane.id, from, to))
-                        }
-                        onDropTab={dropTabOnTab}
-                        onNew={() => {
-                          focusPane(pane.id);
-                          handleNew();
-                        }}
-                      />
+                      {renderedSplitState.panes.length > 1 && renderPaneTabBar(pane)}
                       <div className="min-h-0 flex-1">
                         {renderTabContent(paneTab, pane.id, focused)}
                       </div>

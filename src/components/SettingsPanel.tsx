@@ -641,7 +641,7 @@ export function SettingsPanel() {
                     </button>
                   </div>
                   <p className="text-[10px] font-mono text-ink-3">
-                    Browser-style tabs for open pages. ⌘W closes, ⌘⇧[ / ⌘⇧] switches, middle-click closes.
+                    Drag a tab onto another to split the workspace. Drag dividers to resize; ⌘W closes and ⌘⇧[ / ⌘⇧] switches.
                   </p>
                 </Field>
 
