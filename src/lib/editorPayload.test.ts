@@ -4,7 +4,13 @@
 // and it never picks up a different page's document.
 
 import { describe, it, expect, afterEach } from "vitest";
-import { isFullPayload, isSameEditorPayload, requestEditorSerialize, type EditorChangePayload } from "./editorPayload";
+import {
+  isFullPayload,
+  isSameEditorPayload,
+  registerEditorSerializer,
+  requestEditorSerialize,
+  type EditorChangePayload,
+} from "./editorPayload";
 
 type EditorWindow = Window & { __nw_flushEditor?: (id: string) => EditorChangePayload | null };
 
@@ -33,6 +39,16 @@ describe("editorPayload", () => {
 
   it("refuses to serialize once the user has moved to another entry", () => {
     mountEditor("entry-2", "text belonging to entry-2");
+    expect(requestEditorSerialize("entry-1")).toBeNull();
+  });
+
+  it("serializes multiple mounted split editors by entry id", () => {
+    const unregisterOne = registerEditorSerializer("entry-1", () => ({ markdown: "one", json: doc }));
+    const unregisterTwo = registerEditorSerializer("entry-2", () => ({ markdown: "two", json: doc }));
+    expect(requestEditorSerialize("entry-1")?.markdown).toBe("one");
+    expect(requestEditorSerialize("entry-2")?.markdown).toBe("two");
+    unregisterOne();
+    unregisterTwo();
     expect(requestEditorSerialize("entry-1")).toBeNull();
   });
 
