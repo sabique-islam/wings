@@ -18,6 +18,21 @@ export interface FullEditorChangePayload extends EditorChangePayload {
   markdown: string;
 }
 
+type EditorSerializer = () => FullEditorChangePayload;
+const mountedEditorSerializers = new Map<string, EditorSerializer>();
+
+export function registerEditorSerializer(
+  entryId: string,
+  serialize: EditorSerializer,
+): () => void {
+  mountedEditorSerializers.set(entryId, serialize);
+  return () => {
+    if (mountedEditorSerializers.get(entryId) === serialize) {
+      mountedEditorSerializers.delete(entryId);
+    }
+  };
+}
+
 export function isFullPayload(
   payload: EditorChangePayload | null | undefined,
 ): payload is FullEditorChangePayload {
@@ -31,6 +46,8 @@ export function isFullPayload(
  * before the user navigated can never write one page's text into another's row.
  */
 export function requestEditorSerialize(entryId: string): FullEditorChangePayload | null {
+  const mounted = mountedEditorSerializers.get(entryId);
+  if (mounted) return mounted();
   const serialize = (
     window as { __nw_flushEditor?: (id: string) => EditorChangePayload | null }
   ).__nw_flushEditor;

@@ -43,7 +43,7 @@ interface Props {
   roleMap?: Record<string, ShareRole>;
   userId: string;
   onChange: (entryId: string, payload: EditorChangePayload) => void;
-  onTitleChange?: (title: string) => void;
+  onTitleChange?: (entryId: string, title: string) => void;
   onDelete: (id: string) => void;
   onTogglePin: (id: string, pinned: boolean) => void;
   sidebarOpen: boolean;
@@ -62,6 +62,7 @@ interface Props {
   onPromoteToCloud?: (entryId: string, payload: EditorChangePayload) => Promise<void>;
   saveStatus?: "idle" | "saving" | "saved" | "error";
   collabEnabled?: boolean;
+  active?: boolean;
 }
 
 const WORD_COUNT_DEBOUNCE_MS = 300;
@@ -70,7 +71,7 @@ function canEditRole(role: ShareRole): boolean {
   return role === "owner" || role === "admin" || role === "editor";
 }
 
-export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, onChange, onTitleChange, onDelete, onTogglePin, sidebarOpen, onToggleSidebar, breadcrumbTrail, onNavigate, onNewSubpage, onUpdateEntry, userRole, onNewSubpageWithTitle, onRestoreVersion, onOpenAI, onOpenLecture, onImported, onNew, onPromoteToCloud, saveStatus = "idle", collabEnabled = false }: Props) {
+export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, onChange, onTitleChange, onDelete, onTogglePin, sidebarOpen, onToggleSidebar, breadcrumbTrail, onNavigate, onNewSubpage, onUpdateEntry, userRole, onNewSubpageWithTitle, onRestoreVersion, onOpenAI, onOpenLecture, onImported, onNew, onPromoteToCloud, saveStatus = "idle", collabEnabled = false, active = true }: Props) {
   const { user } = useAuth();
   const { appearance } = useEditorAppearance();
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -118,6 +119,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
   // Listen for "edit drawing" requests from the inline node view
   useEffect(() => {
     const handler = (e: Event) => {
+      if (!active) return;
       const id = (e as CustomEvent).detail?.sceneId as string | undefined;
       if (!id) return;
       setEditingSceneId(id);
@@ -125,7 +127,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
     };
     window.addEventListener("nw:editDrawing", handler);
     return () => window.removeEventListener("nw:editDrawing", handler);
-  }, []);
+  }, [active]);
 
   // Free-canvas / layout-bridge was removed in favor of in-flow markdown editing.
   // Excalidraw is used for any free-form drawing/canvas needs.
@@ -136,10 +138,11 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
   const [liveWords, setLiveWords] = useState<number | null>(null);
   const wordCountTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const words = liveWords ?? (entry ? countWords(entry.content) : 0);
-  const canEdit = canEditRole(userRole);
+  const roleCanEdit = canEditRole(userRole);
+  const canEdit = active && roleCanEdit;
   const { session: collabSession, connecting: collabConnecting } = useCollabProvider(
     entry?.id ?? null,
-    collabEnabled && canEdit,
+    collabEnabled && roleCanEdit,
     userId,
     user?.email ?? "",
   );
@@ -166,11 +169,11 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
       field.value = title;
       field.style.height = "auto";
       field.style.height = `${field.scrollHeight}px`;
-      onTitleChange?.(title);
+      if (entry) onTitleChange?.(entry.id, title);
     };
     window.addEventListener(SUGGEST_PAGE_TITLE_EVENT, onSuggest);
     return () => window.removeEventListener(SUGGEST_PAGE_TITLE_EVENT, onSuggest);
-  }, [canEdit, onTitleChange]);
+  }, [active, canEdit, entry, onTitleChange]);
 
   const handlePromoteConfirm = useCallback(async () => {
     if (!entry || !onPromoteToCloud) return;
@@ -478,7 +481,7 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
               defaultValue={entry.title || ""}
               readOnly={!canEdit}
               onChange={(e) => {
-                onTitleChange?.(e.target.value);
+                onTitleChange?.(entry.id, e.target.value);
                 e.target.style.height = "auto";
                 e.target.style.height = `${e.target.scrollHeight}px`;
               }}
@@ -514,10 +517,11 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
                 getPagePreview={getPagePreview}
                 editable={canEdit}
                 collabSession={collabSession}
+                hostGlobals={active}
               />
             )}
             <BacklinksPanel entryId={entry.id} entries={allEntries} onNavigate={onNavigate} />
-            <InlineAIMenu />
+            {active && <InlineAIMenu />}
             <input
               ref={fileInputRef}
               type="file"
@@ -579,12 +583,14 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
           }}
         />
       )}
-      <PagePeekHost
-        entries={allEntries}
-        pages={pages}
-        getPagePreview={getPagePreview}
-        onNavigate={onNavigate}
-      />
+      {active && (
+        <PagePeekHost
+          entries={allEntries}
+          pages={pages}
+          getPagePreview={getPagePreview}
+          onNavigate={onNavigate}
+        />
+      )}
     </div>
   );
 }

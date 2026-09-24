@@ -17,6 +17,7 @@ export type PageTabView = {
 };
 
 interface Props {
+  paneId: string;
   tabs: PageTabView[];
   activeKey: string | null;
   onSelect: (tab: PageTab) => void;
@@ -24,7 +25,26 @@ interface Props {
   onCloseOthers: (tab: PageTab) => void;
   onCloseToRight: (tab: PageTab) => void;
   onMove: (from: number, to: number) => void;
+  onDropTab: (draggedKey: string, sourcePaneId: string, targetKey: string) => void;
   onNew: () => void;
+}
+
+type DraggedTab = {
+  key: string;
+  paneId: string;
+  index: number;
+};
+
+const TAB_DRAG_TYPE = "application/x-wings-page-tab";
+
+function readDraggedTab(event: React.DragEvent): DraggedTab | null {
+  try {
+    const value = JSON.parse(event.dataTransfer.getData(TAB_DRAG_TYPE)) as DraggedTab;
+    if (!value.key || !value.paneId || !Number.isInteger(value.index)) return null;
+    return value;
+  } catch {
+    return null;
+  }
 }
 
 function TabIcon({ tab }: { tab: PageTab }) {
@@ -34,6 +54,7 @@ function TabIcon({ tab }: { tab: PageTab }) {
 }
 
 export function PageTabBar({
+  paneId,
   tabs,
   activeKey,
   onSelect,
@@ -41,11 +62,13 @@ export function PageTabBar({
   onCloseOthers,
   onCloseToRight,
   onMove,
+  onDropTab,
   onNew,
 }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [splitTarget, setSplitTarget] = useState<number | null>(null);
 
   useEffect(() => {
     const active = scrollerRef.current?.querySelector('[aria-selected="true"]');
@@ -83,24 +106,39 @@ export function PageTabBar({
                   draggable
                   onDragStart={(event) => {
                     event.dataTransfer.effectAllowed = "move";
+                    event.dataTransfer.setData(
+                      TAB_DRAG_TYPE,
+                      JSON.stringify({ key, paneId, index } satisfies DraggedTab),
+                    );
                     event.dataTransfer.setData("text/plain", key);
                     setDragging(index);
                   }}
                   onDragEnd={() => {
                     setDragging(null);
                     setDropIndex(null);
+                    setSplitTarget(null);
                   }}
                   onDragOver={(event) => {
-                    if (dragging == null) return;
                     event.preventDefault();
                     event.dataTransfer.dropEffect = "move";
-                    setDropIndex(index);
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    const relativeX = event.clientX - rect.left;
+                    const centerDrop = relativeX > rect.width * 0.25 && relativeX < rect.width * 0.75;
+                    setSplitTarget(centerDrop ? index : null);
+                    setDropIndex(centerDrop ? null : index);
                   }}
                   onDrop={(event) => {
                     event.preventDefault();
-                    if (dragging != null) onMove(dragging, index);
+                    const dragged = readDraggedTab(event);
+                    if (!dragged) return;
+                    if (dragged.paneId === paneId && splitTarget !== index) {
+                      onMove(dragged.index, index);
+                    } else {
+                      onDropTab(dragged.key, dragged.paneId, key);
+                    }
                     setDragging(null);
                     setDropIndex(null);
+                    setSplitTarget(null);
                   }}
                   tabIndex={active ? 0 : -1}
                   data-testid="page-tab"
@@ -134,6 +172,7 @@ export function PageTabBar({
                       : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
                     dragging === index && "opacity-40",
                     drop && "before:absolute before:inset-y-1 before:left-0 before:w-0.5 before:rounded-full before:bg-accent-strong",
+                    splitTarget === index && "bg-accent-soft ring-1 ring-inset ring-accent-strong",
                   )}
                 >
                   <TabIcon tab={item.tab} />

@@ -16,7 +16,11 @@ import { EditorPopoverInput, promptEditorInput } from "./EditorPopoverInput";
 import { isSafeHttpUrl } from "@/lib/safeUrl";
 import { applyEditorLinkAction, resolveEditorLinkAction } from "./editorLinkClick";
 import { fetchLinkPreview } from "@/lib/linkPreview";
-import type { EditorChangePayload, FullEditorChangePayload } from "@/lib/editorPayload";
+import {
+  registerEditorSerializer,
+  type EditorChangePayload,
+  type FullEditorChangePayload,
+} from "@/lib/editorPayload";
 import { resolveInitialEditorContent, shouldSyncEditorFromProps } from "@/lib/editorContent";
 import {
   pageLinkClickAction,
@@ -57,6 +61,8 @@ interface Props {
   getPagePreview?: (pageId: string) => PagePreview | null;
   editable?: boolean;
   collabSession?: CollabSession | null;
+  /** Whether this editor owns app-wide commands such as AI, image insert, and find. */
+  hostGlobals?: boolean;
   /** Read-only overlay. Must not claim window globals or emit into the save pipeline. */
   peek?: boolean;
 }
@@ -104,6 +110,7 @@ export const BlockEditor = memo(function BlockEditor({
   getPagePreview,
   editable = true,
   collabSession = null,
+  hostGlobals = true,
   peek = false,
 }: Props) {
   const isPeek = Boolean(peek);
@@ -199,7 +206,7 @@ export const BlockEditor = memo(function BlockEditor({
     lastEmittedMarkdown.current = markdown;
     lastEmittedJson.current = json;
     markdownVersion.current = localVersion.current;
-    if (shouldHostEditorGlobals(peekRef.current)) {
+    if ((window as { __nw_editor?: MountedEditor }).__nw_editor === editor) {
       (window as any).__nw_currentMarkdown = markdown;
     }
     return { markdown, json };
@@ -378,6 +385,7 @@ export const BlockEditor = memo(function BlockEditor({
     if (!editor || isPeek) return;
     const openFind = () => editor.commands.findOpen({ seedFromSelection: true });
     const onKey = (event: KeyboardEvent) => {
+      if (!editor.isFocused) return;
       if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return;
       if (event.key.toLowerCase() !== "f") return;
       event.preventDefault();
@@ -524,20 +532,24 @@ export const BlockEditor = memo(function BlockEditor({
         editorRef.current = null;
       };
     }
-    (window as any).__nw_insertImage = insertImage;
-    (window as any).__nw_editor = editor;
-    (window as any).__nw_getMarkdown = () => htmlToMarkdown(editor.getHTML());
-    // Entry-scoped: a save scheduled before navigation must not be handed the
-    // next page's document.
-    (window as any).__nw_flushEditor = (id?: string) =>
-      id == null || id === entryId ? serializeFull(editor) : null;
-    (window as any).__nw_currentMarkdown = htmlToMarkdown(editor.getHTML());
+    const serialize = () => serializeFull(editor);
+    const unregisterSerializer = registerEditorSerializer(entryId, serialize);
+    const flushEditor = (id?: string) => (id == null || id === entryId ? serialize() : null);
+
+    if (hostGlobals) {
+      (window as any).__nw_insertImage = insertImage;
+      (window as any).__nw_editor = editor;
+      (window as any).__nw_getMarkdown = () => htmlToMarkdown(editor.getHTML());
+      (window as any).__nw_flushEditor = flushEditor;
+      (window as any).__nw_currentMarkdown = htmlToMarkdown(editor.getHTML());
+    }
 
     const onSlashPrompt = async (e: Event) => {
       const detail = (e as CustomEvent).detail as {
         type: "bookmark" | "embed" | "newPage";
         editor: typeof editor;
       };
+      if (detail.editor !== editor) return;
       if (detail.type === "newPage") {
         const title = await promptEditorInput({
           kind: "text",
@@ -566,18 +578,21 @@ export const BlockEditor = memo(function BlockEditor({
 
     return () => {
       editorRef.current = null;
-      delete (window as any).__nw_insertImage;
-      delete (window as any).__nw_editor;
-      delete (window as any).__nw_getMarkdown;
-      delete (window as any).__nw_flushEditor;
-      delete (window as any).__nw_currentMarkdown;
+      unregisterSerializer();
+      if ((window as any).__nw_editor === editor) {
+        delete (window as any).__nw_insertImage;
+        delete (window as any).__nw_editor;
+        delete (window as any).__nw_getMarkdown;
+        if ((window as any).__nw_flushEditor === flushEditor) delete (window as any).__nw_flushEditor;
+        delete (window as any).__nw_currentMarkdown;
+      }
       window.removeEventListener("nw:slashPrompt", onSlashPrompt);
       if (serializeTimer.current) clearTimeout(serializeTimer.current);
       if (editor && !editor.isDestroyed) {
         emitFull(editor);
       }
     };
-  }, [insertImage, editor, serializeFull, emitFull, onNewPage, entryId, isPeek]);
+  }, [insertImage, editor, serializeFull, emitFull, onNewPage, entryId, hostGlobals, isPeek]);
 
   if (!editor) return null;
 
