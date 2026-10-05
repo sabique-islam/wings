@@ -129,20 +129,20 @@ export function PageMusicProvider({
     askedKeyRef.current = null;
     askedOnEntryRef.current = null;
     void (async () => {
-      const url = await resolveSongUrl(song);
-      if (!url) {
-        toast.error("Couldn't play that song");
-        return;
-      }
-      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-      blobUrlRef.current = url.startsWith("blob:") ? url : null;
-      audio.src = url;
-      nowRef.current = { key, song };
-      setNowKey(key);
       try {
+        const url = await resolveSongUrl(song);
+        if (!url) {
+          toast.error("Couldn't play that song");
+          return;
+        }
+        if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = url.startsWith("blob:") ? url : null;
+        audio.src = url;
+        nowRef.current = { key, song };
+        setNowKey(key);
         await audio.play();
-      } catch {
-        toast.error("Couldn't play that song");
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Couldn't play that song");
       }
     })();
   };

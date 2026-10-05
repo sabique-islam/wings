@@ -23,8 +23,8 @@ export async function uploadPageAudio(file: File, userId: string, entryId: strin
   return path;
 }
 
-export async function pageAudioUrl(path: string): Promise<string | null> {
+export async function pageAudioUrl(path: string): Promise<string> {
   const { data, error } = await supabase.storage.from("journal-audio").createSignedUrl(path, SIGNED_URL_TTL);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  if (error || !data?.signedUrl) throw new Error(error?.message || "Couldn't open that audio file.");
+  return data.signedUrl;
 }
