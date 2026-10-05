@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MUSIC_GROUPS, catalogTrackById, catalogTracksInGroup } from "./catalog";
-import { audioExtension, audioFileError, MAX_PAGE_AUDIO_BYTES } from "./audioFile";
+import { audioExtension, audioFileError, describeAudioUpload, MAX_PAGE_AUDIO_BYTES } from "./audioFile";
 import {
   entryPropertiesUpdate,
   pageSongKey,
@@ -125,5 +125,16 @@ describe("uploaded audio", () => {
     const huge = new File([new Uint8Array(1)], "song.mp3", { type: "audio/mpeg" });
     Object.defineProperty(huge, "size", { value: MAX_PAGE_AUDIO_BYTES + 1 });
     expect(audioFileError(huge)).toMatch(/20 MB/);
+  });
+
+  it("treats an mp3 as audio/mpeg even when the browser type is blank or audio/mp3", () => {
+    expect(describeAudioUpload(new File(["a"], "Human_Nature.mp3", { type: "" }))).toEqual({
+      ext: "mp3",
+      contentType: "audio/mpeg",
+    });
+    expect(describeAudioUpload(new File(["a"], "Human_Nature.mp3", { type: "audio/mp3" }))).toEqual({
+      ext: "mp3",
+      contentType: "audio/mpeg",
+    });
   });
 });

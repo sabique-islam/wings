@@ -1,21 +1,25 @@
 import { supabase } from "@/integrations/supabase/client";
-import { audioExtension, audioFileError } from "./audioFile";
+import { audioFileError, describeAudioUpload } from "./audioFile";
 
 const SIGNED_URL_TTL = 60 * 60 * 6;
 
 export async function uploadPageAudio(file: File, userId: string, entryId: string): Promise<string> {
   const rejected = audioFileError(file);
   if (rejected) throw new Error(rejected);
-  const ext = audioExtension(file.type);
-  if (!ext) throw new Error("Use an mp3, wav, ogg, or m4a file.");
+  const described = describeAudioUpload(file);
+  if (!described) throw new Error("Use an mp3, wav, ogg, or m4a file.");
 
   const rand = crypto.getRandomValues(new Uint8Array(8));
   const suffix = Array.from(rand, (b) => b.toString(16).padStart(2, "0")).join("");
-  const path = `${userId}/${entryId}/${Date.now()}-${suffix}.${ext}`;
-  const { error } = await supabase.storage
-    .from("journal-audio")
-    .upload(path, file, { contentType: file.type, upsert: false });
-  if (error) throw new Error("Couldn't upload that audio file.");
+  const path = `${userId}/${entryId}/${Date.now()}-${suffix}.${described.ext}`;
+  // A File upload is sent as multipart and Storage ignores the contentType
+  // option, then rejects the part type. Raw bytes keep the declared audio type.
+  const bytes = await file.arrayBuffer();
+  const { error } = await supabase.storage.from("journal-audio").upload(path, bytes, {
+    contentType: described.contentType,
+    upsert: false,
+  });
+  if (error) throw new Error(error.message || "Couldn't upload that audio file.");
   return path;
 }
 
