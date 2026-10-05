@@ -14,9 +14,9 @@ export function Breadcrumbs({ trail, onNavigate }: Props) {
   if (trail.length <= 1) return null;
 
   return (
-    <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50 font-mono overflow-x-auto">
+    <div className="flex min-w-0 items-center gap-1 overflow-hidden font-mono text-[10px] text-muted-foreground/50">
       {trail.map((entry, i) => (
-        <span key={entry.id} className="flex items-center gap-1 shrink-0">
+        <span key={entry.id} className="flex min-w-0 items-center gap-1">
           {i > 0 && <ChevronRight className="h-2.5 w-2.5" />}
           {i < trail.length - 1 ? (
             <button

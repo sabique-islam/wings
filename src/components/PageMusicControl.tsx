@@ -152,7 +152,7 @@ export function PageMusicProvider({
     <PageMusicContext.Provider value={{ nowKey, playing, play }}>
       {children}
       <AlertDialog open={promptOpen} onOpenChange={(open) => { if (!open) setPromptOpen(false); }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[min(32rem,calc(100vw-2rem))]">
           <AlertDialogHeader>
             <AlertDialogTitle>Keep this song playing?</AlertDialogTitle>
             <AlertDialogDescription>
@@ -173,6 +173,19 @@ export function PageMusicProvider({
   );
 }
 
+function SoundWaves() {
+  return (
+    <svg className="page-music-waves shrink-0" viewBox="0 0 32 12" aria-hidden="true" data-testid="page-music-waves">
+      <g className="page-music-wave">
+        <path d="M0 6 Q4 1 8 6 T16 6 T24 6 T32 6 T40 6 T48 6" fill="none" stroke="currentColor" strokeWidth="1.25" />
+      </g>
+      <g className="page-music-wave page-music-wave-soft" opacity="0.55">
+        <path d="M0 7 Q4 11 8 7 T16 7 T24 7 T32 7 T40 7 T48 7" fill="none" stroke="currentColor" strokeWidth="1.25" />
+      </g>
+    </svg>
+  );
+}
+
 export function PageMusicControl({
   song,
   canChoose,
@@ -190,18 +203,20 @@ export function PageMusicControl({
   const active = Boolean(music && key && music.nowKey === key && music.playing);
 
   return (
-    <div className="flex items-center gap-0.5" data-testid="page-music">
+    <div className="flex shrink-0 items-center gap-0.5" data-testid="page-music">
       <button
         type="button"
         data-testid="page-music-play"
         disabled={!song}
         onClick={() => song && music?.play(song)}
-        className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-        title={song ? (active ? "Pause" : "Play") : "Choose a song first"}
+        className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+        title={song ? (active ? `Pause ${pageSongTitle(song)}` : `Play ${pageSongTitle(song)}`) : "Choose a song first"}
+        aria-label={song ? (active ? `Pause ${pageSongTitle(song)}` : `Play ${pageSongTitle(song)}`) : "Choose a song first"}
       >
         {active ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
       </button>
-      <span className="max-w-[7rem] truncate text-[10px] text-muted-foreground" title={pageSongTitle(song)}>
+      {active && <SoundWaves />}
+      <span className="page-music-title max-w-[6rem] truncate text-[10px] text-muted-foreground" title={pageSongTitle(song)}>
         {pageSongTitle(song)}
       </span>
       {canChoose && (
@@ -214,7 +229,7 @@ export function PageMusicControl({
             >
               <Music className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="max-h-80 w-56 overflow-y-auto font-mono text-xs">
+            <DropdownMenuContent align="end" className="max-h-80 w-[min(14rem,calc(100vw-2rem))] overflow-y-auto font-mono text-xs">
               {MUSIC_GROUPS.map((group) => {
                 const tracks = catalogTracksInGroup(group.id);
                 return (

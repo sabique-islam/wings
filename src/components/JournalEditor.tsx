@@ -1,11 +1,11 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo, type ReactNode } from "react";
 import type { Entry, ShareRole } from "@/lib/journal";
 import { getEntryTitle, isBlankDraftPage } from "@/lib/journal";
 import { buildPagePreview, refreshPageEmbeds } from "@/components/BlockEditor/PageEmbedExtension";
 import type { EditorChangePayload } from "@/lib/editorPayload";
 import { useCollabProvider } from "@/lib/collab/useCollabProvider";
 import { useAuth } from "@/hooks/useAuth";
-import { Trash2, PanelLeft, Download, Pin, PinOff, FilePlus, History, Keyboard, Sparkles, PenTool, Hash, Upload, FileJson, FileText, Lock, Cloud, Mic } from "@/lib/icons";
+import { Trash2, PanelLeft, Download, Pin, PinOff, FilePlus, History, Keyboard, Sparkles, PenTool, Hash, Upload, FileJson, FileText, Lock, Cloud, Mic, MoreHorizontal } from "@/lib/icons";
 import { EmptyStateAscii } from "@/components/AsciiAnimation";
 import { DashboardHome } from "@/components/dashboard/DashboardHome";
 import { BlockEditor } from "@/components/BlockEditor/BlockEditor";
@@ -36,6 +36,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -287,52 +288,113 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
 
   useEffect(() => refreshPageEmbeds(), [allEntries]);
 
+  const pageActions: Array<{
+    id: string;
+    label: string;
+    icon: ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    danger?: boolean;
+    pressed?: boolean;
+  }> = [];
+  if (entry && canManage) {
+    pageActions.push({
+      id: "subpage",
+      label: "Create sub-page",
+      icon: <FilePlus className="h-3.5 w-3.5" />,
+      onClick: () => onNewSubpage(entry.id),
+    });
+    pageActions.push({
+      id: "pin",
+      label: entry.pinned ? "Unpin" : "Pin",
+      icon: entry.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />,
+      onClick: () => onTogglePin(entry.id, !entry.pinned),
+      pressed: entry.pinned,
+    });
+  }
+  if (entry && canEdit) {
+    pageActions.push({
+      id: "draw",
+      label: "Open drawing canvas",
+      icon: <PenTool className="h-3.5 w-3.5" />,
+      onClick: () => { setEditingSceneId(null); setDrawingOpen(true); },
+    });
+    pageActions.push({
+      id: "history",
+      label: entryIsLocal ? "Version history isn't available for local pages" : "Version history",
+      icon: <History className="h-3.5 w-3.5" />,
+      onClick: () => { if (!entryIsLocal) setHistoryOpen(true); },
+      disabled: entryIsLocal,
+    });
+  }
+  if (entry) {
+    pageActions.push({
+      id: "lines",
+      label: showLineNumbers ? "Hide line numbers" : "Show line numbers",
+      icon: <Hash className="h-3.5 w-3.5" />,
+      onClick: () => setShowLineNumbers((shown) => !shown),
+      pressed: showLineNumbers,
+    });
+  }
+  if (entry && canEdit && onOpenLecture) {
+    pageActions.push({
+      id: "lecture",
+      label: "Lecture Mode",
+      icon: <Mic className="h-3.5 w-3.5" />,
+      onClick: onOpenLecture,
+    });
+  }
+
   return (
     <div className="flex-1 flex flex-col h-full min-w-0 w-full">
-      <header className="h-12 flex items-center px-2 sm:px-3 border-b border-border-subtle gap-1 sm:gap-2 shrink-0 overflow-x-auto">
-        <button onClick={onToggleSidebar} className="text-muted-foreground hover:text-foreground transition-colors" title="Toggle sidebar (⌘B)">
+      <header className="page-toolbar flex h-12 min-w-0 shrink-0 items-center gap-1 border-b border-border-subtle px-2 sm:px-3">
+        <button onClick={onToggleSidebar} className="shrink-0 text-muted-foreground transition-colors hover:text-foreground" title="Toggle sidebar (⌘B)">
           <PanelLeft className="h-4 w-4" />
         </button>
         {entry && (
           <>
-            <Breadcrumbs trail={breadcrumbTrail} onNavigate={onNavigate} />
-            <span className="text-[10px] text-muted-foreground ml-2">
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <Breadcrumbs trail={breadcrumbTrail} onNavigate={onNavigate} />
+            </div>
+            <span className="page-toolbar-meta ml-1 shrink-0 text-[10px] text-muted-foreground">
               {new Date(entry.created_at).toLocaleDateString("default", { day: "numeric", month: "short", year: "numeric" })}
             </span>
-            <span className="text-[10px] text-muted-foreground/50 ml-2">
+            <span className="page-toolbar-meta shrink-0 text-[10px] text-muted-foreground/50">
               {words}w · {readingTime(words)}
             </span>
             {uploading && (
-              <span className="text-[10px] text-muted-foreground/50 ml-2 animate-pulse">uploading…</span>
+              <span className="page-toolbar-meta animate-pulse text-[10px] text-muted-foreground/50">uploading…</span>
             )}
             {collabSession && (
-              <span className="text-[10px] text-emerald-600/80 ml-2 font-mono flex items-center gap-1">
+              <span className="page-toolbar-meta items-center gap-1 font-mono text-[10px] text-emerald-600/80" title="Live">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 live
               </span>
             )}
             {entryIsLocal && (
-              <span className="text-[10px] text-muted-foreground/60 ml-2 font-mono flex items-center gap-1" title="Stored on this device only">
+              <span className="page-toolbar-meta items-center gap-1 font-mono text-[10px] text-muted-foreground/60" title="Stored on this device only">
                 <Lock className="h-3 w-3" /> local
               </span>
             )}
             {saveStatus === "saving" && !collabSession && (
-              <span className="text-[10px] text-muted-foreground/60 ml-2 font-mono flex items-center gap-1">
+              <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground/60" title="Saving">
                 <span className="h-1.5 w-1.5 rounded-full bg-foreground/40 animate-pulse" />
-                saving…
+                <span className="page-toolbar-meta">saving…</span>
               </span>
             )}
             {saveStatus === "saved" && (
-              <span className="text-[10px] text-muted-foreground/40 ml-2 font-mono flex items-center gap-1">
-                <Check className="h-3 w-3" /> saved
+              <span className="flex items-center gap-1 font-mono text-[10px] text-muted-foreground/40" title="Saved">
+                <Check className="h-3 w-3" />
+                <span className="page-toolbar-meta">saved</span>
               </span>
             )}
             {saveStatus === "error" && (
-              <span className="text-[10px] text-destructive/80 ml-2 font-mono flex items-center gap-1">
-                <CloudOff className="h-3 w-3" /> offline · queued
+              <span className="flex items-center gap-1 font-mono text-[10px] text-destructive/80" title="Offline, queued">
+                <CloudOff className="h-3 w-3" />
+                <span className="page-toolbar-meta">offline · queued</span>
               </span>
             )}
-            <div className="ml-auto flex items-center gap-1">
+            <div className="ml-auto flex shrink-0 items-center gap-0.5">
               <PageMusicControl
                 song={readPageSong(entry.properties)}
                 canChoose={canEditRole(userRole)}
@@ -340,96 +402,114 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
                 onUpload={(file) => onUploadPageSong?.(entry.id, file)}
               />
               {userRole === "viewer" && (
-                <span className="text-[10px] text-muted-foreground/50 font-mono px-2">view only</span>
+                <span className="page-toolbar-meta px-1 font-mono text-[10px] text-muted-foreground/50">view only</span>
               )}
               {userRole === "editor" && (
-                <span className="text-[10px] text-muted-foreground/50 font-mono px-2">editor</span>
+                <span className="page-toolbar-meta px-1 font-mono text-[10px] text-muted-foreground/50">editor</span>
               )}
               {canManage && !entryIsLocal && <ShareMenu entry={entry} onUpdate={onUpdateEntry} />}
-              {canManage && (
+              <div className="page-toolbar-tools">
+                {pageActions.map((action) => (
+                  <button
+                    key={action.id}
+                    type="button"
+                    onClick={action.onClick}
+                    disabled={action.disabled}
+                    className={`rounded p-1.5 transition-colors ${action.danger ? "text-muted-foreground hover:text-destructive" : action.pressed ? "text-foreground" : "text-muted-foreground hover:text-foreground"} ${action.disabled ? "cursor-not-allowed text-muted-foreground/30" : ""}`}
+                    title={action.label}
+                  >
+                    {action.icon}
+                  </button>
+                ))}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                      title="Import / export"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="font-mono text-xs">
+                    <DropdownMenuItem onClick={() => exportSingleEntry(entry)}>
+                      <FileText className="mr-2 h-3.5 w-3.5" /> export as markdown
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => exportSingleAsJson(entry)}>
+                      <FileJson className="mr-2 h-3.5 w-3.5" /> export as JSON
+                    </DropdownMenuItem>
+                    {canManage && entryIsLocal && onPromoteToCloud && (
+                      <DropdownMenuItem onClick={() => setPromoteOpen(true)}>
+                        <Cloud className="mr-2 h-3.5 w-3.5" /> move to cloud…
+                      </DropdownMenuItem>
+                    )}
+                    {canManage && (
+                      <DropdownMenuItem onClick={() => importInputRef.current?.click()}>
+                        <Upload className="mr-2 h-3.5 w-3.5" /> import file(s)…
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <button
-                  onClick={() => onNewSubpage(entry.id)}
-                  className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-                  title="Create sub-page"
+                  type="button"
+                  onClick={() => window.dispatchEvent(new CustomEvent("nw:shortcuts"))}
+                  className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                  title="Keyboard shortcuts (⌘?)"
                 >
-                  <FilePlus className="h-3.5 w-3.5" />
+                  <Keyboard className="h-3.5 w-3.5" />
                 </button>
-              )}
-              {canManage && (
-                <button
-                  onClick={() => onTogglePin(entry.id, !entry.pinned)}
-                  className={`p-1.5 rounded transition-colors ${entry.pinned ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                  title={entry.pinned ? "Unpin" : "Pin entry"}
-                >
-                  {entry.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-                </button>
-              )}
-              {canEdit && (
-                <button
-                  onClick={() => { setEditingSceneId(null); setDrawingOpen(true); }}
-                  className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-                  title="Open drawing canvas"
-                >
-                  <PenTool className="h-3.5 w-3.5" />
-                </button>
-              )}
-              {canEdit && (
-                <button
-                  onClick={() => !entryIsLocal && setHistoryOpen(true)}
-                  disabled={entryIsLocal}
-                  className={`p-1.5 rounded transition-colors ${entryIsLocal ? "text-muted-foreground/30 cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
-                  title={entryIsLocal ? "Version history isn't available for local pages" : "Version history"}
-                >
-                  <History className="h-3.5 w-3.5" />
-                </button>
-              )}
-              <button
-                onClick={() => setShowLineNumbers((s) => !s)}
-                className={`p-1.5 rounded transition-colors ${showLineNumbers ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                title={showLineNumbers ? "Hide line numbers" : "Show line numbers"}
-              >
-                <Hash className="h-3.5 w-3.5" />
-              </button>
-              {canEdit && onOpenLecture && (
-                <button
-                  onClick={onOpenLecture}
-                  className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-                  title="Lecture Mode"
-                >
-                  <Mic className="h-3.5 w-3.5" />
-                </button>
-              )}
-              <button
-                onClick={onOpenAI}
-                className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-                title="Open AI assistant (⌘J)"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-              </button>
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={() => onDelete(entry.id)}
+                    className="rounded p-1.5 text-muted-foreground transition-colors hover:text-destructive"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button
-                    className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-                    title="Import / export"
+                    type="button"
+                    className="page-toolbar-more rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Page actions"
+                    title="Page actions"
                   >
-                    <Download className="h-3.5 w-3.5" />
+                    <MoreHorizontal className="h-3.5 w-3.5" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="font-mono text-xs">
+                <DropdownMenuContent align="end" className="w-[min(16rem,calc(100vw-2rem))] font-mono text-xs">
+                  {pageActions.map((action) => (
+                    <DropdownMenuItem key={action.id} disabled={action.disabled} onClick={action.onClick}>
+                      <span className="mr-2">{action.icon}</span>
+                      {action.label}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => exportSingleEntry(entry)}>
-                    <FileText className="h-3.5 w-3.5 mr-2" /> export as markdown
+                    <FileText className="mr-2 h-3.5 w-3.5" /> export as markdown
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => exportSingleAsJson(entry)}>
-                    <FileJson className="h-3.5 w-3.5 mr-2" /> export as JSON
+                    <FileJson className="mr-2 h-3.5 w-3.5" /> export as JSON
                   </DropdownMenuItem>
                   {canManage && entryIsLocal && onPromoteToCloud && (
                     <DropdownMenuItem onClick={() => setPromoteOpen(true)}>
-                      <Cloud className="h-3.5 w-3.5 mr-2" /> move to cloud…
+                      <Cloud className="mr-2 h-3.5 w-3.5" /> move to cloud…
                     </DropdownMenuItem>
                   )}
                   {canManage && (
                     <DropdownMenuItem onClick={() => importInputRef.current?.click()}>
-                      <Upload className="h-3.5 w-3.5 mr-2" /> import file(s)…
+                      <Upload className="mr-2 h-3.5 w-3.5" /> import file(s)…
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => window.dispatchEvent(new CustomEvent("nw:shortcuts"))}>
+                    <Keyboard className="mr-2 h-3.5 w-3.5" /> keyboard shortcuts
+                  </DropdownMenuItem>
+                  {canDelete && (
+                    <DropdownMenuItem onClick={() => onDelete(entry.id)} className="text-destructive focus:text-destructive">
+                      <Trash2 className="mr-2 h-3.5 w-3.5" /> delete
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -443,21 +523,13 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
                 onChange={handleImport}
               />
               <button
-                onClick={() => window.dispatchEvent(new CustomEvent("nw:shortcuts"))}
-                className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
-                title="Keyboard shortcuts (⌘?)"
+                type="button"
+                onClick={onOpenAI}
+                className="rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+                title="Open AI assistant (⌘J)"
               >
-                <Keyboard className="h-3.5 w-3.5" />
+                <Sparkles className="h-3.5 w-3.5" />
               </button>
-              {canDelete && (
-                <button
-                  onClick={() => onDelete(entry.id)}
-                  className="p-1.5 rounded text-muted-foreground hover:text-destructive transition-colors"
-                  title="Delete"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              )}
             </div>
           </>
         )}

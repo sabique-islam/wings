@@ -2156,6 +2156,56 @@ body.nw-col-resizing * {
   .dither--animate { animation: none; }
 }
 
+/* Page header fits the pane, including a split column, not the browser window. */
+.page-toolbar {
+  container-type: inline-size;
+  container-name: page-toolbar;
+}
+.page-toolbar-meta,
+.page-music-title {
+  display: none;
+}
+.page-toolbar-tools {
+  display: none;
+  align-items: center;
+}
+.page-toolbar-more {
+  display: flex;
+}
+@container page-toolbar (width >= 28rem) {
+  .page-music-title { display: inline; }
+}
+@container page-toolbar (width >= 40rem) {
+  .page-toolbar-meta { display: inline-flex; }
+}
+@container page-toolbar (width >= 52rem) {
+  .page-toolbar-tools { display: flex; }
+  .page-toolbar-more { display: none; }
+}
+
+.page-music-waves {
+  width: 28px;
+  height: 12px;
+  overflow: hidden;
+  color: currentColor;
+}
+.page-music-wave {
+  transform-box: fill-box;
+  animation: page-music-flow 1.8s linear infinite;
+}
+.page-music-wave-soft {
+  animation-duration: 2.4s;
+  animation-direction: reverse;
+}
+@keyframes page-music-flow {
+  from { transform: translateX(0); }
+  to { transform: translateX(-16px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-music-wave,
+  .page-music-wave-soft { animation: none; }
+}
+
 /* Fixed-width ASCII box art — no ligatures, no letter-spacing drift */
 .nw-ascii-box {
   font-variant-ligatures: none;
