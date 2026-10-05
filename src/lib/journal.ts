@@ -8,6 +8,7 @@ import type { FullEditorChangePayload } from "./editorPayload";
 import { payloadFromMarkdown } from "./entryContent";
 import type { ContentStorage } from "@/lib/localContent";
 import { normalizeContentStorage } from "@/lib/localContent";
+import { entryPropertiesUpdate } from "@/lib/pageMusic/pageSong";
 
 export type { ContentStorage } from "@/lib/localContent";
 
@@ -26,6 +27,8 @@ export interface Entry {
   /** Client-side sidebar order; persisted only when the DB column exists. */
   sort_order: number | null;
   deleted_at: string | null;
+  /** Page metadata such as the chosen song. Never written by the content save. */
+  properties?: Record<string, unknown>;
 }
 
 export type ShareRole = "owner" | "admin" | "editor" | "viewer";
@@ -110,14 +113,14 @@ export function findReusableBlankDraft(
 
 /** Columns for entries the caller owns (includes share_token for ShareMenu / public link). */
 const ENTRY_COLS_OWNER_LEGACY =
-  "id, content, content_json, created_at, user_id, pinned, parent_id, title, share_token, layout, deleted_at";
+  "id, content, content_json, created_at, user_id, pinned, parent_id, title, share_token, layout, deleted_at, properties";
 
 /** Columns for entries shared with the caller — never include share_token. */
 const ENTRY_COLS_SHARED_LEGACY =
   "id, content, content_json, created_at, user_id, pinned, parent_id, title, layout, deleted_at, properties, sort_order";
 
 const ENTRY_COLS_OWNER =
-  "id, content, content_json, content_storage, created_at, user_id, pinned, parent_id, title, share_token, layout, deleted_at";
+  "id, content, content_json, content_storage, created_at, user_id, pinned, parent_id, title, share_token, layout, deleted_at, properties";
 
 const ENTRY_COLS_SHARED =
   "id, content, content_json, content_storage, created_at, user_id, pinned, parent_id, title, layout, deleted_at, properties, sort_order";
@@ -180,6 +183,10 @@ function mapEntryRow(d: unknown): Entry {
     layout: normalizeLayout(row.layout),
     sort_order: row.sort_order == null ? null : Number(row.sort_order),
     deleted_at: (row.deleted_at as string | null) ?? null,
+    properties:
+      row.properties && typeof row.properties === "object" && !Array.isArray(row.properties)
+        ? (row.properties as Record<string, unknown>)
+        : {},
   };
 }
 
@@ -529,6 +536,11 @@ export async function entryHasShares(entryId: string): Promise<boolean> {
     .eq("entry_id", entryId);
   if (error) return false;
   return (count ?? 0) > 0;
+}
+
+export async function updateEntryProperties(id: string, properties: Record<string, unknown>): Promise<void> {
+  const { error } = await supabase.from("entries").update(entryPropertiesUpdate(properties)).eq("id", id);
+  if (error) throw error;
 }
 
 export async function updateEntryTitle(id: string, title: string): Promise<void> {
