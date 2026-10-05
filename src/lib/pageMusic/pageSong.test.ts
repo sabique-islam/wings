@@ -84,6 +84,30 @@ describe("playback when the page changes", () => {
     })).toBe("ask");
   });
 
+  it("asks once for a play, then keeps going until the song is paused", () => {
+    const first = playbackOnPageChange({
+      playing: true,
+      currentKey: pageSongKey(catalogSong),
+      nextSong: uploadSong,
+      alreadyAsked: false,
+    });
+    const later = playbackOnPageChange({
+      playing: true,
+      currentKey: pageSongKey(catalogSong),
+      nextSong: null,
+      alreadyAsked: true,
+    });
+    const afterPause = playbackOnPageChange({
+      playing: false,
+      currentKey: pageSongKey(catalogSong),
+      nextSong: uploadSong,
+      alreadyAsked: false,
+    });
+    expect(first).toBe("ask");
+    expect(later).toBe("keep");
+    expect(afterPause).toBe("keep");
+  });
+
   it("stays quiet when nothing is playing", () => {
     expect(playbackOnPageChange({
       playing: false,

@@ -68,13 +68,17 @@ export function entryPropertiesUpdate(properties: Record<string, unknown>): { pr
 
 export type PlaybackDecision = "keep" | "ask";
 
-/** Whether a focused-page change should interrupt audio that is already playing. */
+/**
+ * Whether a focused-page change should interrupt audio that is already playing.
+ * `alreadyAsked` stays set for the rest of this play, until the song is paused.
+ */
 export function playbackOnPageChange(opts: {
   playing: boolean;
   currentKey: string | null;
   nextSong: PageSong | null;
+  alreadyAsked?: boolean;
 }): PlaybackDecision {
-  if (!opts.playing) return "keep";
+  if (!opts.playing || opts.alreadyAsked) return "keep";
   if (opts.currentKey && opts.currentKey === pageSongKey(opts.nextSong)) return "keep";
   return "ask";
 }
