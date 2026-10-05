@@ -64,6 +64,8 @@ export function PageMusicProvider({
   const blobUrlRef = useRef<string | null>(null);
   const nowRef = useRef<NowPlaying | null>(null);
   const playingRef = useRef(false);
+  const askedKeyRef = useRef<string | null>(null);
+  const askedOnEntryRef = useRef<string | null>(null);
   const focusedSongRef = useRef(focusedSong);
   focusedSongRef.current = focusedSong;
   const focusedKey = pageSongKey(focusedSong);
@@ -82,6 +84,8 @@ export function PageMusicProvider({
     const onPause = () => {
       playingRef.current = false;
       setPlaying(false);
+      askedKeyRef.current = null;
+      askedOnEntryRef.current = null;
     };
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
@@ -105,6 +109,8 @@ export function PageMusicProvider({
     }
     nowRef.current = null;
     playingRef.current = false;
+    askedKeyRef.current = null;
+    askedOnEntryRef.current = null;
     setNowKey(null);
     setPlaying(false);
     setPromptOpen(false);
@@ -120,6 +126,7 @@ export function PageMusicProvider({
       else audio.pause();
       return;
     }
+    askedKeyRef.current = null;
     void (async () => {
       const url = await resolveSongUrl(song);
       if (!url) {
@@ -140,11 +147,17 @@ export function PageMusicProvider({
   };
 
   useEffect(() => {
+    const currentKey = nowRef.current?.key ?? null;
     const decision = playbackOnPageChange({
       playing: playingRef.current,
-      currentKey: nowRef.current?.key ?? null,
+      currentKey,
       nextSong: focusedSongRef.current,
+      alreadyAsked: askedKeyRef.current === currentKey && askedOnEntryRef.current !== focusedEntryId,
     });
+    if (decision === "ask" && currentKey) {
+      askedKeyRef.current = currentKey;
+      askedOnEntryRef.current = focusedEntryId;
+    }
     setPromptOpen(decision === "ask");
   }, [focusedEntryId, focusedKey]);
 
