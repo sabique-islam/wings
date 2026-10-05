@@ -14,11 +14,21 @@ const catalogSong: PageSong = { source: "catalog", id: "rain" };
 const uploadSong: PageSong = { source: "upload", path: "user/page/track.mp3", name: "Track" };
 
 describe("page music catalogue", () => {
-  it("lists every group even before tracks are registered", () => {
+  it("lists every group and the public-domain tracks", () => {
     expect(MUSIC_GROUPS.map((group) => group.label)).toEqual(["Soothing", "Lofi", "Simple", "NCS"]);
-    for (const group of MUSIC_GROUPS) {
-      expect(catalogTracksInGroup(group.id)).toEqual([]);
-    }
+    expect(catalogTracksInGroup("soothing").map((item) => item.id)).toEqual([
+      "calm-currents",
+      "tranquil-mindscape",
+      "into-the-mist",
+    ]);
+    expect(catalogTracksInGroup("lofi")).toHaveLength(3);
+    expect(catalogTracksInGroup("simple")).toHaveLength(3);
+    expect(catalogTracksInGroup("ncs")).toEqual([]);
+    expect(catalogTrackById("calm-currents")).toMatchObject({
+      artist: "HoliznaCC0",
+      src: "/music/soothing/calm-currents.mp3",
+      licenseId: "cc0-1.0",
+    });
     expect(catalogTrackById("missing")).toBeNull();
   });
 });
