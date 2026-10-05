@@ -24,6 +24,8 @@ import { uploadImage } from "@/lib/imageUpload";
 import { InlineAIMenu } from "@/components/InlineAIMenu";
 import { DrawingCanvas } from "@/components/DrawingCanvas";
 import { PagePeekHost } from "@/components/PagePeekHost";
+import { PageMusicControl } from "@/components/PageMusicControl";
+import { readPageSong, type PageSong } from "@/lib/pageMusic/pageSong";
 import { useEditorAppearance } from "@/components/EditorAppearanceProvider";
 import { pageEditorWidthClass } from "@/lib/editorAppearance";
 import { rememberDrawingSnapshot } from "@/lib/ai/excalidrawContext";
@@ -63,6 +65,8 @@ interface Props {
   saveStatus?: "idle" | "saving" | "saved" | "error";
   collabEnabled?: boolean;
   active?: boolean;
+  onPageSongChange?: (entryId: string, song: PageSong | null) => void;
+  onUploadPageSong?: (entryId: string, file: File) => void;
 }
 
 const WORD_COUNT_DEBOUNCE_MS = 300;
@@ -71,7 +75,7 @@ function canEditRole(role: ShareRole): boolean {
   return role === "owner" || role === "admin" || role === "editor";
 }
 
-export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, onChange, onTitleChange, onDelete, onTogglePin, sidebarOpen, onToggleSidebar, breadcrumbTrail, onNavigate, onNewSubpage, onUpdateEntry, userRole, onNewSubpageWithTitle, onRestoreVersion, onOpenAI, onOpenLecture, onImported, onNew, onPromoteToCloud, saveStatus = "idle", collabEnabled = false, active = true }: Props) {
+export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, onChange, onTitleChange, onDelete, onTogglePin, sidebarOpen, onToggleSidebar, breadcrumbTrail, onNavigate, onNewSubpage, onUpdateEntry, userRole, onNewSubpageWithTitle, onRestoreVersion, onOpenAI, onOpenLecture, onImported, onNew, onPromoteToCloud, saveStatus = "idle", collabEnabled = false, active = true, onPageSongChange, onUploadPageSong }: Props) {
   const { user } = useAuth();
   const { appearance } = useEditorAppearance();
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -329,6 +333,12 @@ export function JournalEditor({ entry, allEntries = [], roleMap = {}, userId, on
               </span>
             )}
             <div className="ml-auto flex items-center gap-1">
+              <PageMusicControl
+                song={readPageSong(entry.properties)}
+                canChoose={canEditRole(userRole)}
+                onChange={(song) => onPageSongChange?.(entry.id, song)}
+                onUpload={(file) => onUploadPageSong?.(entry.id, file)}
+              />
               {userRole === "viewer" && (
                 <span className="text-[10px] text-muted-foreground/50 font-mono px-2">view only</span>
               )}

@@ -1,7 +1,7 @@
 import { Fragment, useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { toast } from "sonner";
-import { fetchEntries, syncWorkspaceEntries, updateEntry, updateEntryTitle, moveEntry, saveEntryOrder, deleteEntry, togglePin, getBreadcrumbTrail, Entry, getEntryTitle, findReusableBlankDraft, normalizeEntryTitle, ShareRole } from "@/lib/journal";
+import { fetchEntries, syncWorkspaceEntries, updateEntry, updateEntryTitle, updateEntryProperties, moveEntry, saveEntryOrder, deleteEntry, togglePin, getBreadcrumbTrail, Entry, getEntryTitle, findReusableBlankDraft, normalizeEntryTitle, ShareRole } from "@/lib/journal";
 import type { CollectionInfo } from "@/lib/collections";
 import {
   addPagesToCollection,
@@ -48,6 +48,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { JournalEditor } from "@/components/JournalEditor";
+import { PageMusicProvider } from "@/components/PageMusicControl";
 import { QuickSwitcher } from "@/components/QuickSwitcher";
 import { CommandPalette } from "@/components/CommandPalette";
 import { CollectionEditorDialog } from "@/components/CollectionEditorDialog";
@@ -63,6 +64,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { LoadingScreen } from "@/components/ui/spinner";
 import { Seo } from "@/components/Seo";
 import { playUiSound } from "@/lib/uiSounds";
+import { audioFileError } from "@/lib/pageMusic/audioFile";
+import { saveLocalPageAudio } from "@/lib/pageMusic/localAudio";
+import { localAudioPath, readPageSong, withPageSong, type PageSong } from "@/lib/pageMusic/pageSong";
+import { uploadPageAudio } from "@/lib/pageMusic/upload";
 import {
   closeTab,
   cycleTab,
@@ -1251,6 +1256,42 @@ export default function Index() {
     setEntries((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
   }, []);
 
+  const handlePageSongChange = useCallback(async (entryId: string, song: PageSong | null) => {
+    const existing = entriesRef.current.find((entry) => entry.id === entryId);
+    if (!existing) return;
+    const properties = withPageSong(existing.properties, song);
+    try {
+      await updateEntryProperties(entryId, properties);
+      const next = { ...existing, properties };
+      setEntries((prev) => prev.map((entry) => (entry.id === entryId ? next : entry)));
+      if (userId) void putCachedEntry(userId, next);
+    } catch (err) {
+      toast.error("Couldn't save the page song", { description: entryErrorMessage(err) });
+    }
+  }, [userId]);
+
+  const handleUploadPageSong = useCallback(async (entryId: string, file: File) => {
+    const rejected = audioFileError(file);
+    if (rejected) {
+      toast.error(rejected);
+      return;
+    }
+    const existing = entriesRef.current.find((entry) => entry.id === entryId);
+    if (!existing || !userId) return;
+    try {
+      let song: PageSong;
+      if (isLocalEntry(existing)) {
+        await saveLocalPageAudio(entryId, file);
+        song = { source: "upload", path: localAudioPath(entryId), name: file.name };
+      } else {
+        song = { source: "upload", path: await uploadPageAudio(file, userId, entryId), name: file.name };
+      }
+      await handlePageSongChange(entryId, song);
+    } catch (err) {
+      toast.error("Couldn't upload that audio", { description: entryErrorMessage(err) });
+    }
+  }, [userId, handlePageSongChange]);
+
   const handlePromoteToCloud = useCallback(
     async (entryId: string, payload: EditorChangePayload) => {
       if (!userId || !isFullPayload(payload)) return;
@@ -1475,6 +1516,8 @@ export default function Index() {
         onNew={handleNew}
         onImported={() => void loadEntries()}
         onPromoteToCloud={handlePromoteToCloud}
+        onPageSongChange={(entryId, song) => void handlePageSongChange(entryId, song)}
+        onUploadPageSong={(entryId, file) => void handleUploadPageSong(entryId, file)}
         saveStatus={paneEntryId ? (saveStatuses[paneEntryId] ?? "idle") : "idle"}
         collabEnabled={
           Boolean(paneEntryId && sharedEntryIds.has(paneEntryId)) &&
@@ -1510,11 +1553,19 @@ export default function Index() {
     );
   };
 
+  const focusedPane = renderedSplitState.panes.find((pane) => pane.id === renderedSplitState.activePaneId);
+  const focusedTab = tabsEnabled ? findTab(tabState, focusedPane?.activeKey ?? null) : null;
+  const focusedPageId = tabsEnabled
+    ? (focusedTab?.kind === "page" ? focusedTab.id : null)
+    : (isTrashRoute || collectionId ? null : activeId);
+  const focusedSong = readPageSong(entries.find((entry) => entry.id === focusedPageId)?.properties);
+
   if (loading) {
     return <LoadingScreen variant="gyro" />;
   }
 
   return (
+    <PageMusicProvider focusedEntryId={focusedPageId} focusedSong={focusedSong}>
     <>
       <Seo title={tabTitle} path={tabPath} noIndex />
     <div className="flex h-screen w-full min-w-0 flex-col overflow-hidden">
@@ -1680,5 +1731,6 @@ export default function Index() {
       />
     </div>
     </>
+    </PageMusicProvider>
   );
 }
