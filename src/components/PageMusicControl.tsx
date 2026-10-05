@@ -127,6 +127,7 @@ export function PageMusicProvider({
       return;
     }
     askedKeyRef.current = null;
+    askedOnEntryRef.current = null;
     void (async () => {
       const url = await resolveSongUrl(song);
       if (!url) {
