@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Wings",
-    "description": "Wings does not expose a public third-party HTTP API. Sign-in and data access are provided by the first-party web app (Supabase Auth + PostgREST with RLS). AI features are BYOK in the browser. This OpenAPI document exists so agents can discover that fact programmatically.",
-    "version": "0.0.0",
+    "title": "Wings personal API",
+    "description": "Authenticated API for the signed-in user's own pages, plus remote MCP at /api/mcp. Human sign-in stays Google or magic link. Agents use a personal access token (Authorization: Bearer) or OAuth 2.1 for MCP clients such as ChatGPT and Claude. The API is owner-only: it does not return another user's pages. Local-vault bodies are omitted.",
+    "version": "1.0.0",
     "contact": {
       "email": "mail@wings.nopejs.me",
       "url": "https://wings.nopejs.me/contact"
@@ -16,8 +16,121 @@
   "servers": [
     {
       "url": "https://wings.nopejs.me",
-      "description": "Marketing site and SPA shell (no public REST surface)"
+      "description": "Production"
     }
   ],
-  "paths": {}
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Personal access token (wings_pat_…) or OAuth access token (wings_oat_…)."
+      }
+    }
+  },
+  "security": [
+    { "bearerAuth": [] }
+  ],
+  "paths": {
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "operationId": "protectedResourceMetadata",
+        "security": [],
+        "summary": "OAuth protected resource metadata (RFC 9728)",
+        "responses": { "200": { "description": "Resource metadata for /api/mcp" } }
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "operationId": "authorizationServerMetadata",
+        "security": [],
+        "summary": "OAuth authorization server metadata (RFC 8414)",
+        "responses": { "200": { "description": "Authorization server metadata. PKCE S256 only." } }
+      }
+    },
+    "/api/oauth/register": {
+      "post": {
+        "operationId": "registerOAuthClient",
+        "security": [],
+        "summary": "Dynamic client registration (RFC 7591)",
+        "responses": { "201": { "description": "Public client. token_endpoint_auth_method is none." } }
+      }
+    },
+    "/api/oauth/token": {
+      "post": {
+        "operationId": "oauthToken",
+        "security": [],
+        "summary": "Exchange an authorization code or rotate a refresh token",
+        "responses": { "200": { "description": "Short-lived access token and rotated refresh token" } }
+      }
+    },
+    "/api/oauth/revoke": {
+      "post": {
+        "operationId": "oauthRevoke",
+        "security": [],
+        "summary": "Revoke an OAuth access or refresh token (RFC 7009)",
+        "responses": { "200": { "description": "Always 200 when the request is well formed" } }
+      }
+    },
+    "/api/mcp": {
+      "post": {
+        "operationId": "mcp",
+        "summary": "Streamable HTTP MCP (JSON-RPC). Tools: list_pages, get_page, search_pages, create_page, update_page, append_to_page.",
+        "responses": {
+          "200": { "description": "JSON-RPC result, or SSE when Accept includes text/event-stream" },
+          "401": { "description": "WWW-Authenticate points at protected resource metadata" }
+        }
+      }
+    },
+    "/api/v1/pages": {
+      "get": {
+        "operationId": "listPages",
+        "summary": "List the caller's pages, including parent_id and content_storage. Bodies are omitted.",
+        "responses": { "200": { "description": "Page metadata" } }
+      },
+      "post": {
+        "operationId": "createPage",
+        "summary": "Create a cloud page. Requires the write scope. Optional parent_id.",
+        "responses": { "201": { "description": "Created page" } }
+      }
+    },
+    "/api/v1/pages/{id}": {
+      "get": {
+        "operationId": "getPage",
+        "summary": "Get one page. Local-vault bodies are omitted with a message.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Page" }, "404": { "description": "Not found" } }
+      },
+      "patch": {
+        "operationId": "updatePage",
+        "summary": "Update title, parent, or markdown. Requires write. Empty replacement of a substantial page is refused.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Updated page" }, "409": { "description": "Local-vault body cannot be changed" } }
+      }
+    },
+    "/api/v1/pages/{id}/append": {
+      "post": {
+        "operationId": "appendPage",
+        "summary": "Append markdown to a cloud page. Requires write.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": { "200": { "description": "Updated page" } }
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "operationId": "searchPages",
+        "summary": "Search the caller's cloud page text and titles. Results are metadata only.",
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Matches" } }
+      }
+    }
+  }
 }

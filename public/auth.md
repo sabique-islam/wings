@@ -4,7 +4,9 @@ Agent authentication discovery for [Wings](https://wings.nopejs.me).
 
 ## Audience
 
-Wings is a first-party web journal for humans. There is **no** public agent registration API, OAuth Authorization Server, or OAuth Protected Resource on `wings.nopejs.me`.
+People sign in to the Wings app with Google or a magic link. That account login is Supabase Auth. It is separate from the token an MCP client uses to read that person's own pages.
+
+Wings does not register agent accounts and does not publish `/.well-known/openid-configuration`.
 
 ## How humans sign in
 
@@ -12,24 +14,38 @@ Wings is a first-party web journal for humans. There is **no** public agent regi
 2. Choose **Google OAuth** or **magic link** (email OTP).
 3. Complete the PKCE callback at `/auth/callback`.
 
-Authentication is provided by **Supabase Auth** on the project's `*.supabase.co` issuer — not by Wings-hosted `/.well-known/openid-configuration` or `/.well-known/oauth-authorization-server`.
+## How an MCP client connects
 
-## Agent registration
+Remote MCP (streamable HTTP): [https://wings.nopejs.me/api/mcp](https://wings.nopejs.me/api/mcp)
 
-| Method | Supported |
-|--------|-----------|
-| Automated agent registration | No |
-| Client credentials / machine tokens from Wings | No |
-| Third-party OAuth resource server on this origin | No |
+Two credentials work on that same endpoint:
 
-If you need programmatic access to user notes, that product API does not exist today. Use the web app as a signed-in human, or contact [mail@wings.nopejs.me](mailto:mail@wings.nopejs.me).
+| Credential | Who uses it | Header |
+|------------|-------------|--------|
+| Personal access token (`wings_pat_…`) | curl, Cursor, other headless clients | `Authorization: Bearer <personal access token>` |
+| OAuth 2.1 access token (`wings_oat_…`) | ChatGPT custom connectors, Claude custom connectors | Obtained by the client. PKCE S256 is required. |
+
+OAuth metadata:
+
+- Protected resource: `/.well-known/oauth-protected-resource` (also path-inserted at `/.well-known/oauth-protected-resource/api/mcp`)
+- Authorization server: `/.well-known/oauth-authorization-server`
+- Dynamic client registration: `POST /api/oauth/register`
+- Consent screen: `/oauth/authorize` (shows the client name and read vs write)
+- Token endpoint: `POST /api/oauth/token` (form or JSON). Access tokens last one hour. Refresh tokens rotate and can be revoked.
+
+A missing or rejected bearer token on `/api/mcp` returns 401 with `WWW-Authenticate` pointing at the protected resource metadata.
+
+Create and revoke personal tokens, and revoke connected OAuth apps, in the app under Settings → Access. The plaintext token is shown once. Default scope is read. Write must be chosen explicitly. Tokens are stored only as hashes.
+
+The API returns the token owner's pages only. A page stored in the local vault does not have its body on the server.
 
 ## Related discovery
 
 - Product map for agents: [/llms.txt](https://wings.nopejs.me/llms.txt)
-- API catalog (honest: no public API): [/.well-known/api-catalog](https://wings.nopejs.me/.well-known/api-catalog)
+- API catalog: [/.well-known/api-catalog](https://wings.nopejs.me/.well-known/api-catalog)
+- OpenAPI: [/openapi.json](https://wings.nopejs.me/openapi.json)
 - Security contact: [/.well-known/security.txt](https://wings.nopejs.me/.well-known/security.txt)
 
-## Deferred standards (intentionally not published)
+## Still not published
 
-Wings does **not** publish OAuth AS/PRM metadata, MCP Server Cards, A2A Agent Cards, or DNS-AID records on this domain. Fabricating those would mislead agents into broken auth flows. They will be added only when real endpoints ship.
+MCP Server Card (SEP-1649), DNS-AID, A2A Agent Card, and commerce protocols (UCP, ACP) are not implemented. Those paths return 404.

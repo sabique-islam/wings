@@ -10,7 +10,7 @@ Wings is a private journal product. User notes and share links are not for crawl
 - [Pricing](https://wings.nopejs.me/pricing): Free today; paid plans planned
 - [About](https://wings.nopejs.me/about): What Wings is and how it is built
 - [Roadmap](https://wings.nopejs.me/roadmap): Shipped, in progress, and exploring
-- [Docs](https://wings.nopejs.me/docs): Auth, lecture mode, local vault, sharing, export, AI BYOK, keyboard, FAQ
+- [Docs](https://wings.nopejs.me/docs): Auth, API and MCP, lecture mode, local vault, sharing, export, AI BYOK, keyboard, FAQ
 - [Docs (markdown)](https://wings.nopejs.me/docs.md): Same docs as markdown
 
 ## Blog
@@ -31,9 +31,12 @@ Wings is a private journal product. User notes and share links are not for crawl
 
 ## Agent discovery
 
-- [auth.md](https://wings.nopejs.me/auth.md): Human auth only; no agent registration API
-- [API catalog](https://wings.nopejs.me/.well-known/api-catalog): RFC 9727 linkset (no public HTTP API)
-- [OpenAPI](https://wings.nopejs.me/openapi.json): Empty paths document stating no public API
+- [auth.md](https://wings.nopejs.me/auth.md): Human sign-in, personal access tokens, and MCP OAuth
+- [API catalog](https://wings.nopejs.me/.well-known/api-catalog): RFC 9727 linkset for the personal API and MCP
+- [OpenAPI](https://wings.nopejs.me/openapi.json): Owner-only pages API and `/api/mcp`
+- [MCP](https://wings.nopejs.me/api/mcp): Streamable HTTP. `Authorization: Bearer <personal access token>` or OAuth
+- [OAuth protected resource](https://wings.nopejs.me/.well-known/oauth-protected-resource)
+- [OAuth authorization server](https://wings.nopejs.me/.well-known/oauth-authorization-server)
 - [Agent skills index](https://wings.nopejs.me/.well-known/agent-skills/index.json)
 - [security.txt](https://wings.nopejs.me/.well-known/security.txt)
 - [Agent discovery status](https://wings.nopejs.me/.well-known/agent-discovery.md)

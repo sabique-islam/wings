@@ -1,10 +1,9 @@
 import { next } from "@vercel/edge";
+import { isResourceMetadataPath, isServerMetadataPath, metadataResponse } from "./src/server/api/http";
 
 /** Well-known paths we intentionally do not publish (no soft-404 HTML). */
 const NOT_APPLICABLE_PATHS = new Set([
   "/.well-known/openid-configuration",
-  "/.well-known/oauth-authorization-server",
-  "/.well-known/oauth-protected-resource",
   "/.well-known/mcp/server-card.json",
   "/.well-known/mcp/server-cards.json",
   "/.well-known/mcp.json",
@@ -63,6 +62,7 @@ export const config = {
     "/.well-known/openid-configuration",
     "/.well-known/oauth-authorization-server",
     "/.well-known/oauth-protected-resource",
+    "/.well-known/oauth-protected-resource/api/mcp",
     "/.well-known/mcp/server-card.json",
     "/.well-known/mcp/server-cards.json",
     "/.well-known/mcp.json",
@@ -81,6 +81,17 @@ export default async function middleware(request: Request): Promise<Response> {
       status: 404,
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
+  }
+
+  if ((request.method === "GET" || request.method === "HEAD") && isResourceMetadataPath(pathname)) {
+    const metadata = metadataResponse(url.origin, "resource");
+    if (request.method === "HEAD") return new Response(null, { status: 200, headers: metadata.headers });
+    return metadata;
+  }
+  if ((request.method === "GET" || request.method === "HEAD") && isServerMetadataPath(pathname)) {
+    const metadata = metadataResponse(url.origin, "server");
+    if (request.method === "HEAD") return new Response(null, { status: 200, headers: metadata.headers });
+    return metadata;
   }
 
   if (request.method === "GET" || request.method === "HEAD") {

@@ -6,7 +6,7 @@
   "installCommand": "npm install --legacy-peer-deps",
   "rewrites": [
     {
-      "source": "/((?!\\.well-known/|og\\.jpg|og\\.png|pcm-capture-worklet\\.js).*)",
+      "source": "/((?!\\.well-known/|og\\.jpg|og\\.png|pcm-capture-worklet\\.js|api/).*)",
       "destination": "/index.html"
     }
   ],

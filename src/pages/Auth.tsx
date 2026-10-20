@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Seo } from "@/components/Seo";
 import { toast } from "sonner";
 import { sendMagicLink } from "@/lib/auth";
@@ -6,8 +6,9 @@ import { signInWithGoogle } from "@/lib/auth/oauth";
 import { Logo } from "@/components/Logo";
 import { GoogleLogo } from "@/components/GoogleLogo";
 import { Dither } from "@/components/ui/Dither";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useRedirectIfAuthed } from "@/hooks/useRedirectIfAuthed";
+import { isSafeReturnTo, stashReturnTo } from "@/lib/auth/returnTo";
 import { LoadingScreen } from "@/components/ui/spinner";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -19,7 +20,13 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const { loading: authLoading } = useAuth();
+  const [searchParams] = useSearchParams();
   useRedirectIfAuthed();
+
+  useEffect(() => {
+    const returnTo = searchParams.get("returnTo");
+    if (returnTo && isSafeReturnTo(returnTo)) stashReturnTo(returnTo);
+  }, [searchParams]);
 
   if (authLoading) {
     return <LoadingScreen variant="helix" />;

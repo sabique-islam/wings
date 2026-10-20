@@ -70,6 +70,7 @@ EXTERNAL:
   AIAssistant tool:write/replace
   importFile
   SharedEntry read-only (no save)
+  Personal API create/update/append (src/server/api/pages.ts) — service role, owner filter, shouldBlockEmptySave, writes content and empty content_json together so markdown wins on load. Local-vault body writes are refused.
 ```
 
 Any new path must be added to this list and ship gate.

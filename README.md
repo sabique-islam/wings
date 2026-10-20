@@ -57,6 +57,18 @@ migrated from lovable to a personal stack in july 2026.
 
 ---
 
+## Connect an MCP client
+
+Remote MCP endpoint: `https://wings.nopejs.me/api/mcp`
+
+```http
+Authorization: Bearer <personal access token>
+```
+
+Create the token in the app under Settings → Access. It starts with `wings_pat_`. The default scope is read-only; turn on write when a client should create or edit pages. ChatGPT and Claude use OAuth on the same URL instead of a pasted token. See [docs](https://wings.nopejs.me/docs.md) for the connector steps. Local-vault bodies stay on the device and are not returned by the API.
+
+Before this works in production, apply `supabase/migrations/20261020190000_api_access.sql` and set `API_TOKEN_PEPPER`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` on the server. Those values stay out of git.
+
 ## Development
 
 ```sh

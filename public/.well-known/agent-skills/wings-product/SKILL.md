@@ -15,11 +15,12 @@ Wings (https://wings.nopejs.me) is a web notes app:
 - Share via public link (`/s/:token`) or email invite
 - Export markdown/JSON or a zip of vault-layout files; local draft cache
 
-## Not available
+## API and MCP
 
-- No public third-party HTTP API
-- No Wings-hosted OAuth Authorization Server for agents
-- No MCP server on the public site (yet)
+- Remote MCP: POST https://wings.nopejs.me/api/mcp
+- Header for headless clients: Authorization: Bearer <personal access token>
+- ChatGPT and Claude use OAuth 2.1 (PKCE S256) against the same URL
+- Owner-only. Local-vault bodies are not on the server
 - Share links and app routes are not for SEO/crawling
 
 ## Where to send humans
