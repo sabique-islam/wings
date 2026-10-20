@@ -62,6 +62,8 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-or-publishable-key
 
 Never commit `.env`. Never put service-role keys in `VITE_*` variables — those are embedded in the client bundle.
 
+The personal API and MCP server also need server-only variables (empty in `.env.example`): `API_TOKEN_PEPPER` (at least 32 characters; `openssl rand -base64 32`), `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. Apply `supabase/migrations/20261020190000_api_access.sql` before using them. Optional: `API_ALLOWED_ORIGINS` for extra browser origins. Do not set a wildcard.
+
 ### Auth redirect URLs (required for login)
 
 In Supabase **Authentication → URL Configuration**:

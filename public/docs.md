@@ -8,7 +8,36 @@ Product documentation for [Wings](https://wings.nopejs.me), a private notes app 
 2. Use **Google** or enter your email for a **magic link**.
 3. After PKCE callback at `/auth/callback`, you land in the app.
 
-Auth is powered by Supabase. There is no third-party API key for Wings itself. See [auth.md](https://wings.nopejs.me/auth.md).
+People sign in with Supabase (Google or magic link). See [auth.md](https://wings.nopejs.me/auth.md).
+
+## API and MCP
+
+A signed-in user can let an assistant read and write **their own** pages.
+
+- MCP endpoint: `POST https://wings.nopejs.me/api/mcp`
+- Headless clients send `Authorization: Bearer <personal access token>`
+- Create the token in **Settings → Access**. It is shown once and starts with `wings_pat_`. Default scope is read. Write is a separate choice.
+- ChatGPT and Claude use OAuth on that same URL. Wings publishes `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`. PKCE S256 is required. The consent screen shows the app name and whether it asked to write.
+- Tools: `list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`, `append_to_page`
+- The same operations are HTTP routes under `/api/v1/pages` and `/api/v1/search`
+- Local-vault bodies are not on the server. The API returns the title and a message instead of the body.
+- The API does not return pages that belong to someone else, including pages they shared with you.
+- Revoke a token or a connected app from Settings → Access.
+
+### ChatGPT
+
+1. Open ChatGPT settings and go to **Apps** or **Connectors** (Plugins → plus, or developer mode → custom connector, depending on the account).
+2. Add a custom MCP server.
+3. Name it Wings. URL: `https://wings.nopejs.me/api/mcp`. Authentication: **OAuth**.
+4. Create it and finish the Wings consent screen while signed in. Leave write unchecked unless you want the connector to edit pages.
+5. Invoke it with @Wings.
+
+### Claude
+
+1. Open **Settings → Connectors** (on a team, Organization settings → Connectors).
+2. Add a custom connector and choose **Web**.
+3. Name it Wings. Remote MCP URL: `https://wings.nopejs.me/api/mcp`.
+4. Approve the Wings consent screen. Claude completes OAuth, including PKCE, itself.
 
 ## Local vault
 
@@ -78,7 +107,11 @@ Press **⌘?** (Ctrl+?) in the app for the full list.
 
 ### How do I sign in to Wings?
 
-Open /auth and use Google OAuth or a magic link email. Auth is Supabase PKCE. There is no third-party Wings API key.
+Open /auth and use Google OAuth or a magic link email. Auth is Supabase PKCE. Connected apps use a personal access token or OAuth from Settings → Access.
+
+### How do I connect ChatGPT or Claude to my notes?
+
+In ChatGPT, add a custom MCP connector with URL https://wings.nopejs.me/api/mcp and OAuth. In Claude, add a custom web connector with the same URL. Approve the Wings consent screen. Headless clients can instead send Authorization: Bearer and a personal access token from Settings → Access. The default scope is read-only. Local-vault page bodies are not on the server.
 
 ### What is Lecture Mode?
 

@@ -2,9 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
+import { wingsApiPlugin } from "./server/viteApiPlugin.ts";
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
@@ -15,7 +16,7 @@ export default defineConfig({
       "Permissions-Policy": "camera=(), microphone=(self), geolocation=(), browsing-topics=()",
     },
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), wingsApiPlugin(mode)],
   worker: {
     format: "es",
   },
@@ -42,4 +43,4 @@ export default defineConfig({
       "@tiptap/suggestion",
     ],
   },
-});
+}));

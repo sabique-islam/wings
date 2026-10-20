@@ -1,5 +1,5 @@
 import type { JSONContent } from "@tiptap/core";
-import { markdownToHtml } from "@/lib/markdown";
+import { markdownToHtml } from "./markdown";
 
 /** True when a paragraph (including nested empty outline children) has no text. */
 function isEmptyParagraph(node: JSONContent): boolean {

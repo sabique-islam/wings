@@ -1,0 +1,38 @@
+# Secret scan of full git history, plus a dependency audit.
+# Does not rewrite history. A finding fails the job so it can be rotated.
+
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  secrets-and-deps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan git history for secrets
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # The existing lockfile has a large advisory backlog (editor, zip, and
+      # build tooling). This change adds no dependencies. Record the audit
+      # without failing the job on that backlog; secret scanning still fails it.
+      - name: Dependency audit
+        continue-on-error: true
+        run: bun audit
