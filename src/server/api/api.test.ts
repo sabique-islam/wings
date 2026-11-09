@@ -6,7 +6,7 @@ import { redact } from "./http";
 import { createMemoryStore } from "./memoryStore";
 import { MCP_TOOL_NAMES } from "./mcp";
 import { handleRequest } from "./router";
-import type { ApiDeps, PageRow } from "./types";
+import { StoreError, type ApiDeps, type PageRow } from "./types";
 import { EMPTY_DOC } from "./pages";
 
 const USER_A = "11111111-1111-4111-8111-111111111111";
@@ -315,6 +315,107 @@ describe("pages API", () => {
     expect((await call(tokenEnv.deps, "GET", "/api/v1/pages", { token: token.token, ip: "203.0.113.9" })).status).toBe(200);
     expect((await call(tokenEnv.deps, "GET", "/api/v1/pages", { token: token.token, ip: "203.0.113.9" })).status).toBe(200);
     expect((await call(tokenEnv.deps, "GET", "/api/v1/pages", { token: token.token, ip: "203.0.113.9" })).status).toBe(429);
+  });
+});
+
+describe("pages API data safety", () => {
+  const PAGE = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const EDITOR_JSON = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Original body" }] }] };
+
+  it("keeps the old body as a restore point and snapshots what it wrote", async () => {
+    const env = harness();
+    const writer = await mintPat(env.deps, ["write"]);
+    seed(env.store, { id: PAGE, userId: USER_A, content: "Original body with enough text" });
+    env.store.pages.get(PAGE)!.contentJson = EDITOR_JSON;
+
+    const replaced = await call(env.deps, "PATCH", `/api/v1/pages/${PAGE}`, {
+      token: writer.token,
+      body: { content: "ok" },
+    });
+    expect(replaced.status).toBe(200);
+    expect(env.store.versions).toEqual([
+      { entryId: PAGE, authorId: USER_A, content: "Original body with enough text", contentJson: EDITOR_JSON },
+      { entryId: PAGE, authorId: USER_A, content: "ok", contentJson: null },
+    ]);
+
+    // The latest version already matches the page, so append adds only its own result.
+    const appended = await call(env.deps, "POST", `/api/v1/pages/${PAGE}/append`, {
+      token: writer.token,
+      body: { content: "More" },
+    });
+    expect(appended.status).toBe(200);
+    expect(env.store.versions.map((version) => version.content)).toEqual([
+      "Original body with enough text",
+      "ok",
+      "ok\n\nMore",
+    ]);
+  });
+
+  it("leaves the body alone when the restore point cannot be saved", async () => {
+    const env = harness();
+    const writer = await mintPat(env.deps, ["write"]);
+    seed(env.store, { id: PAGE, userId: USER_A, content: "Original body with enough text" });
+    env.store.recordVersion = async () => {
+      throw new StoreError();
+    };
+
+    const replaced = await call(env.deps, "PATCH", `/api/v1/pages/${PAGE}`, {
+      token: writer.token,
+      body: { content: "Replacement" },
+    });
+    expect(replaced.status).toBe(503);
+    expect((await env.store.getPage(USER_A, PAGE))?.content).toBe("Original body with enough text");
+  });
+
+  it("refuses body writes to pages with collab state but still allows renames", async () => {
+    const env = harness();
+    const writer = await mintPat(env.deps, ["write"]);
+    seed(env.store, { id: PAGE, userId: USER_A, title: "Shared", content: "Shared body with enough text" });
+    env.store.collabState.add(PAGE);
+
+    for (const [method, pathname] of [["PATCH", `/api/v1/pages/${PAGE}`], ["POST", `/api/v1/pages/${PAGE}/append`]] as const) {
+      const response = await call(env.deps, method, pathname, { token: writer.token, body: { content: "From an assistant" } });
+      expect(response.status).toBe(409);
+      expect(JSON.stringify(response.json)).toContain("collaboration");
+    }
+    expect((await env.store.getPage(USER_A, PAGE))?.content).toBe("Shared body with enough text");
+    expect(env.store.versions).toEqual([]);
+
+    const renamed = await call(env.deps, "PATCH", `/api/v1/pages/${PAGE}`, { token: writer.token, body: { title: "Renamed" } });
+    expect(renamed.status).toBe(200);
+    expect((renamed.json as { title: string }).title).toBe("Renamed");
+  });
+
+  it("reports a collab conflict when collab state appears between the read and the write", async () => {
+    const env = harness();
+    const writer = await mintPat(env.deps, ["write"]);
+    seed(env.store, { id: PAGE, userId: USER_A, content: "Shared body with enough text" });
+    const original = env.store.recordVersion.bind(env.store);
+    env.store.recordVersion = async (input) => {
+      env.store.collabState.add(PAGE);
+      return original(input);
+    };
+
+    const response = await call(env.deps, "PATCH", `/api/v1/pages/${PAGE}`, { token: writer.token, body: { content: "Late" } });
+    expect(response.status).toBe(409);
+    expect(JSON.stringify(response.json)).toContain("collaboration");
+    expect((await env.store.getPage(USER_A, PAGE))?.content).toBe("Shared body with enough text");
+  });
+});
+
+describe("mcp transport", () => {
+  it("authenticates before parsing, and a parse error is not reported as a bad token", async () => {
+    const env = harness();
+    const reader = await mintPat(env.deps);
+
+    const anonymous = await call(env.deps, "POST", "/api/mcp", { raw: "{not json" });
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.headers.get("www-authenticate")).toContain("resource_metadata=");
+
+    const malformed = await call(env.deps, "POST", "/api/mcp", { token: reader.token, raw: "{not json" });
+    expect(malformed.status).toBe(400);
+    expect((malformed.json as { error: { code: number } }).error.code).toBe(-32700);
+    expect(malformed.headers.get("www-authenticate")).toBeNull();
   });
 });
 
