@@ -19,7 +19,7 @@
     },
     {
       "source": "/api/:path+",
-      "destination": "/api?__wings_path=:path+"
+      "destination": "/api?__wings_path=:path"
     },
     {
       "source": "/((?!\\.well-known/|og\\.jpg|og\\.png|pcm-capture-worklet\\.js|api/).*)",

@@ -450,6 +450,20 @@ describe("deployment", () => {
     }
   });
 
+  it("keeps API rewrite captures free of query-string plus decoding", () => {
+    const config = JSON.parse(readFileSync(path.resolve("vercel.json"), "utf8"));
+    const rule = config.rewrites.find((rule: { source: string }) => rule.source === "/api/:path+");
+    // Vercel parses the destination query before interpolating source captures.
+    // A '+' modifier here becomes a space and makes every API route miss.
+    const destination = new URL(rule.destination, "https://wings.example");
+    for (const captured of ["mcp", "oauth/register", "v1/pages"]) {
+      const rewritten = new URL(destination);
+      rewritten.searchParams.set("__wings_path", destination.searchParams.get("__wings_path")!.replace(":path", captured));
+      expect(new URL(absoluteUrl({ url: rewritten.pathname + rewritten.search, headers: { host: "wings.example", "x-forwarded-proto": "https" } })).pathname)
+        .toBe(`/api/${captured}`);
+    }
+  });
+
   it("restores the original /api path that vercel.json passes through the rewrite", () => {
     const headers = { host: "wings.example", "x-forwarded-proto": "https" };
     expect(absoluteUrl({ url: "/api?__wings_path=v1/pages&limit=5", headers }))
