@@ -6,6 +6,22 @@ export function serverEnv(name: string): string {
   return proc?.env?.[name] ?? "";
 }
 
+/**
+ * Origin used for the OAuth issuer, resource metadata, and token binding.
+ * `API_PUBLIC_ORIGIN` (for example https://wings.nopejs.me) wins over the
+ * request's Host, so `*.vercel.app` aliases and preview hosts cannot mint
+ * tokens bound to themselves. Unset (local dev, tests): the request origin.
+ */
+export function publicOrigin(requestOrigin: string): string {
+  const configured = serverEnv("API_PUBLIC_ORIGIN").trim();
+  if (!configured) return requestOrigin;
+  try {
+    return new URL(configured).origin;
+  } catch {
+    return requestOrigin;
+  }
+}
+
 const SECRET_KEYS = new Set([
   "authorization",
   "token",
