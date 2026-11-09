@@ -101,7 +101,8 @@ export async function handleNode(req: NodeReq, res: NodeRes): Promise<void> {
   const request = new Request(absoluteUrl(req), {
     method,
     headers,
-    body: raw && raw.byteLength > 0 ? raw : undefined,
+    // slice() gives an ArrayBuffer-backed copy, which BodyInit requires.
+    body: raw && raw.byteLength > 0 ? raw.slice() : undefined,
   });
   const response = await handleRequest(request);
   res.statusCode = response.status;

@@ -1,5 +1,5 @@
 import { next } from "@vercel/edge";
-import { isResourceMetadataPath, isServerMetadataPath, metadataResponse } from "./src/server/api/http";
+import { isResourceMetadataPath, isServerMetadataPath, metadataResponse, publicOrigin } from "./src/server/api/http";
 
 /** Well-known paths we intentionally do not publish (no soft-404 HTML). */
 const NOT_APPLICABLE_PATHS = new Set([
@@ -84,12 +84,12 @@ export default async function middleware(request: Request): Promise<Response> {
   }
 
   if ((request.method === "GET" || request.method === "HEAD") && isResourceMetadataPath(pathname)) {
-    const metadata = metadataResponse(url.origin, "resource");
+    const metadata = metadataResponse(publicOrigin(url.origin), "resource");
     if (request.method === "HEAD") return new Response(null, { status: 200, headers: metadata.headers });
     return metadata;
   }
   if ((request.method === "GET" || request.method === "HEAD") && isServerMetadataPath(pathname)) {
-    const metadata = metadataResponse(url.origin, "server");
+    const metadata = metadataResponse(publicOrigin(url.origin), "server");
     if (request.method === "HEAD") return new Response(null, { status: 200, headers: metadata.headers });
     return metadata;
   }

@@ -21,6 +21,8 @@ A signed-in user can let an assistant read and write **their own** pages.
 - Tools: `list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`, `append_to_page`
 - The same operations are HTTP routes under `/api/v1/pages` and `/api/v1/search`
 - Local-vault bodies are not on the server. The API returns the title and a message instead of the body.
+- Before an assistant replaces or appends to a page, Wings saves the current body in the page's version history, so you can undo the edit from **Version history**.
+- Pages with live collaboration history can be read but not rewritten through the API (409). Edit those in Wings.
 - The API does not return pages that belong to someone else, including pages they shared with you.
 - Revoke a token or a connected app from Settings → Access.
 

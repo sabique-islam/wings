@@ -105,21 +105,21 @@
       },
       "patch": {
         "operationId": "updatePage",
-        "summary": "Update title, parent, or markdown. Requires write. Empty replacement of a substantial page is refused.",
+        "summary": "Update title, parent, or markdown. Requires write. Empty replacement of a substantial page is refused. The previous body is saved to version history first.",
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
         ],
-        "responses": { "200": { "description": "Updated page" }, "409": { "description": "Local-vault body cannot be changed" } }
+        "responses": { "200": { "description": "Updated page" }, "409": { "description": "Local-vault or live-collaboration body cannot be changed" }, "503": { "description": "Restore point could not be saved; page unchanged" } }
       }
     },
     "/api/v1/pages/{id}/append": {
       "post": {
         "operationId": "appendPage",
-        "summary": "Append markdown to a cloud page. Requires write.",
+        "summary": "Append markdown to a cloud page. Requires write. The previous body is saved to version history first.",
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
         ],
-        "responses": { "200": { "description": "Updated page" } }
+        "responses": { "200": { "description": "Updated page" }, "409": { "description": "Local-vault or live-collaboration body cannot be changed" }, "503": { "description": "Restore point could not be saved; page unchanged" } }
       }
     },
     "/api/v1/search": {

@@ -1,6 +1,8 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { absoluteUrl } from "../../../server/nodeRequest";
+import { isLoopbackAddress } from "../../../server/viteApiPlugin";
 import { parseToken, pkceS256, secretMatches, timingSafeEqual } from "./crypto";
 import { redact } from "./http";
 import { createMemoryStore } from "./memoryStore";
@@ -400,6 +402,44 @@ describe("pages API data safety", () => {
     expect(response.status).toBe(409);
     expect(JSON.stringify(response.json)).toContain("collaboration");
     expect((await env.store.getPage(USER_A, PAGE))?.content).toBe("Shared body with enough text");
+  });
+});
+
+describe("deployment", () => {
+  afterEach(() => {
+    delete process.env.API_PUBLIC_ORIGIN;
+  });
+
+  it("binds issuer, resource, and tokens to API_PUBLIC_ORIGIN instead of the Host header", async () => {
+    process.env.API_PUBLIC_ORIGIN = "https://wings.example";
+    const env = harness();
+    const response = await handleRequest(
+      new Request("https://preview-abc.vercel.app/.well-known/oauth-authorization-server"),
+      env.deps,
+    );
+    const metadata = (await response.json()) as { issuer: string; token_endpoint: string };
+    expect(metadata.issuer).toBe("https://wings.example");
+    expect(metadata.token_endpoint).toBe("https://wings.example/api/oauth/token");
+
+    const unauth = await handleRequest(new Request("https://preview-abc.vercel.app/api/mcp", { method: "POST" }), env.deps);
+    expect(unauth.headers.get("www-authenticate")).toContain("https://wings.example/.well-known/oauth-protected-resource");
+  });
+
+  it("restores the original /api path that vercel.json passes through the rewrite", () => {
+    const headers = { host: "wings.example", "x-forwarded-proto": "https" };
+    expect(absoluteUrl({ url: "/api?__wings_path=v1/pages&limit=5", headers }))
+      .toBe("https://wings.example/api/v1/pages?limit=5");
+    expect(absoluteUrl({ url: "/api/v1/search?q=x", headers })).toBe("https://wings.example/api/v1/search?q=x");
+    // Dot segments are normalized away, so the param cannot reach outside /api.
+    expect(new URL(absoluteUrl({ url: "/api?__wings_path=../../etc", headers })).pathname).toBe("/etc");
+  });
+
+  it("only lets this machine reach the dev API", () => {
+    expect(isLoopbackAddress("127.0.0.1")).toBe(true);
+    expect(isLoopbackAddress("::1")).toBe(true);
+    expect(isLoopbackAddress("::ffff:127.0.0.1")).toBe(true);
+    expect(isLoopbackAddress("192.168.1.20")).toBe(false);
+    expect(isLoopbackAddress(undefined)).toBe(false);
   });
 });
 
