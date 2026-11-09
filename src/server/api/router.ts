@@ -13,6 +13,7 @@ import {
   logLine,
   metadataResponse,
   parseBody,
+  publicOrigin,
   readLimited,
   resourceOriginAllowed,
   sameSite,
@@ -40,7 +41,8 @@ import { isUuid, LIMITS } from "./validate";
 const UUID = "([0-9a-f-]{36})";
 
 export async function handleRequest(request: Request, deps?: ApiDeps): Promise<Response> {
-  const url = new URL(request.url);
+  const requested = new URL(request.url);
+  const url = new URL(`${requested.pathname}${requested.search}`, publicOrigin(requested.origin));
   const path = url.pathname.replace(/\/+$/, "") || "/";
   if (request.method === "GET" && isResourceMetadataPath(path)) return metadataResponse(url.origin, "resource");
   if (request.method === "GET" && isServerMetadataPath(path)) return metadataResponse(url.origin, "server");
@@ -126,18 +128,19 @@ async function mcp(request: Request, url: URL, deps: ApiDeps): Promise<Response>
   if (!resourceOriginAllowed(request)) return jsonResponse(403, { error: "Forbidden" });
   if (!(await allowIp(request, deps))) return tooMany();
   const text = await readLimited(request, LIMITS.mcpBody);
-  if (!text.ok) return jsonResponse(413, { error: "Payload too large" });
-  let payload: unknown;
-  try {
-    payload = text.text ? JSON.parse(text.text) : null;
-  } catch {
-    return mcpError(url.origin, request);
-  }
+  if (!("text" in text)) return jsonResponse(413, { error: "Payload too large" });
+  // Authenticate before parsing, so a bad body never looks like a bad token.
   const token = bearerToken(request);
   if (!token) return unauthorized(url.origin);
   const principal = await resolvePrincipal(deps, token, url.origin);
   if (!principal) return unauthorized(url.origin);
   if (!(await allowToken(deps, principal))) return tooMany();
+  let payload: unknown;
+  try {
+    payload = text.text ? JSON.parse(text.text) : null;
+  } catch {
+    return mcpParseError();
+  }
   const response = await handleMcp(deps, principal, payload, request.headers.get("accept"), url.origin);
   if (response.status === 403) {
     const headers = new Headers(response.headers);
@@ -147,10 +150,8 @@ async function mcp(request: Request, url: URL, deps: ApiDeps): Promise<Response>
   return response;
 }
 
-function mcpError(origin: string): Response {
-  return jsonResponse(400, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }, {
-    "www-authenticate": wwwAuthenticate(origin, "invalid_token"),
-  });
+function mcpParseError(): Response {
+  return jsonResponse(400, { jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } });
 }
 
 async function register(request: Request, deps: ApiDeps): Promise<Response> {
@@ -159,8 +160,8 @@ async function register(request: Request, deps: ApiDeps): Promise<Response> {
   const bucket = `reg:${await ipHash(request, deps)}`;
   if (!(await allow(deps, bucket, 3600, deps.limits.registerPerHour))) return tooMany();
   const body = await jsonBody(request, LIMITS.oauthBody);
-  if (!body.ok) return body.response;
-  return fromService(new URL(request.url).origin, await registerClient(deps, body.value));
+  if ("response" in body) return body.response;
+  return fromService(publicOrigin(new URL(request.url).origin), await registerClient(deps, body.value));
 }
 
 async function consent(request: Request, url: URL, deps: ApiDeps): Promise<Response> {
@@ -172,7 +173,7 @@ async function token(request: Request, url: URL, deps: ApiDeps): Promise<Respons
   if (request.method !== "POST") return jsonResponse(405, { error: "Method not allowed" });
   if (!(await allowIp(request, deps))) return tooMany();
   const body = await formOrJson(request, LIMITS.tokenBody);
-  if (!body.ok) return body.response;
+  if ("response" in body) return body.response;
   return fromService(url.origin, await tokenExchange(deps, body.value, request.headers.get("authorization"), url.origin));
 }
 
@@ -180,8 +181,8 @@ async function revokeOauth(request: Request, deps: ApiDeps): Promise<Response> {
   if (request.method !== "POST") return jsonResponse(405, { error: "Method not allowed" });
   if (!(await allowIp(request, deps))) return tooMany();
   const body = await formOrJson(request, LIMITS.tokenBody);
-  if (!body.ok) return body.response;
-  return fromService(new URL(request.url).origin, await revokePresentedToken(deps, body.value, request.headers.get("authorization")));
+  if ("response" in body) return body.response;
+  return fromService(publicOrigin(new URL(request.url).origin), await revokePresentedToken(deps, body.value, request.headers.get("authorization")));
 }
 
 async function pats(request: Request, deps: ApiDeps): Promise<Response> {
@@ -202,7 +203,7 @@ async function authed(
   let body: Record<string, unknown> = {};
   if (withBody) {
     const parsed = await jsonBody(request, LIMITS.jsonBody);
-    if (!parsed.ok) return parsed.response;
+    if ("response" in parsed) return parsed.response;
     body = parsed.value;
   }
   const token = bearerToken(request);
@@ -218,7 +219,7 @@ async function sessionRoute(
   deps: ApiDeps,
   run: (userId: string, body: Record<string, unknown>) => Promise<ServiceResult>,
 ): Promise<Response> {
-  const url = new URL(request.url);
+  const url = new URL(publicOrigin(new URL(request.url).origin));
   if (!sameSite(request) || request.headers.get("sec-fetch-site") === "cross-site") {
     return jsonResponse(403, { error: "Forbidden" });
   }
@@ -232,7 +233,7 @@ async function sessionRoute(
   let body: Record<string, unknown> = {};
   if (request.method !== "GET" && request.method !== "HEAD") {
     const parsed = await jsonBody(request, LIMITS.oauthBody);
-    if (!parsed.ok) return parsed.response;
+    if ("response" in parsed) return parsed.response;
     body = parsed.value;
   }
   return fromService(url.origin, await run(session.userId, body));

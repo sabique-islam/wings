@@ -1,5 +1,13 @@
 import { shouldBlockEmptySave } from "../../lib/editorContent";
-import { LOCAL_BODY_MESSAGE, StoreError, type ApiDeps, type PageRow, type Principal, type ServiceResult } from "./types";
+import {
+  COLLAB_BODY_MESSAGE,
+  LOCAL_BODY_MESSAGE,
+  StoreError,
+  type ApiDeps,
+  type PageRow,
+  type Principal,
+  type ServiceResult,
+} from "./types";
 import {
   hasScope,
   isUuid,
@@ -42,6 +50,58 @@ export function pageBody(row: PageRow) {
     ...pageMeta(row),
     content: row.content,
   };
+}
+
+const LOCAL_WRITE_MESSAGE = "This page is stored in the local vault. The API cannot change its body.";
+
+/** Body writes are refused for local-vault pages and for pages the collab server owns. */
+async function bodyWriteBlocked(deps: ApiDeps, principal: Principal, existing: PageRow): Promise<ServiceResult | null> {
+  if (existing.contentStorage !== "cloud") return result(409, { error: LOCAL_WRITE_MESSAGE });
+  if (await deps.store.hasCollabState(principal.userId, existing.id)) {
+    deps.log("collab_write_blocked", { pageId: existing.id });
+    return result(409, { error: COLLAB_BODY_MESSAGE });
+  }
+  return null;
+}
+
+/**
+ * Keep the page's current body in version history before the API replaces it,
+ * so an assistant's edit can be undone from Version History. Throws (503, body
+ * untouched) when the restore point cannot be saved.
+ */
+async function saveRestorePoint(deps: ApiDeps, principal: Principal, existing: PageRow): Promise<void> {
+  if (!existing.content.trim()) return;
+  await deps.store.recordVersion({
+    entryId: existing.id,
+    authorId: principal.userId,
+    content: existing.content,
+    contentJson: existing.contentJson ?? null,
+  });
+}
+
+/**
+ * Snapshot what the API wrote, as the editor does after its own saves, so a
+ * browser tab that later saves over it does not erase it. Best effort: the
+ * write already succeeded.
+ */
+async function recordWrittenVersion(deps: ApiDeps, principal: Principal, row: PageRow): Promise<void> {
+  if (!row.content.trim()) return;
+  try {
+    await deps.store.recordVersion({
+      entryId: row.id,
+      authorId: principal.userId,
+      content: row.content,
+      contentJson: null,
+    });
+  } catch {
+    deps.log("version_after_write_failed", { pageId: row.id });
+  }
+}
+
+/** Body update matched no row: it went local or gained collab state after we read it. */
+async function bodyWriteRaced(deps: ApiDeps, principal: Principal, id: string): Promise<ServiceResult> {
+  const message = (await deps.store.hasCollabState(principal.userId, id)) ? COLLAB_BODY_MESSAGE : LOCAL_WRITE_MESSAGE;
+  return result(409, { error: message });
 }
 
 function appendMarkdown(existing: string, addition: string): string {
@@ -103,15 +163,18 @@ export async function createPage(deps: ApiDeps, principal: Principal, body: Reco
   if (title == null) return result(400, { error: "Bad request" });
   const content = body.content == null ? "" : body.content;
   if (typeof content !== "string" || content.length > LIMITS.content) return result(400, { error: "Bad request" });
-  const parentId = body.parent_id == null || body.parent_id === "" ? null : body.parent_id;
-  if (parentId != null && typeof parentId !== "string") return result(400, { error: "Bad request" });
+  let parentId: string | null = null;
+  if (body.parent_id != null && body.parent_id !== "") {
+    if (typeof body.parent_id !== "string") return result(400, { error: "Bad request" });
+    parentId = body.parent_id;
+  }
   const parentError = await ownedParent(deps, principal.userId, parentId);
   if (parentError) return parentError;
   const row = await deps.store.createPage({
     userId: principal.userId,
     title,
     content,
-    contentJson: content.trim() ? EMPTY_DOC : EMPTY_DOC,
+    contentJson: EMPTY_DOC,
     parentId,
   });
   deps.log("page_create", { pageId: row.id });
@@ -135,8 +198,9 @@ export async function updatePage(
   const hasParent = Object.prototype.hasOwnProperty.call(body, "parent_id");
   if (!hasContent && !hasTitle && !hasParent) return result(400, { error: "Bad request" });
 
-  if (hasContent && existing.contentStorage !== "cloud") {
-    return result(409, { error: "This page is stored in the local vault. The API cannot change its body." });
+  if (hasContent) {
+    const blocked = await bodyWriteBlocked(deps, principal, existing);
+    if (blocked) return blocked;
   }
 
   let title: string | undefined;
@@ -164,13 +228,15 @@ export async function updatePage(
   }
 
   if (content !== undefined) {
+    await saveRestorePoint(deps, principal, existing);
     const row = await deps.store.updatePage(
       principal.userId,
       id,
       { title, content, contentJson: EMPTY_DOC, parentId },
       "body",
     );
-    if (!row) return result(409, { error: "This page is stored in the local vault. The API cannot change its body." });
+    if (!row) return bodyWriteRaced(deps, principal, id);
+    await recordWrittenVersion(deps, principal, row);
     deps.log("page_update", { pageId: id });
     return result(200, pageBody(row));
   }
@@ -195,22 +261,24 @@ export async function appendPage(
   }
   const existing = await deps.store.getPage(principal.userId, id);
   if (!existing) return result(404, { error: "Not found" });
-  if (existing.contentStorage !== "cloud") {
-    return result(409, { error: "This page is stored in the local vault. The API cannot change its body." });
-  }
+  const blocked = await bodyWriteBlocked(deps, principal, existing);
+  if (blocked) return blocked;
   const next = appendMarkdown(existing.content, body.content);
   if (next.length > LIMITS.content) return result(413, { error: "Payload too large" });
   if (shouldBlockEmptySave(existing.content, next)) {
     deps.log("empty_save_blocked", { pageId: id });
     return result(400, { error: "Refusing to replace a page with empty content." });
   }
+  // Appending rewrites content_json to an empty doc, so the editor's JSON is kept as a restore point too.
+  await saveRestorePoint(deps, principal, existing);
   const row = await deps.store.updatePage(
     principal.userId,
     id,
     { content: next, contentJson: EMPTY_DOC },
     "body",
   );
-  if (!row) return result(409, { error: "This page is stored in the local vault. The API cannot change its body." });
+  if (!row) return bodyWriteRaced(deps, principal, id);
+  await recordWrittenVersion(deps, principal, row);
   deps.log("page_append", { pageId: id });
   return result(200, pageBody(row));
 }

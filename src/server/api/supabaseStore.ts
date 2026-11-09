@@ -6,6 +6,8 @@ type Row = Record<string, unknown>;
 
 const PAGE_META = "id, user_id, title, parent_id, content_storage, created_at, updated_at, deleted_at";
 const PAGE_BODY = `${PAGE_META}, content`;
+/** getPage also loads content_json so a restore point keeps the editor's own document. */
+const PAGE_FULL = `${PAGE_BODY}, content_json`;
 
 function asScope(value: unknown): Scope[] {
   const list = Array.isArray(value) ? value : [];
@@ -51,7 +53,7 @@ export function createSupabaseStore(client: SupabaseClient): ApiStore {
     async getPage(userId, id) {
       const { data, error } = await client
         .from("entries")
-        .select(PAGE_BODY)
+        .select(PAGE_FULL)
         .eq("user_id", userId)
         .eq("id", id)
         .is("deleted_at", null)
@@ -59,7 +61,7 @@ export function createSupabaseStore(client: SupabaseClient): ApiStore {
       if (error) fail();
       if (!data) return null;
       const row = data as Row;
-      return mapPage(row, String(row.content ?? ""));
+      return { ...mapPage(row, String(row.content ?? "")), contentJson: row.content_json ?? null };
     },
 
     async searchPages(userId, query, limit) {
@@ -101,12 +103,46 @@ export function createSupabaseStore(client: SupabaseClient): ApiStore {
         dbPatch.content_json = patch.contentJson;
       }
       let query = client.from("entries").update(dbPatch).eq("id", id).eq("user_id", userId).is("deleted_at", null);
-      if (mode === "body") query = query.eq("content_storage", "cloud");
+      // The service role bypasses the local-vault trigger, and Hocuspocus replays
+      // content_yjs over the row on its next flush, so both are filtered here too.
+      if (mode === "body") query = query.eq("content_storage", "cloud").is("content_yjs", null);
       const { data, error } = await query.select(PAGE_BODY).maybeSingle();
       if (error) fail();
       if (!data) return null;
       const row = data as Row;
       return mapPage(row, String(row.content ?? ""));
+    },
+
+    async hasCollabState(userId, id) {
+      const { data, error } = await client
+        .from("entries")
+        .select("id")
+        .eq("id", id)
+        .eq("user_id", userId)
+        .not("content_yjs", "is", null)
+        .maybeSingle();
+      if (error) fail();
+      return Boolean(data);
+    },
+
+    async recordVersion(input) {
+      const { data: latest, error: readError } = await client
+        .from("entry_versions")
+        .select("content")
+        .eq("entry_id", input.entryId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (readError) fail();
+      if (latest && String((latest as Row).content ?? "") === input.content) return false;
+      const { error } = await client.from("entry_versions").insert({
+        entry_id: input.entryId,
+        author_id: input.authorId,
+        content: input.content,
+        content_json: input.contentJson ?? null,
+      });
+      if (error) fail();
+      return true;
     },
 
     async listPats(userId) {

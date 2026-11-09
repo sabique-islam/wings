@@ -7,6 +7,7 @@ import type {
   PageRow,
   PatRow,
   RefreshRow,
+  VersionInput,
 } from "./types";
 import type { Scope } from "./validate";
 
@@ -16,8 +17,13 @@ function pageCopy(row: PageRow): PageRow {
 
 export function createMemoryStore(now: () => Date = () => new Date()): ApiStore & {
   pages: Map<string, PageRow>;
+  /** Page ids that have `content_yjs`. */
+  collabState: Set<string>;
+  versions: VersionInput[];
 } {
   const pages = new Map<string, PageRow>();
+  const collabState = new Set<string>();
+  const versions: VersionInput[] = [];
   const pats = new Map<string, PatRow>();
   const clients = new Map<string, ClientRow>();
   const grants = new Map<string, GrantRow>();
@@ -33,6 +39,8 @@ export function createMemoryStore(now: () => Date = () => new Date()): ApiStore 
 
   return {
     pages,
+    collabState,
+    versions,
 
     async listPages(userId, limit, offset) {
       return [...pages.values()]
@@ -79,12 +87,26 @@ export function createMemoryStore(now: () => Date = () => new Date()): ApiStore 
     async updatePage(userId, id, patch, mode) {
       const row = visible(pages.get(id), userId);
       if (!row) return null;
-      if (mode === "body" && row.contentStorage !== "cloud") return null;
+      if (mode === "body" && (row.contentStorage !== "cloud" || collabState.has(id))) return null;
       if (patch.title !== undefined) row.title = patch.title;
       if (patch.parentId !== undefined) row.parentId = patch.parentId;
-      if (mode === "body" && patch.content !== undefined) row.content = patch.content;
+      if (mode === "body" && patch.content !== undefined) {
+        row.content = patch.content;
+        row.contentJson = patch.contentJson;
+      }
       row.updatedAt = now().toISOString();
       return pageCopy(row);
+    },
+
+    async hasCollabState(userId, id) {
+      return Boolean(visible(pages.get(id), userId)) && collabState.has(id);
+    },
+
+    async recordVersion(input) {
+      const latest = [...versions].reverse().find((version) => version.entryId === input.entryId);
+      if (latest && latest.content === input.content) return false;
+      versions.push({ ...input });
+      return true;
     },
 
     async listPats(userId) {
