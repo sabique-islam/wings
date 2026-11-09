@@ -7,7 +7,11 @@ export const config = {
   api: { bodyParser: false },
 };
 
-/** Catch-all for /api/* and, when routed here, OAuth metadata. */
+/**
+ * Single function for every /api/* route. Plain Vercel functions do not support
+ * Next-style [...path] catch-alls, so vercel.json rewrites /api/:path+ here and
+ * passes the original path in `__wings_path` (see server/nodeRequest.ts).
+ */
 export default function handler(req: NodeReq, res: NodeRes): Promise<void> {
   return handleNode(req, res);
 }
