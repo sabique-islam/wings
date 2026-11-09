@@ -6,6 +6,18 @@
   "installCommand": "npm install --legacy-peer-deps",
   "rewrites": [
     {
+      "source": "/.well-known/oauth-protected-resource",
+      "destination": "/api?__wings_discovery=resource"
+    },
+    {
+      "source": "/.well-known/oauth-protected-resource/api/mcp",
+      "destination": "/api?__wings_discovery=resource"
+    },
+    {
+      "source": "/.well-known/oauth-authorization-server",
+      "destination": "/api?__wings_discovery=server"
+    },
+    {
       "source": "/api/:path+",
       "destination": "/api?__wings_path=:path+"
     },

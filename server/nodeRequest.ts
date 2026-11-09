@@ -36,6 +36,11 @@ export function absoluteUrl(req: Pick<NodeReq, "url" | "headers">): string {
     url.searchParams.delete(REWRITE_PATH_PARAM);
     url.pathname = `/api/${rewritten.replace(/^\/+/, "")}`;
   }
+  // Public discovery URLs are explicitly routed to this function by Vercel.
+  const discovery = url.searchParams.get("__wings_discovery");
+  url.searchParams.delete("__wings_discovery");
+  if (discovery === "resource") url.pathname = "/.well-known/oauth-protected-resource";
+  if (discovery === "server") url.pathname = "/.well-known/oauth-authorization-server";
   return url.toString();
 }
 

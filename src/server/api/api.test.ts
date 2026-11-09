@@ -425,6 +425,31 @@ describe("deployment", () => {
     expect(unauth.headers.get("www-authenticate")).toContain("https://wings.example/.well-known/oauth-protected-resource");
   });
 
+  it("routes every Vercel OAuth discovery URL to JSON metadata", async () => {
+    const config = JSON.parse(readFileSync(path.resolve("vercel.json"), "utf8"));
+    for (const source of [
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-protected-resource/api/mcp",
+      "/.well-known/oauth-authorization-server",
+    ]) {
+      const rewrite = config.rewrites.find((rule: { source: string }) => rule.source === source);
+      expect(rewrite, source).toBeDefined();
+      const url = absoluteUrl({
+        url: rewrite.destination,
+        headers: { host: "wings.example", "x-forwarded-proto": "https" },
+      });
+      const response = await handleRequest(new Request(url));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("application/json");
+      const metadata = await response.json();
+      if (source.endsWith("authorization-server")) {
+        expect(metadata.registration_endpoint).toBe("https://wings.example/api/oauth/register");
+      } else {
+        expect(metadata.resource).toBe("https://wings.example/api/mcp");
+      }
+    }
+  });
+
   it("restores the original /api path that vercel.json passes through the rewrite", () => {
     const headers = { host: "wings.example", "x-forwarded-proto": "https" };
     expect(absoluteUrl({ url: "/api?__wings_path=v1/pages&limit=5", headers }))

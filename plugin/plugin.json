@@ -4,23 +4,33 @@
   "version": "1.0.0",
   "description": "Read, search, create, and edit your own Wings pages from ChatGPT.",
   "author": {
-    "name": "Sabique Islam",
+    "name": "Sabique",
     "email": "mail@wings.nopejs.me",
     "url": "https://wings.nopejs.me"
   },
   "homepage": "https://wings.nopejs.me",
   "repository": "https://github.com/Sabique-Islam/wings",
   "license": "AGPL-3.0-or-later",
-  "keywords": ["notes", "pages", "markdown", "productivity"],
+  "keywords": [
+    "notes",
+    "pages",
+    "markdown",
+    "productivity"
+  ],
   "extensions": {
     "com.openai": {
       "interface": {
         "displayName": "Wings Notes",
         "shortDescription": "Search and edit your notes",
-        "longDescription": "Connect your Wings account to find, read, and write your own pages from a conversation. Search titles and page text, open a page as markdown, list recent pages, create new pages, append to an existing page, or replace a page's text after you ask for it.\n\nWings Notes only reaches pages you own in the account you connect. It cannot see pages other people shared with you, and it cannot read or change local-vault pages, whose bodies stay on your device. Pages with live collaboration history can be read but not rewritten. There is no delete tool. Before any edit, Wings saves the previous text to the page's version history so you can restore it.\n\nYou choose read-only or read and write access on the Wings consent screen, and you can revoke the connection at any time in Wings under Settings → Access.",
-        "developerName": "Sabique Islam",
+        "longDescription": "Connect your Wings account to find, read, and write your own pages from a conversation. Search titles and page text, open a page as markdown, list recent pages, create new pages, append to an existing page, or replace a page's text after you ask for it.\n\nWings Notes only reaches pages you own in the account you connect. It cannot see pages other people shared with you, and it cannot read or change local-vault pages, whose bodies stay on your device. Pages with live collaboration history can be read but not rewritten. There is no delete tool. Before any edit, Wings saves the previous text to the page's version history so you can restore it.\n\nYou choose read-only or read and write access on the Wings consent screen, and you can revoke the connection at any time in Wings under Settings \u2192 Access.",
+        "developerName": "Sabique",
         "category": "Productivity",
-        "capabilities": ["Search pages", "Read pages", "Create pages", "Edit pages"],
+        "capabilities": [
+          "Search pages",
+          "Read pages",
+          "Create pages",
+          "Edit pages"
+        ],
         "websiteURL": "https://wings.nopejs.me",
         "supportURL": "https://wings.nopejs.me/support",
         "privacyPolicyURL": "https://wings.nopejs.me/legal/privacy",
@@ -69,24 +79,32 @@
           ],
           "negative": [
             {
-              "description": "Deleting pages is not supported; there is no delete tool, so the assistant should say so instead of emptying pages.",
+              "description": "Deletion is unsupported. Explain that pages must be deleted in Wings; do not call update_page to empty them or claim deletion.",
               "prompt": "Delete all my notes."
             },
             {
-              "description": "The plugin only reaches the connected user's own pages, so it must not claim access to another person's account.",
+              "description": "Access to other accounts is unsupported. Explain that only the connected user's own pages are available; do not invoke tools to access a coworker's account or claim access.",
               "prompt": "Show me the notes in my coworker's Wings account."
             },
             {
-              "description": "Replacing a substantial page with empty content is refused by the server; the assistant should report that the page was left unchanged.",
-              "prompt": "Clear everything in my Launch plan page so it is blank."
+              "description": "Sharing and invitations are unsupported. Explain that sharing must be done in Wings; do not call create_page or update_page as a substitute or claim an invitation was sent.",
+              "prompt": "Share my Launch plan page with my coworker and send them an invitation."
             }
           ]
         },
         "commerce": false,
-        "commerce_description": "This plugin does not sell products, show plans, or process payments."
+        "commerce_description": "This plugin does not require payments or purchases.",
+        "prompts": [
+          "Find my notes about the launch.",
+          "Summarize the decisions in my Launch plan page.",
+          "Which of my pages did I edit most recently?",
+          "Create a page called Trip ideas with three bullet points for a weekend in Lisbon.",
+          "Add \"Order the venue banner\" to the end of my Launch plan page."
+        ]
       },
       "publication": {
-        "release_notes": "Initial release: search, read, list, create, append to, and replace your own Wings pages, with read-only or read-write access chosen on consent."
+        "release_notes": "Initial release: search, read, list, create, append to, and replace your own Wings pages, with read-only or read-write access chosen on consent.",
+        "countries": []
       }
     }
   }
