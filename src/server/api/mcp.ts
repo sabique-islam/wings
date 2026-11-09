@@ -58,7 +58,7 @@ const TOOLS = [
   },
   {
     name: "update_page",
-    description: "Replace a cloud page's markdown and/or title. Requires the write scope. Refuses to wipe a substantial page with empty content. Local-vault bodies cannot be changed.",
+    description: "Replace a cloud page's markdown and/or title. Requires the write scope. The previous body is kept in the page's version history. Refuses to wipe a substantial page with empty content. Local-vault bodies and pages with live collaboration history cannot be changed; tell the user to edit those in Wings.",
     inputSchema: {
       type: "object",
       properties: {
@@ -73,7 +73,7 @@ const TOOLS = [
   },
   {
     name: "append_to_page",
-    description: "Append markdown to a cloud page. Requires the write scope. Local-vault bodies cannot be changed.",
+    description: "Append markdown to a cloud page. Requires the write scope. The previous body is kept in the page's version history. Local-vault bodies and pages with live collaboration history cannot be changed.",
     inputSchema: {
       type: "object",
       properties: {
