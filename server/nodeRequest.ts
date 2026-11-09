@@ -17,17 +17,26 @@ type NodeRes = {
   end(body?: Uint8Array | string): void;
 };
 
-function header(req: NodeReq, name: string): string | undefined {
+function header(req: Pick<NodeReq, "headers">, name: string): string | undefined {
   const value = req.headers[name.toLowerCase()];
   if (Array.isArray(value)) return value[0];
   return value;
 }
 
-function absoluteUrl(req: NodeReq): string {
+/** Query parameter vercel.json uses to carry the original /api/* path into api/index.ts. */
+export const REWRITE_PATH_PARAM = "__wings_path";
+
+export function absoluteUrl(req: Pick<NodeReq, "url" | "headers">): string {
   const proto = header(req, "x-forwarded-proto") ?? "http";
   const host = header(req, "x-forwarded-host") ?? header(req, "host") ?? "localhost";
   const path = req.url && req.url.length > 0 ? req.url : "/";
-  return `${proto.split(",")[0]!.trim()}://${host.split(",")[0]!.trim()}${path}`;
+  const url = new URL(`${proto.split(",")[0]!.trim()}://${host.split(",")[0]!.trim()}${path}`);
+  const rewritten = url.searchParams.get(REWRITE_PATH_PARAM);
+  if (rewritten !== null) {
+    url.searchParams.delete(REWRITE_PATH_PARAM);
+    url.pathname = `/api/${rewritten.replace(/^\/+/, "")}`;
+  }
+  return url.toString();
 }
 
 function encode(value: string): Uint8Array {

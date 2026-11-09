@@ -1,5 +1,16 @@
 import { loadEnv, type Plugin } from "vite";
 
+const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+
+/**
+ * The dev server listens on every interface (`host: "::"`) so phones on the LAN
+ * can load the app. The API runs with the service-role key, so only this
+ * machine may reach it.
+ */
+export function isLoopbackAddress(address: string | undefined): boolean {
+  return Boolean(address && LOOPBACK.has(address));
+}
+
 /** Forward /api and OAuth metadata to the same handler production uses. */
 export function wingsApiPlugin(mode: string): Plugin {
   return {
@@ -16,6 +27,12 @@ export function wingsApiPlugin(mode: string): Plugin {
           || path === "/.well-known/oauth-authorization-server";
         if (!api && !metadata) {
           next();
+          return;
+        }
+        if (!isLoopbackAddress(req.socket.remoteAddress)) {
+          res.statusCode = 403;
+          res.setHeader("content-type", "application/json; charset=utf-8");
+          res.end(JSON.stringify({ error: "The dev API only answers requests from this machine." }));
           return;
         }
         // Loaded through the dev server so the @ alias resolves. A static import
