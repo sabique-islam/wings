@@ -18,7 +18,10 @@
     "test:watch": "vitest",
     "recover:entries": "bun run scripts/recover-entries.ts",
     "recover:entries:apply": "bun run scripts/recover-entries.ts --apply",
-    "indexnow": "bun run scripts/indexnow.ts"
+    "indexnow": "bun run scripts/indexnow.ts",
+    "check:api": "node scripts/check-api-runtime.mjs && vitest run --config vitest.api.config.ts",
+    "check:api:live": "node scripts/check-api-live.mjs",
+    "prebuild": "npm run check:api"
   },
   "description": "Notes with nested pages, LaTeX math, Excalidraw drawings, on-device lecture transcription, and a BYOK AI panel.",
   "keywords": [
@@ -163,6 +166,7 @@
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@vercel/routing-utils": "^6.6.1",
     "@vitejs/plugin-react-swc": "^4.3.3",
     "eslint": "^10.8.1",
     "eslint-plugin-react-hooks": "^7.1.1",

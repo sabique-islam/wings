@@ -1,3 +1,4 @@
+import { convertRewrites } from "@vercel/routing-utils";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -450,17 +451,16 @@ describe("deployment", () => {
     }
   });
 
-  it("keeps API rewrite captures free of query-string plus decoding", () => {
+  it("routes captured API paths through Vercel's actual rewrite compiler", () => {
     const config = JSON.parse(readFileSync(path.resolve("vercel.json"), "utf8"));
-    const rule = config.rewrites.find((rule: { source: string }) => rule.source === "/api/:path+");
-    // Vercel parses the destination query before interpolating source captures.
-    // A '+' modifier here becomes a space and makes every API route miss.
-    const destination = new URL(rule.destination, "https://wings.example");
-    for (const captured of ["mcp", "oauth/register", "v1/pages"]) {
-      const rewritten = new URL(destination);
-      rewritten.searchParams.set("__wings_path", destination.searchParams.get("__wings_path")!.replace(":path", captured));
-      expect(new URL(absoluteUrl({ url: rewritten.pathname + rewritten.search, headers: { host: "wings.example", "x-forwarded-proto": "https" } })).pathname)
-        .toBe(`/api/${captured}`);
+    const rules = convertRewrites(config.rewrites);
+    for (const captured of ["mcp", "oauth/register", "oauth/token", "v1/pages", "v1/pages/11111111-1111-4111-8111-111111111111", "v1/search"]) {
+      const incoming = `/api/${captured}`;
+      const rule = rules.find((rule) => new RegExp(rule.src!).test(incoming))!;
+      const match = incoming.match(new RegExp(rule.src!))!;
+      const destination = rule.dest!.replace(/\$(\d+)/g, (_, index) => match[Number(index)] ?? "");
+      expect(new URL(absoluteUrl({ url: destination, headers: { host: "wings.example", "x-forwarded-proto": "https" } })).pathname)
+        .toBe(incoming);
     }
   });
 
