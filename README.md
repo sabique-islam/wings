@@ -42,6 +42,7 @@
 - Account backup: zip download and folder import
 - Markdown / JSON export and local draft cache
 - Guards against empty overwrites of substantial notes
+- Plugins and remote MCP access: search, read, create, and edit your pages from ChatGPT, Claude, or another MCP client
 
 ---
 
@@ -57,17 +58,61 @@ migrated from lovable to a personal stack in july 2026.
 
 ---
 
+## Plugins
+
+Wings includes **Wings Notes**, a ChatGPT plugin for searching, reading, creating, and editing your own pages. The [plugin package](plugin/) contains its listing, icon, review cases, and remote MCP configuration. See the [packaging instructions](plugin/README.md) to build the ZIP. The package connects to the hosted Wings server; it does not need a local MCP process.
+
+You can connect directly with the steps below without waiting for a public directory listing.
+
 ## Connect an MCP client
 
-Remote MCP endpoint: `https://wings.nopejs.me/api/mcp`
+Use this remote MCP server URL (Streamable HTTP):
+
+```text
+https://wings.nopejs.me/api/mcp
+```
+
+### ChatGPT
+
+1. Open ChatGPT on the web and go to **Plugins → + → Add custom MCP server**. Depending on your account, this may appear under **Settings → Apps → Advanced settings → Developer mode**.
+2. Enter **Wings Notes** as the name and paste the server URL above.
+3. Choose **OAuth**. If asked for a registration method, select **DCR** (dynamic client registration); no client ID or client secret is needed.
+4. Review the connection notice, create and install the plugin, then sign in to Wings when prompted.
+5. On the Wings consent screen, approve read access. Enable write access if you want ChatGPT to create or edit pages.
+6. Select Wings Notes in a conversation and try: **“Which of my pages did I edit most recently?”**
+
+Custom MCP availability depends on your ChatGPT account and workspace permissions. See [OpenAI's connection guide](https://developers.openai.com/api/docs/guides/custom-mcp-server).
+
+### Claude
+
+1. Open **Customize → Connectors → + Add → Add custom connector**. In some interfaces, connectors appear under **Settings → Connectors**; managed workspaces use **Organization settings → Connectors → Add → Custom → Web**.
+2. Enter **Wings Notes** and the same server URL.
+3. Use OAuth and choose **Register automatically** if asked how to identify the OAuth client. Connect and sign in to Wings. Approve read access, plus write access if you want to create or edit pages.
+4. Enable the connector in your conversation and ask Claude to find or summarize a page.
+
+On managed workspaces, an administrator may need to add or allow the connector first. See [Claude's custom connector guide](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
+
+### Other MCP clients
+
+For clients that accept a bearer token, create a personal access token in Wings under **Settings → Access**, then configure the same URL with this header:
 
 ```http
 Authorization: Bearer <personal access token>
 ```
 
-Create the token in the app under Settings → Access. It starts with `wings_pat_`. The default scope is read-only; turn on write when a client should create or edit pages. ChatGPT and Claude use OAuth on the same URL instead of a pasted token. See [docs](https://wings.nopejs.me/docs.md) for the connector steps. Local-vault bodies stay on the device and are not returned by the API.
+Tokens start with `wings_pat_` and default to read-only. Enable write access when creating a token if the client should create or edit pages. Keep the token in your client's private settings, not in a committed configuration file.
 
-Before this works in production, apply `supabase/migrations/20261020190000_api_access.sql` and set `API_TOKEN_PEPPER`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `API_PUBLIC_ORIGIN=https://wings.nopejs.me` on the server. Those values stay out of git.
+### Access and limits
+
+- Tools: `list_pages`, `get_page`, `search_pages`, `create_page`, `update_page`, and `append_to_page`.
+- Only pages you own are accessible; pages shared with you by other people are excluded.
+- Local-vault bodies stay on your device and are not returned by the API.
+- Pages with live collaboration history can be read but cannot be rewritten through the API. There is no delete tool.
+- Revoke a token or connected app from **Settings → Access** in Wings.
+
+The endpoint accepts **POST** requests. Opening it in a browser normally returns **“Method not allowed”**; that alone does not indicate a failed connection. More details: [Wings docs](https://wings.nopejs.me/docs.md).
+
+For self-hosting, apply `supabase/migrations/20261020190000_api_access.sql` and set `API_TOKEN_PEPPER`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `API_PUBLIC_ORIGIN` to your deployment's HTTPS origin. Use that deployment's `/api/mcp` URL in your client. Those values stay out of git.
 
 ## Development
 
