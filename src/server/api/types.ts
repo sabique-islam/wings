@@ -10,6 +10,16 @@ export interface PageRow {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  /** Editor JSON, loaded by `getPage` only so a restore point can keep it. Never returned by the API. */
+  contentJson?: unknown;
+}
+
+export interface VersionInput {
+  entryId: string;
+  authorId: string;
+  content: string;
+  /** Null makes a restore re-derive JSON from the markdown through the editor schema. */
+  contentJson: unknown;
 }
 
 export interface PatRow {
@@ -101,7 +111,18 @@ export interface ApiStore {
     contentJson: unknown;
     parentId: string | null;
   }): Promise<PageRow>;
+  /**
+   * Body mode only touches cloud pages without collab state. Returns null when
+   * the row is missing, local, or has `content_yjs`.
+   */
   updatePage(userId: string, id: string, patch: PagePatch, mode: "meta" | "body"): Promise<PageRow | null>;
+  /** True when the page has `content_yjs`, so the collab server would replay its own copy over ours. */
+  hasCollabState(userId: string, id: string): Promise<boolean>;
+  /**
+   * Adds an `entry_versions` row unless the newest one has the same content.
+   * Returns whether a row was written. Throws StoreError when the write fails.
+   */
+  recordVersion(input: VersionInput): Promise<boolean>;
 
   listPats(userId: string): Promise<PatRow[]>;
   countActivePats(userId: string): Promise<number>;
@@ -187,3 +208,6 @@ export const DEFAULT_LIMITS: ApiLimits = {
 
 export const LOCAL_BODY_MESSAGE =
   "This page's body is in the local vault on the owner's device. The server only has the title, so the API cannot return or change the body.";
+
+export const COLLAB_BODY_MESSAGE =
+  "This page has live collaboration history. The API cannot change its body without the collaboration server overwriting it. Edit it in Wings instead.";
