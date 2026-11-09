@@ -11,78 +11,98 @@ import type { ApiDeps, Principal, ServiceResult } from "./types";
 const SERVER_PROTOCOL = "2025-06-18";
 const SUPPORTED_PROTOCOLS = new Set(["2025-03-26", "2025-06-18"]);
 
+const PAGE_ID = { type: "string", description: "Page id (uuid) from list_pages or search_pages." } as const;
+
+/**
+ * Annotations are explicit booleans on every tool, as the ChatGPT plugin
+ * guidelines require. All tools only touch the signed-in user's own workspace,
+ * so openWorldHint is false throughout.
+ */
 const TOOLS = [
   {
     name: "list_pages",
-    description: "List the user's own pages, including parent_id so you can rebuild the tree. Local-vault pages are included with server_readable false and no body. Use this to find a page id before reading or editing.",
+    title: "List pages",
+    description: "List the user's own pages, newest edit first, with id, title, parent_id (to rebuild the page tree), and created_at / updated_at so you can answer questions about recent pages. Local-vault pages are included with server_readable false and no body. Use this to find a page id before reading or editing. Read-only.",
     inputSchema: {
       type: "object",
       properties: {
-        limit: { type: "integer", minimum: 1, maximum: 200 },
+        limit: { type: "integer", minimum: 1, maximum: 200, description: "Pages to return. Default 100." },
+        offset: { type: "integer", minimum: 0, maximum: 5000, description: "Pages to skip, for paging. Default 0." },
       },
       additionalProperties: false,
     },
+    annotations: { title: "List pages", readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
     name: "get_page",
-    description: "Read one page. Cloud pages include markdown in content. Local-vault pages return server_readable false and a message instead of a body; do not guess the body.",
+    title: "Read page",
+    description: "Read one of the user's pages. Cloud pages include their markdown in content. Local-vault pages return server_readable false and a message instead of a body; do not guess the body. Read-only.",
     inputSchema: {
       type: "object",
-      properties: { page_id: { type: "string" } },
+      properties: { page_id: PAGE_ID },
       required: ["page_id"],
       additionalProperties: false,
     },
+    annotations: { title: "Read page", readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
     name: "search_pages",
-    description: "Search the user's own pages by title and, for cloud pages, body text. Results do not include page bodies. Local-vault pages match on title only.",
+    title: "Search pages",
+    description: "Full-text search over the user's own pages: titles, and body text for cloud pages. Returns matching page ids and titles, not bodies; call get_page to read one. Local-vault pages match on title only. Read-only.",
     inputSchema: {
       type: "object",
-      properties: { query: { type: "string", minLength: 1, maxLength: 200 } },
+      properties: { query: { type: "string", minLength: 1, maxLength: 200, description: "Words to search for." } },
       required: ["query"],
       additionalProperties: false,
     },
+    annotations: { title: "Search pages", readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   },
   {
     name: "create_page",
-    description: "Create a server-readable page, optionally under a parent you own. Requires the write scope. This cannot create a local-vault body.",
+    title: "Create page",
+    description: "Create a new cloud page from markdown, optionally under a parent page the user owns. Requires the write scope. Not safe to retry: each call creates another page, so check list_pages before retrying after an error. This cannot create a local-vault page.",
     inputSchema: {
       type: "object",
       properties: {
-        title: { type: "string" },
-        content: { type: "string" },
-        parent_id: { type: "string" },
+        title: { type: "string", maxLength: 100, description: "Page title. Optional." },
+        content: { type: "string", description: "Page body as markdown. Optional." },
+        parent_id: { ...PAGE_ID, description: "Put the new page under this page. Optional." },
       },
       additionalProperties: false,
     },
+    annotations: { title: "Create page", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },
   {
     name: "update_page",
-    description: "Replace a cloud page's markdown and/or title. Requires the write scope. The previous body is kept in the page's version history. Refuses to wipe a substantial page with empty content. Local-vault bodies and pages with live collaboration history cannot be changed; tell the user to edit those in Wings.",
+    title: "Replace page",
+    description: "Overwrite a cloud page's markdown, and/or rename or move it. Requires the write scope. content replaces the whole body; to add text without removing any, use append_to_page instead. The previous body is saved in the page's version history so the user can restore it. Refuses to replace a substantial page with empty content. Local-vault bodies and pages with live collaboration history cannot be changed; tell the user to edit those in Wings. Repeating the same call leaves the page in the same state.",
     inputSchema: {
       type: "object",
       properties: {
-        page_id: { type: "string" },
-        title: { type: "string" },
-        content: { type: "string" },
-        parent_id: { type: ["string", "null"] },
+        page_id: PAGE_ID,
+        title: { type: "string", maxLength: 100, description: "New title. Omit to keep the current one." },
+        content: { type: "string", description: "New full body as markdown. Omit to keep the current body." },
+        parent_id: { type: ["string", "null"], description: "Move under this page id, or null for the top level. Omit to keep the current place." },
       },
       required: ["page_id"],
       additionalProperties: false,
     },
+    annotations: { title: "Replace page", readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
   },
   {
     name: "append_to_page",
-    description: "Append markdown to a cloud page. Requires the write scope. The previous body is kept in the page's version history. Local-vault bodies and pages with live collaboration history cannot be changed.",
+    title: "Append to page",
+    description: "Add markdown to the end of a cloud page without removing anything. Requires the write scope. Not safe to retry: each call appends again, so read the page with get_page before retrying after an error. The previous body is saved in version history. Local-vault bodies and pages with live collaboration history cannot be changed.",
     inputSchema: {
       type: "object",
       properties: {
-        page_id: { type: "string" },
-        content: { type: "string" },
+        page_id: PAGE_ID,
+        content: { type: "string", minLength: 1, description: "Markdown to add at the end of the page." },
       },
       required: ["page_id", "content"],
       additionalProperties: false,
     },
+    annotations: { title: "Append to page", readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   },
 ] as const;
 
@@ -190,6 +210,7 @@ async function oneMessage(deps: ApiDeps, principal: Principal, raw: unknown, ori
     let service: ServiceResult;
     if (params.name === "list_pages") {
       if (args.limit != null) url.searchParams.set("limit", String(args.limit));
+      if (args.offset != null) url.searchParams.set("offset", String(args.offset));
       service = await listPages(deps, principal, url);
     } else if (params.name === "get_page") {
       service = await getPage(deps, principal, String(args.page_id ?? ""));
@@ -203,9 +224,9 @@ async function oneMessage(deps: ApiDeps, principal: Principal, raw: unknown, ori
     } else if (params.name === "append_to_page") {
       service = await appendPage(deps, principal, String(args.page_id ?? ""), args);
     } else {
-      return rpcError(id, -32602, "Unknown tool");
+      return rpcError(id, -32602, `Unknown tool. Available tools: ${MCP_TOOL_NAMES.join(", ")}.`);
     }
-    if (service.authError === "insufficient_scope") return rpcError(id, -32001, "Forbidden");
+    if (service.authError === "insufficient_scope") return rpcError(id, -32001, "This connection only has read access. Reconnect Wings with write access to create or edit pages.");
     return toolResult(id, service);
   }
   return rpcError(id, -32601, "Method not found");

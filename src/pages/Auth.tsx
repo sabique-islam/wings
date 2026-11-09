@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Seo } from "@/components/Seo";
 import { toast } from "sonner";
-import { sendMagicLink } from "@/lib/auth";
+import { sendMagicLink, signInWithPassword } from "@/lib/auth";
 import { signInWithGoogle } from "@/lib/auth/oauth";
 import { Logo } from "@/components/Logo";
 import { GoogleLogo } from "@/components/GoogleLogo";
@@ -13,14 +13,20 @@ import { LoadingScreen } from "@/components/ui/spinner";
 import { useAuth } from "@/hooks/useAuth";
 
 type Stage = "request" | "sent";
+type Method = "link" | "password";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [stage, setStage] = useState<Stage>("request");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [oauthLoading, setOauthLoading] = useState(false);
   const { loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
+  // ?method=password opens the password form directly (used in reviewer instructions).
+  const [method, setMethod] = useState<Method>(
+    searchParams.get("method") === "password" ? "password" : "link",
+  );
   useRedirectIfAuthed();
 
   useEffect(() => {
@@ -40,6 +46,18 @@ export default function Auth() {
     setLoading(false);
     if (error) return toast.error(error.message);
     setStage("sent");
+  };
+
+  const handlePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password) return;
+    setLoading(true);
+    const { error } = await signInWithPassword(email, password);
+    setLoading(false);
+    setPassword("");
+    // On success the auth listener sets the session and useRedirectIfAuthed
+    // continues to returnTo (for example the OAuth consent screen).
+    if (error) toast.error(error.message);
   };
 
   const handleGoogle = async () => {
@@ -108,6 +126,39 @@ export default function Auth() {
                   <span className="h-px flex-1 bg-border-subtle" />
                 </div>
 
+                {method === "password" ? (
+                <form onSubmit={handlePassword} className="space-y-3">
+                  <label className="sr-only" htmlFor="auth-password-email">email</label>
+                  <input
+                    id="auth-password-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@email.com"
+                    autoComplete="username"
+                    className="w-full rounded-lg border border-border-subtle bg-background/80 px-4 py-3 text-sm text-foreground placeholder:text-ink-3 focus:outline-none focus:ring-1 focus:ring-ring backdrop-blur-sm"
+                    required
+                  />
+                  <label className="sr-only" htmlFor="auth-password">password</label>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="password"
+                    autoComplete="current-password"
+                    className="w-full rounded-lg border border-border-subtle bg-background/80 px-4 py-3 text-sm text-foreground placeholder:text-ink-3 focus:outline-none focus:ring-1 focus:ring-ring backdrop-blur-sm"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full rounded-lg bg-accent-strong px-4 py-3 text-sm font-medium text-accent-strong-foreground hover:bg-accent-strong-hover transition-colors disabled:opacity-50"
+                  >
+                    {loading ? "signing in…" : "sign in with password"}
+                  </button>
+                </form>
+                ) : (
                 <form onSubmit={handleRequest} className="space-y-3">
                   <label className="sr-only" htmlFor="auth-email">email</label>
                   <input
@@ -128,12 +179,22 @@ export default function Auth() {
                     {loading ? "sending…" : "email me a magic link"}
                   </button>
                 </form>
+                )}
               </div>
             )}
 
-            <p className="text-center text-[11px] text-ink-3 leading-relaxed">
-              no password · magic link or Google
-            </p>
+            <div className="space-y-2 text-center text-[11px] text-ink-3 leading-relaxed">
+              <p>no password needed · magic link or Google</p>
+              {stage === "request" && (
+                <button
+                  type="button"
+                  onClick={() => setMethod(method === "password" ? "link" : "password")}
+                  className="underline underline-offset-4 hover:text-foreground transition-colors"
+                >
+                  {method === "password" ? "use a magic link instead" : "have a password? sign in with it"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

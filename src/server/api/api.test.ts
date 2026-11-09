@@ -459,6 +459,99 @@ describe("mcp transport", () => {
   });
 });
 
+describe("directory requirements", () => {
+  async function rpc(deps: ApiDeps, token: string, method: string, params?: unknown) {
+    const response = await call(deps, "POST", "/api/mcp", { token, body: { jsonrpc: "2.0", id: 1, method, params } });
+    return response.json as { result?: Record<string, unknown>; error?: { code: number; message: string } };
+  }
+
+  it("declares explicit boolean annotations on every tool", async () => {
+    const env = harness();
+    const reader = await mintPat(env.deps);
+    const listed = await rpc(env.deps, reader.token, "tools/list");
+    const tools = (listed.result as { tools: Array<{ name: string; title: string; description: string; annotations: Record<string, unknown> }> }).tools;
+    expect(tools.map((tool) => tool.name)).toEqual(MCP_TOOL_NAMES);
+    for (const tool of tools) {
+      expect(tool.title, tool.name).toBeTruthy();
+      expect(tool.description.length, tool.name).toBeGreaterThan(40);
+      for (const hint of ["readOnlyHint", "destructiveHint", "openWorldHint"]) {
+        expect(typeof tool.annotations[hint], `${tool.name}.${hint}`).toBe("boolean");
+      }
+      expect(tool.annotations.openWorldHint, tool.name).toBe(false);
+    }
+    const byName = Object.fromEntries(tools.map((tool) => [tool.name, tool.annotations]));
+    for (const read of ["list_pages", "get_page", "search_pages"]) {
+      expect(byName[read]).toMatchObject({ readOnlyHint: true, destructiveHint: false });
+    }
+    expect(byName.update_page).toMatchObject({ readOnlyHint: false, destructiveHint: true });
+    expect(byName.create_page).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: false });
+    expect(byName.append_to_page).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: false });
+  });
+
+  it("explains a missing write scope instead of saying Forbidden", async () => {
+    const env = harness();
+    const reader = await mintPat(env.deps);
+    const response = await rpc(env.deps, reader.token, "tools/call", { name: "create_page", arguments: { title: "x" } });
+    expect(response.error?.message).toContain("read access");
+  });
+
+  it("registers clients without a name or with a secret-based method, as public clients", async () => {
+    const env = harness();
+    const registered = await call(env.deps, "POST", "/api/oauth/register", {
+      body: { redirect_uris: ["https://client.example/callback"], token_endpoint_auth_method: "client_secret_basic" },
+    });
+    expect(registered.status).toBe(201);
+    expect(registered.json).toMatchObject({ client_name: "Unnamed app", token_endpoint_auth_method: "none" });
+    const badName = await call(env.deps, "POST", "/api/oauth/register", {
+      body: { client_name: 42, redirect_uris: ["https://client.example/callback"] },
+    });
+    expect(badName.status).toBe(400);
+  });
+
+  it("completes the code flow when the client omits resource, and still binds tokens to this server", async () => {
+    const env = harness();
+    const verifier = "b".repeat(64);
+    const challenge = await pkceS256(verifier);
+    const registered = await call(env.deps, "POST", "/api/oauth/register", {
+      body: { client_name: "ChatGPT", redirect_uris: ["https://client.example/callback"] },
+    });
+    const clientId = (registered.json as { client_id: string }).client_id;
+    const authorize = {
+      client_id: clientId,
+      redirect_uri: "https://client.example/callback",
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+      scope: "read",
+    };
+    expect((await call(env.deps, "GET", `/api/oauth/authorize/preview?${new URLSearchParams(authorize)}`)).status).toBe(200);
+    const wrongTarget = await call(env.deps, "GET", `/api/oauth/authorize/preview?${new URLSearchParams({ ...authorize, resource: "https://other.example/mcp" })}`);
+    expect(wrongTarget.status).toBe(400);
+
+    const consent = await call(env.deps, "POST", "/api/oauth/authorize", {
+      session: "session-a",
+      body: { ...authorize, decision: "allow" },
+    });
+    const code = new URL((consent.json as { redirect_to: string }).redirect_to).searchParams.get("code") ?? "";
+    const exchanged = await call(env.deps, "POST", "/api/oauth/token", {
+      contentType: "application/x-www-form-urlencoded",
+      raw: new URLSearchParams({
+        grant_type: "authorization_code",
+        code,
+        client_id: clientId,
+        redirect_uri: "https://client.example/callback",
+        code_verifier: verifier,
+      }).toString(),
+    });
+    expect(exchanged.status).toBe(200);
+    const accessToken = (exchanged.json as { access_token: string }).access_token;
+    const listed = await call(env.deps, "POST", "/api/mcp", {
+      token: accessToken,
+      body: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    });
+    expect(listed.status).toBe(200);
+  });
+});
+
 describe("oauth and mcp", () => {
   async function registerAndAuthorize(deps: ApiDeps, scope = "read") {
     const verifier = "a".repeat(64);

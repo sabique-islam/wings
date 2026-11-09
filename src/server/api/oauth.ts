@@ -21,6 +21,9 @@ import {
   validateVerifier,
 } from "./validate";
 
+/** Shown on the consent screen when a client registers without a name. */
+const UNNAMED_CLIENT = "Unnamed app";
+
 function result(status: number, body: unknown): ServiceResult {
   return { status, body };
 }
@@ -43,11 +46,13 @@ function intersectScopes(granted: GrantRow["scopes"], requested: GrantRow["scope
 }
 
 export async function registerClient(deps: ApiDeps, body: Record<string, unknown>): Promise<ServiceResult> {
-  const name = cleanName(body.client_name, LIMITS.clientName);
-  if (!name) return result(400, { error: "invalid_client_metadata", error_description: "client_name is required" });
-  if (body.token_endpoint_auth_method != null && body.token_endpoint_auth_method !== "none") {
-    return result(400, { error: "invalid_client_metadata", error_description: "Only public clients are supported" });
+  // RFC 7591: client_name is optional, and the server may replace requested
+  // metadata. Every client here is public (PKCE, no secret), so a request for
+  // a secret-based method is answered with "none" instead of being refused.
+  if (body.client_name != null && typeof body.client_name !== "string") {
+    return result(400, { error: "invalid_client_metadata", error_description: "client_name must be text" });
   }
+  const name = cleanName(body.client_name, LIMITS.clientName) ?? UNNAMED_CLIENT;
   if (!Array.isArray(body.redirect_uris) || body.redirect_uris.length < 1 || body.redirect_uris.length > 5) {
     return result(400, { error: "invalid_client_metadata", error_description: "redirect_uris must contain 1 to 5 https URLs" });
   }
@@ -110,7 +115,9 @@ async function loadAuthorize(deps: ApiDeps, input: AuthorizeInput) {
   if (!client.redirectUris.includes(input.redirectUri)) return { error: result(400, { error: "invalid_request" }) };
   const challenge = validateCodeChallenge(input.codeChallengeMethod, input.codeChallenge);
   if (!challenge) return { error: result(400, { error: "invalid_request", error_description: "PKCE S256 is required" }) };
-  if (!resourceMatches(input.resource, input.origin)) {
+  // RFC 8707 makes `resource` optional. When present it must name this server;
+  // the code and tokens are bound to this server either way.
+  if (input.resource && !resourceMatches(input.resource, input.origin)) {
     return { error: result(400, { error: "invalid_target" }) };
   }
   const scopes = scopesFromParam(input.scope);
@@ -265,7 +272,9 @@ async function exchangeCode(
   if (!clientId || !parsed || parsed.kind !== "oac" || !verifier) {
     return result(400, { error: "invalid_grant" });
   }
-  if (!resourceMatches(body.resource, origin)) return result(400, { error: "invalid_target" });
+  if (body.resource != null && body.resource !== "" && !resourceMatches(body.resource, origin)) {
+    return result(400, { error: "invalid_target" });
+  }
   const at = deps.now().toISOString();
   const row = await deps.store.consumeCode(parsed.id, at);
   const matches = await secretMatches(deps.pepper, parsed.secret, row?.codeHash ?? null);

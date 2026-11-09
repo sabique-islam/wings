@@ -24,7 +24,7 @@ function result(status: number, body: unknown, authError?: ServiceResult["authEr
 
 function need(principal: Principal, scope: "read" | "write"): ServiceResult | null {
   if (hasScope(principal.scopes, scope)) return null;
-  return result(403, { error: "Forbidden" }, "insufficient_scope");
+  return result(403, { error: "This connection only has read access. Reconnect Wings with write access to create or edit pages." }, "insufficient_scope");
 }
 
 export function pageMeta(row: PageRow) {
@@ -113,7 +113,7 @@ function appendMarkdown(existing: string, addition: string): string {
 
 async function ownedParent(deps: ApiDeps, userId: string, parentId: string | null, pageId?: string): Promise<ServiceResult | null> {
   if (!parentId) return null;
-  if (!isUuid(parentId)) return result(400, { error: "Bad request" });
+  if (!isUuid(parentId)) return result(400, { error: "parent_id must be a page id (uuid) or null." });
   if (pageId && parentId === pageId) return result(400, { error: "A page cannot be placed inside itself." });
   let cursor: string | null = parentId;
   for (let depth = 0; depth < 50 && cursor; depth++) {
@@ -137,9 +137,9 @@ export async function listPages(deps: ApiDeps, principal: Principal, url: URL): 
 export async function getPage(deps: ApiDeps, principal: Principal, id: string): Promise<ServiceResult> {
   const denied = need(principal, "read");
   if (denied) return denied;
-  if (!isUuid(id)) return result(404, { error: "Not found" });
+  if (!isUuid(id)) return result(404, { error: "No page with that id in this account. It may be in the trash, or the id may be wrong." });
   const row = await deps.store.getPage(principal.userId, id);
-  if (!row) return result(404, { error: "Not found" });
+  if (!row) return result(404, { error: "No page with that id in this account. It may be in the trash, or the id may be wrong." });
   return result(200, pageBody(row));
 }
 
@@ -147,7 +147,7 @@ export async function searchPages(deps: ApiDeps, principal: Principal, url: URL)
   const denied = need(principal, "read");
   if (denied) return denied;
   const query = (url.searchParams.get("q") ?? "").replace(/\u0000/g, "").trim();
-  if (!query || query.length > LIMITS.search) return result(400, { error: "Bad request" });
+  if (!query || query.length > LIMITS.search) return result(400, { error: "query must be 1 to 200 characters." });
   const limit = clampInt(url.searchParams.get("limit"), 20, 1, 50);
   const rows = await deps.store.searchPages(principal.userId, query, limit);
   return result(200, { pages: rows.map(pageMeta) });
@@ -160,12 +160,12 @@ export async function createPage(deps: ApiDeps, principal: Principal, body: Reco
     return result(400, { error: "The API only creates server-readable pages. Local vault bodies stay on the device." });
   }
   const title = body.title == null ? "" : typeof body.title === "string" ? normalizeTitle(body.title) : null;
-  if (title == null) return result(400, { error: "Bad request" });
+  if (title == null) return result(400, { error: "title must be text." });
   const content = body.content == null ? "" : body.content;
-  if (typeof content !== "string" || content.length > LIMITS.content) return result(400, { error: "Bad request" });
+  if (typeof content !== "string" || content.length > LIMITS.content) return result(400, { error: "content must be markdown text of at most 500,000 characters." });
   let parentId: string | null = null;
   if (body.parent_id != null && body.parent_id !== "") {
-    if (typeof body.parent_id !== "string") return result(400, { error: "Bad request" });
+    if (typeof body.parent_id !== "string") return result(400, { error: "parent_id must be a page id (uuid) or null." });
     parentId = body.parent_id;
   }
   const parentError = await ownedParent(deps, principal.userId, parentId);
@@ -189,14 +189,14 @@ export async function updatePage(
 ): Promise<ServiceResult> {
   const denied = need(principal, "write");
   if (denied) return denied;
-  if (!isUuid(id)) return result(404, { error: "Not found" });
+  if (!isUuid(id)) return result(404, { error: "No page with that id in this account. It may be in the trash, or the id may be wrong." });
   const existing = await deps.store.getPage(principal.userId, id);
-  if (!existing) return result(404, { error: "Not found" });
+  if (!existing) return result(404, { error: "No page with that id in this account. It may be in the trash, or the id may be wrong." });
 
   const hasContent = Object.prototype.hasOwnProperty.call(body, "content");
   const hasTitle = Object.prototype.hasOwnProperty.call(body, "title");
   const hasParent = Object.prototype.hasOwnProperty.call(body, "parent_id");
-  if (!hasContent && !hasTitle && !hasParent) return result(400, { error: "Bad request" });
+  if (!hasContent && !hasTitle && !hasParent) return result(400, { error: "Send at least one of content, title, or parent_id." });
 
   if (hasContent) {
     const blocked = await bodyWriteBlocked(deps, principal, existing);
@@ -205,13 +205,13 @@ export async function updatePage(
 
   let title: string | undefined;
   if (hasTitle) {
-    if (typeof body.title !== "string") return result(400, { error: "Bad request" });
+    if (typeof body.title !== "string") return result(400, { error: "title must be text." });
     title = normalizeTitle(body.title);
   }
 
   let content: string | undefined;
   if (hasContent) {
-    if (typeof body.content !== "string" || body.content.length > LIMITS.content) return result(400, { error: "Bad request" });
+    if (typeof body.content !== "string" || body.content.length > LIMITS.content) return result(400, { error: "content must be markdown text of at most 500,000 characters." });
     if (shouldBlockEmptySave(existing.content, body.content)) {
       deps.log("empty_save_blocked", { pageId: id });
       return result(400, { error: "Refusing to replace a page with empty content." });
@@ -222,7 +222,7 @@ export async function updatePage(
   let parentId: string | null | undefined;
   if (hasParent) {
     parentId = body.parent_id == null || body.parent_id === "" ? null : String(body.parent_id);
-    if (parentId != null && typeof body.parent_id !== "string") return result(400, { error: "Bad request" });
+    if (parentId != null && typeof body.parent_id !== "string") return result(400, { error: "parent_id must be a page id (uuid) or null." });
     const parentError = await ownedParent(deps, principal.userId, parentId, id);
     if (parentError) return parentError;
   }
@@ -242,7 +242,7 @@ export async function updatePage(
   }
 
   const row = await deps.store.updatePage(principal.userId, id, { title, parentId }, "meta");
-  if (!row) return result(404, { error: "Not found" });
+  if (!row) return result(404, { error: "No page with that id in this account. It may be in the trash, or the id may be wrong." });
   deps.log("page_update", { pageId: id });
   return result(200, pageBody(row));
 }
@@ -255,16 +255,16 @@ export async function appendPage(
 ): Promise<ServiceResult> {
   const denied = need(principal, "write");
   if (denied) return denied;
-  if (!isUuid(id)) return result(404, { error: "Not found" });
+  if (!isUuid(id)) return result(404, { error: "No page with that id in this account. It may be in the trash, or the id may be wrong." });
   if (typeof body.content !== "string" || !body.content.trim() || body.content.length > LIMITS.content) {
-    return result(400, { error: "Bad request" });
+    return result(400, { error: "content must be non-empty markdown of at most 500,000 characters." });
   }
   const existing = await deps.store.getPage(principal.userId, id);
-  if (!existing) return result(404, { error: "Not found" });
+  if (!existing) return result(404, { error: "No page with that id in this account. It may be in the trash, or the id may be wrong." });
   const blocked = await bodyWriteBlocked(deps, principal, existing);
   if (blocked) return blocked;
   const next = appendMarkdown(existing.content, body.content);
-  if (next.length > LIMITS.content) return result(413, { error: "Payload too large" });
+  if (next.length > LIMITS.content) return result(413, { error: "The page would be longer than 500,000 characters after appending." });
   if (shouldBlockEmptySave(existing.content, next)) {
     deps.log("empty_save_blocked", { pageId: id });
     return result(400, { error: "Refusing to replace a page with empty content." });
