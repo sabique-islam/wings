@@ -1,3 +1,5 @@
+import { shouldBlockEmptySave } from "./emptySave.js";
+export { shouldBlockEmptySave } from "./emptySave.js";
 import type { JSONContent } from "@tiptap/core";
 import { markdownToHtml } from "./markdown";
 
@@ -67,13 +69,6 @@ export function shouldApplyDraft(
   if (draftMarkdown.trim().length > 0) return true;
   if (!isEmptyDoc(draftJson)) return true;
   return existingContent.trim().length === 0;
-}
-
-/** Block autosave that would replace substantial content with an empty doc. */
-export function shouldBlockEmptySave(existingContent: string, nextMarkdown: string): boolean {
-  const had = existingContent.trim().length;
-  const next = nextMarkdown.trim().length;
-  return had >= 20 && next === 0;
 }
 
 /** Block offline pending-write replay that would wipe server content. */

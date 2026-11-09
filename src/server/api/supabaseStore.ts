@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { StoreError, type ApiStore, type PageRow } from "./types";
-import type { Scope } from "./validate";
+import { StoreError, type ApiStore, type PageRow } from "./types.js";
+import type { Scope } from "./validate.js";
 
 type Row = Record<string, unknown>;
 

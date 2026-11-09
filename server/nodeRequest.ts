@@ -1,4 +1,4 @@
-import { handleRequest } from "../src/server/api/router";
+import { handleRequest } from "../src/server/api/router.js";
 
 type NodeReq = {
   method?: string;

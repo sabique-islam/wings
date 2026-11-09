@@ -1,4 +1,4 @@
-import { handleNode } from "../server/nodeRequest";
+import { handleNode } from "../server/nodeRequest.js";
 
 type NodeReq = Parameters<typeof handleNode>[0];
 type NodeRes = Parameters<typeof handleNode>[1];

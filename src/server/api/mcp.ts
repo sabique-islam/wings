@@ -5,8 +5,8 @@ import {
   listPages,
   searchPages,
   updatePage,
-} from "./pages";
-import type { ApiDeps, Principal, ServiceResult } from "./types";
+} from "./pages.js";
+import type { ApiDeps, Principal, ServiceResult } from "./types.js";
 
 const SERVER_PROTOCOL = "2025-06-18";
 const SUPPORTED_PROTOCOLS = new Set(["2025-03-26", "2025-06-18"]);

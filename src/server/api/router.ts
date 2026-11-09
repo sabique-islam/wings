@@ -1,7 +1,7 @@
-import { hmacHex } from "./crypto";
-import { makeSessionVerifier } from "./session";
-import { createServiceClient, createSupabaseStore } from "./supabaseStore";
-import { DEFAULT_LIMITS } from "./types";
+import { hmacHex } from "./crypto.js";
+import { makeSessionVerifier } from "./session.js";
+import { createServiceClient, createSupabaseStore } from "./supabaseStore.js";
+import { DEFAULT_LIMITS } from "./types.js";
 import {
   bearerToken,
   clientAddress,
@@ -21,8 +21,8 @@ import {
   tooMany,
   unauthorized,
   wwwAuthenticate,
-} from "./http";
-import { handleMcp } from "./mcp";
+} from "./http.js";
+import { handleMcp } from "./mcp.js";
 import {
   decideAuthorization,
   listConnectedApps,
@@ -31,12 +31,12 @@ import {
   revokeConnectedApp,
   revokePresentedToken,
   tokenExchange,
-} from "./oauth";
-import { appendPage, createPage, getPage, isStoreError, listPages, searchPages, updatePage } from "./pages";
-import { createPat, listPats, resolvePrincipal, revokePat } from "./tokens";
-import type { ApiDeps, Principal, ServiceResult } from "./types";
-import { StoreError } from "./types";
-import { isUuid, LIMITS } from "./validate";
+} from "./oauth.js";
+import { appendPage, createPage, getPage, isStoreError, listPages, searchPages, updatePage } from "./pages.js";
+import { createPat, listPats, resolvePrincipal, revokePat } from "./tokens.js";
+import type { ApiDeps, Principal, ServiceResult } from "./types.js";
+import { StoreError } from "./types.js";
+import { isUuid, LIMITS } from "./validate.js";
 
 const UUID = "([0-9a-f-]{36})";
 

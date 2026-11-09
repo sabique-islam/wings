@@ -6,9 +6,9 @@ import {
   randomClientId,
   randomUuid,
   secretMatches,
-} from "./crypto";
-import { redirectHost } from "./validate";
-import type { ApiDeps, GrantRow, ServiceResult } from "./types";
+} from "./crypto.js";
+import { redirectHost } from "./validate.js";
+import type { ApiDeps, GrantRow, ServiceResult } from "./types.js";
 import {
   cleanName,
   cleanState,
@@ -19,7 +19,7 @@ import {
   validateCodeChallenge,
   validateRedirectUri,
   validateVerifier,
-} from "./validate";
+} from "./validate.js";
 
 /** Shown on the consent screen when a client registers without a name. */
 const UNNAMED_CLIENT = "Unnamed app";

@@ -1,4 +1,4 @@
-import { canonicalResource } from "./validate";
+import { canonicalResource } from "./validate.js";
 
 /** Server env only. Avoids a Node `process` type in the browser tsconfig. */
 export function serverEnv(name: string): string {

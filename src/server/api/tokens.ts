@@ -1,6 +1,6 @@
-import { issueToken, parseToken, secretMatches } from "./crypto";
-import type { ApiDeps, PatRow, Principal } from "./types";
-import { cleanName, hasScope, LIMITS, scopesFromList } from "./validate";
+import { issueToken, parseToken, secretMatches } from "./crypto.js";
+import type { ApiDeps, PatRow, Principal } from "./types.js";
+import { cleanName, hasScope, LIMITS, scopesFromList } from "./validate.js";
 
 const TWO_YEARS_MS = 2 * 366 * 24 * 60 * 60 * 1000;
 

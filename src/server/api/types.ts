@@ -1,4 +1,4 @@
-import type { Scope } from "./validate";
+import type { Scope } from "./validate.js";
 
 export interface PageRow {
   id: string;

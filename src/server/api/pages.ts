@@ -1,4 +1,4 @@
-import { shouldBlockEmptySave } from "../../lib/editorContent";
+import { shouldBlockEmptySave } from "../../lib/emptySave.js";
 import {
   COLLAB_BODY_MESSAGE,
   LOCAL_BODY_MESSAGE,
@@ -7,13 +7,13 @@ import {
   type PageRow,
   type Principal,
   type ServiceResult,
-} from "./types";
+} from "./types.js";
 import {
   hasScope,
   isUuid,
   LIMITS,
   normalizeTitle,
-} from "./validate";
+} from "./validate.js";
 
 /** Empty doc so resolveInitialEditorContent keeps the markdown the API just wrote. */
 export const EMPTY_DOC: { type: "doc"; content: never[] } = { type: "doc", content: [] };
