@@ -6,11 +6,28 @@
   "installCommand": "npm install --legacy-peer-deps",
   "rewrites": [
     {
-      "source": "/((?!\\.well-known/|og\\.jpg|og\\.png|pcm-capture-worklet\\.js).*)",
+      "source": "/api/:path+",
+      "destination": "/api?__wings_path=:path+"
+    },
+    {
+      "source": "/((?!\\.well-known/|og\\.jpg|og\\.png|pcm-capture-worklet\\.js|api/).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/.well-known/openai-apps-challenge",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    },
     {
       "source": "/assets/(.*)",
       "headers": [

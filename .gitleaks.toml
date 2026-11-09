@@ -1,0 +1,10 @@
+title = "Wings"
+
+[extend]
+useDefault = true
+
+# IndexNow proves site ownership by hosting this value at /{key}.txt.
+# It is already in history (8d9f464) and is not an access credential.
+[[allowlists]]
+description = "Public IndexNow verification key"
+regexes = ['''6ab4230d7edd3da701967b8b96d715b3''']

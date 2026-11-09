@@ -4,7 +4,7 @@
 
 ## Summary
 
-Wings is a Vite SPA journal. Marketing pages and the blog are public. The app (`/app`, `/:username`), auth, checkout, and share links (`/s/`) are private or noindex. There is no public REST API for third parties. Auth is Supabase (Google OAuth + magic link PKCE). AI is bring-your-own-key in the browser. Local vault pages keep bodies on a connected folder; Wings stores the title so the sidebar still works.
+Wings is a Vite SPA journal. Marketing pages and the blog are public. The app (`/app`, `/:username`), auth, checkout, and share links (`/s/`) are private or noindex. People sign in with Supabase (Google or magic link PKCE). A signed-in user can mint a personal access token or approve an OAuth client for their own pages. Remote MCP is `POST https://wings.nopejs.me/api/mcp` with `Authorization: Bearer <token>`. The API does not return another user's notes. Local vault bodies stay on a connected folder; the API returns the title and says the body is not on the server. AI in the editor is still bring-your-own-key in the browser.
 
 ## Docs and blog
 

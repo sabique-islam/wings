@@ -6,9 +6,12 @@ Honest inventory of discovery standards on `wings.nopejs.me`.
 
 - Link headers on `/` (RFC 8288)
 - Content Signals in `/robots.txt`
-- `/.well-known/api-catalog` (RFC 9727) — documents that there is no public HTTP API
-- `/openapi.json` — empty paths, same honesty
-- `/auth.md` — human auth via Supabase; no agent registration
+- `/.well-known/api-catalog` (RFC 9727) — personal API and MCP
+- `/openapi.json` — personal pages API and MCP
+- `/auth.md` — human sign-in via Supabase, plus PAT and MCP OAuth for the caller's own pages
+- `/.well-known/oauth-protected-resource` (RFC 9728), including the path-inserted MCP URL
+- `/.well-known/oauth-authorization-server` (RFC 8414) — PKCE S256, dynamic client registration
+- Remote MCP: `POST /api/mcp` (streamable HTTP)
 - `/.well-known/agent-skills/index.json` + product skills
 - `/llms.txt`, `/llms-full.txt`, markdown mirrors + `Accept: text/markdown` negotiation (Vercel Edge middleware)
 - WebMCP tools on the marketing homepage
@@ -19,8 +22,7 @@ Honest inventory of discovery standards on `wings.nopejs.me`.
 These will ship only when real endpoints exist:
 
 - DNS-AID (`_agents` SVCB/HTTPS + DNSSEC)
-- `/.well-known/openid-configuration` / `oauth-authorization-server` on Wings (auth is Supabase)
-- `/.well-known/oauth-protected-resource`
+- `/.well-known/openid-configuration` (human login is Supabase, not a Wings OpenID provider)
 - MCP Server Card (SEP-1649)
 - A2A Agent Card
 - Commerce protocols (x402, UCP, ACP, AP2)

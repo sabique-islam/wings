@@ -138,7 +138,7 @@ export function Docs() {
       eyebrow="resources · docs"
       title="using Wings."
       path="/docs"
-      description="Wings docs: sign-in, lecture mode, local vault, sharing, export, BYOK AI, keyboard shortcuts, and FAQ."
+      description="Wings docs: sign-in, API and MCP, lecture mode, local vault, sharing, export, BYOK AI, keyboard shortcuts, and FAQ."
       faq={DOCS_FAQ}
     >
       <p className="text-muted-foreground">
@@ -150,8 +150,16 @@ export function Docs() {
 
       <h2 className="text-base font-mono uppercase tracking-tight pt-6">sign in</h2>
       <p className="text-muted-foreground">
-        Open <a href="/auth" className="underline underline-offset-2 hover:text-foreground">/auth</a>. Use Google OAuth or a magic link (email OTP). Auth is Supabase PKCE; there is no Wings API key for third parties. See{" "}
+        Open <a href="/auth" className="underline underline-offset-2 hover:text-foreground">/auth</a>. Use Google OAuth or a magic link (email OTP). Auth is Supabase PKCE. See{" "}
         <a href="/auth.md" className="underline underline-offset-2 hover:text-foreground">auth.md</a>.
+      </p>
+
+      <h2 className="text-base font-mono uppercase tracking-tight pt-6">API and MCP</h2>
+      <p className="text-muted-foreground">
+        Settings → Access creates a personal access token, or you approve ChatGPT or Claude with OAuth. The MCP URL is{" "}
+        <code className="text-xs">https://wings.nopejs.me/api/mcp</code>. Headless clients send{" "}
+        <code className="text-xs">Authorization: Bearer</code> and the token. Default scope is read. Local-vault bodies stay on the device.
+        Full steps are in <a href="/docs.md" className="underline underline-offset-2 hover:text-foreground">docs.md</a>.
       </p>
 
       <h2 className="text-base font-mono uppercase tracking-tight pt-6">local vault</h2>

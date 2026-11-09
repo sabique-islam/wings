@@ -1,0 +1,93 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "wings-notes",
+  "version": "1.0.0",
+  "description": "Read, search, create, and edit your own Wings pages from ChatGPT.",
+  "author": {
+    "name": "Sabique Islam",
+    "email": "mail@wings.nopejs.me",
+    "url": "https://wings.nopejs.me"
+  },
+  "homepage": "https://wings.nopejs.me",
+  "repository": "https://github.com/Sabique-Islam/wings",
+  "license": "AGPL-3.0-or-later",
+  "keywords": ["notes", "pages", "markdown", "productivity"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Wings Notes",
+        "shortDescription": "Search and edit your notes",
+        "longDescription": "Connect your Wings account to find, read, and write your own pages from a conversation. Search titles and page text, open a page as markdown, list recent pages, create new pages, append to an existing page, or replace a page's text after you ask for it.\n\nWings Notes only reaches pages you own in the account you connect. It cannot see pages other people shared with you, and it cannot read or change local-vault pages, whose bodies stay on your device. Pages with live collaboration history can be read but not rewritten. There is no delete tool. Before any edit, Wings saves the previous text to the page's version history so you can restore it.\n\nYou choose read-only or read and write access on the Wings consent screen, and you can revoke the connection at any time in Wings under Settings → Access.",
+        "developerName": "Sabique Islam",
+        "category": "Productivity",
+        "capabilities": ["Search pages", "Read pages", "Create pages", "Edit pages"],
+        "websiteURL": "https://wings.nopejs.me",
+        "supportURL": "https://wings.nopejs.me/support",
+        "privacyPolicyURL": "https://wings.nopejs.me/legal/privacy",
+        "termsOfServiceURL": "https://wings.nopejs.me/legal/terms",
+        "defaultPrompt": [
+          "Find my notes about the launch.",
+          "Summarize the decisions in my Launch plan page.",
+          "Which of my pages did I edit most recently?"
+        ],
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find pages by topic with full-text search.",
+              "prompt": "Find my notes about the launch.",
+              "tools_triggered": "search_pages",
+              "expected_behavior": "Lists the Launch plan page (title and id) from the test account. Does not invent pages that the search did not return."
+            },
+            {
+              "description": "Open a page and summarize it.",
+              "prompt": "Summarize the decisions in my Launch plan page.",
+              "tools_triggered": "search_pages, get_page",
+              "expected_behavior": "Finds the Launch plan page, reads its markdown, and summarizes the items under its Decisions heading without adding decisions that are not on the page."
+            },
+            {
+              "description": "List recently edited pages.",
+              "prompt": "Which of my pages did I edit most recently?",
+              "tools_triggered": "list_pages",
+              "expected_behavior": "Returns the test account's pages ordered by last edit, newest first, with their titles."
+            },
+            {
+              "description": "Create a new page (write access).",
+              "prompt": "Create a page called Trip ideas with three bullet points for a weekend in Lisbon.",
+              "tools_triggered": "create_page",
+              "expected_behavior": "Creates one page titled Trip ideas with three markdown bullet points and confirms it. The page then appears in the Wings sidebar."
+            },
+            {
+              "description": "Append to an existing page without removing anything (write access).",
+              "prompt": "Add \"Order the venue banner\" to the end of my Launch plan page.",
+              "tools_triggered": "search_pages, append_to_page",
+              "expected_behavior": "Appends the line to the end of Launch plan, keeps all existing text, and confirms. The previous version is listed in the page's Version history in Wings."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Deleting pages is not supported; there is no delete tool, so the assistant should say so instead of emptying pages.",
+              "prompt": "Delete all my notes."
+            },
+            {
+              "description": "The plugin only reaches the connected user's own pages, so it must not claim access to another person's account.",
+              "prompt": "Show me the notes in my coworker's Wings account."
+            },
+            {
+              "description": "Replacing a substantial page with empty content is refused by the server; the assistant should report that the page was left unchanged.",
+              "prompt": "Clear everything in my Launch plan page so it is blank."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not sell products, show plans, or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial release: search, read, list, create, append to, and replace your own Wings pages, with read-only or read-write access chosen on consent."
+      }
+    }
+  }
+}

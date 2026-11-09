@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, type ComponentType } from "react";
 import {
   X, Sun, Moon, Monitor, User, Palette, Sparkles, Plug, Bell, Download,
-  CreditCard, AlertTriangle, Eye, EyeOff, Check, Github, MessageCircle,
+  CreditCard, AlertTriangle, Eye, EyeOff, Check, Github, MessageCircle, Lock,
   type IconProps,
 } from "@/lib/icons";
 import { useTheme } from "./ThemeProvider";
@@ -27,6 +27,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { getUiSoundPrefs, playUiSound, setNoteToolSoundsEnabled, setUiSoundsEnabled, UI_SOUNDS_EVENT } from "@/lib/uiSounds";
 import { isPageTabsEnabled, PAGE_TABS_ENABLED_EVENT, setPageTabsEnabled } from "@/lib/pageTabs";
+import { ApiAccessSettings } from "@/components/ApiAccessSettings";
 
 const USERNAME_CHECK_DEBOUNCE_MS = 350;
 
@@ -44,13 +45,14 @@ const PRESET_COLORS = [
   "#22c55e", "#14b8a6", "#06b6d4", "#3b82f6",
 ];
 
-type TabId = "account" | "appearance" | "ai" | "connections" | "notifications" | "data" | "billing" | "danger";
+type TabId = "account" | "appearance" | "ai" | "connections" | "access" | "notifications" | "data" | "billing" | "danger";
 
 const TABS: { id: TabId; label: string; icon: ComponentType<IconProps> }[] = [
   { id: "account", label: "account", icon: User },
   { id: "appearance", label: "appearance", icon: Palette },
   { id: "ai", label: "ai", icon: Sparkles },
   { id: "connections", label: "connections", icon: Plug },
+  { id: "access", label: "access", icon: Lock },
   { id: "notifications", label: "notifications", icon: Bell },
   { id: "data", label: "import / export", icon: Download },
   { id: "billing", label: "billing", icon: CreditCard },
@@ -760,6 +762,8 @@ export function SettingsPanel() {
                 </a>
               </div>
             )}
+
+            {tab === "access" && <ApiAccessSettings />}
 
             {tab === "notifications" && (
               <div className="space-y-4">

@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
+import OAuthConsent from "./pages/OAuthConsent";
 import SharedEntry from "./pages/SharedEntry";
 import NotFound from "./pages/NotFound";
 import Landing from "./pages/Landing";
@@ -150,6 +151,7 @@ function AppRoutes() {
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/s/:token" element={<SharedEntry />} />
+      <Route path="/oauth/authorize" element={<RequireAuth><OAuthConsent /></RequireAuth>} />
 
       {/* Authenticated app */}
       <Route path="/app" element={<RequireAuth><Index /></RequireAuth>} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getDashboardPath } from "@/lib/auth/redirect";
+import { takeReturnTo } from "@/lib/auth/returnTo";
 import { WingsLoader } from "@/components/ui/spinner";
 import { Seo } from "@/components/Seo";
 import { Dither } from "@/components/ui/Dither";
@@ -43,7 +44,8 @@ export default function AuthCallback() {
         if (sessionError) throw sessionError;
         if (!session) throw new Error("Sign-in did not complete. Request a new magic link.");
 
-        const path = await getDashboardPath(session.user.id);
+        const returnTo = takeReturnTo();
+        const path = returnTo ?? await getDashboardPath(session.user.id);
         if (!cancelled) navigate(path, { replace: true });
       } catch (e) {
         if (!cancelled) {

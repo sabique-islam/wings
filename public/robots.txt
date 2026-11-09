@@ -25,6 +25,8 @@ Disallow: /app
 Disallow: /n/
 Disallow: /s/
 Disallow: /checkout/
+Disallow: /api
+Disallow: /oauth
 
 # --- AI training opt-out (ai-train=no). Does not block search/citation bots. ---
 

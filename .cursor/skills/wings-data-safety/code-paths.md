@@ -146,6 +146,8 @@ New rows with empty or initial content — safe (no overwrite).
 
 **There is no other client `updateEntry` caller.** AI edits go through editor serialize → handleChange.
 
+The personal API does not call `updateEntry`. `src/server/api/pages.ts` writes `content` and `content_json` with the service role after `shouldBlockEmptySave`, and only for `user_id` equal to the token owner. Body updates also require `content_storage = cloud` and no `content_yjs` (Hocuspocus would replay its own copy over the write, so those pages get 409). Before replacing or appending, the current body and `content_json` are saved to `entry_versions`; if that fails the write is refused (503). The written body is snapshotted after. `content_json` is an empty doc so `resolveInitialEditorContent` keeps the markdown. The next in-app edit rewrites real editor JSON.
+
 ---
 
 ## Dual-write contract

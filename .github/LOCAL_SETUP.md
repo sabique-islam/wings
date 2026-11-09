@@ -62,6 +62,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-or-publishable-key
 
 Never commit `.env`. Never put service-role keys in `VITE_*` variables — those are embedded in the client bundle.
 
+
 ### Auth redirect URLs (required for login)
 
 In Supabase **Authentication → URL Configuration**:

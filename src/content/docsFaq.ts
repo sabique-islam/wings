@@ -5,7 +5,12 @@ export const DOCS_FAQ: FaqItem[] = [
   {
     question: "How do I sign in to Wings?",
     answer:
-      "Open /auth and use Google OAuth or a magic link email. Auth is Supabase PKCE. There is no third-party Wings API key.",
+      "Open /auth and use Google OAuth or a magic link email. Auth is Supabase PKCE. Connected apps use a personal access token or OAuth from Settings → Access.",
+  },
+  {
+    question: "How do I connect ChatGPT or Claude to my notes?",
+    answer:
+      "In ChatGPT, add a custom MCP connector with URL https://wings.nopejs.me/api/mcp and OAuth. In Claude, add a custom web connector with the same URL. Approve the Wings consent screen. Headless clients can instead send Authorization: Bearer and a personal access token from Settings → Access. The default scope is read-only. Local-vault page bodies are not on the server.",
   },
   {
     question: "What is Lecture Mode?",

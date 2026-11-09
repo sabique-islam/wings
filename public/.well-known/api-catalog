@@ -16,12 +16,26 @@
         {
           "href": "https://wings.nopejs.me/openapi.json",
           "type": "application/json"
+        },
+        {
+          "href": "https://wings.nopejs.me/api/mcp",
+          "type": "application/json"
         }
       ],
       "describedby": [
         {
           "href": "https://wings.nopejs.me/llms.txt",
           "type": "text/plain"
+        },
+        {
+          "href": "https://wings.nopejs.me/auth.md",
+          "type": "text/markdown"
+        }
+      ],
+      "service-meta": [
+        {
+          "href": "https://wings.nopejs.me/.well-known/oauth-protected-resource",
+          "type": "application/json"
         }
       ],
       "status": [

@@ -2,11 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getDashboardPath } from "@/lib/auth/redirect";
-
-/** True only for a safe same-origin in-app path. */
-function isSafeReturnTo(path: string): boolean {
-  return /^\/[A-Za-z0-9/_-]/.test(path) && !path.startsWith("//") && !path.startsWith("/\\");
-}
+import { isSafeReturnTo } from "@/lib/auth/returnTo";
 
 /** Send authenticated users to their dashboard (e.g. on /auth or /). */
 export function useRedirectIfAuthed(enabled = true) {
