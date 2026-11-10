@@ -3,6 +3,7 @@ import { Editor } from "@tiptap/core";
 import { createBlockEditorExtensions } from "./editorExtensions";
 import { applyTsvPaste, tsvToTableJSON } from "./tableTsv";
 import { tableShape } from "./tableCommands";
+import { htmlToMarkdown, markdownToHtml } from "@/lib/markdown";
 
 function makeEditor(content = "<p></p>") {
   return new Editor({
@@ -39,6 +40,16 @@ function cellTexts(editor: Editor): string[][] {
 }
 
 describe("tsvToTableJSON", () => {
+  it("keeps real editor table cells across a Markdown-only reload", () => {
+    const editor = makeEditor(markdownToHtml('| Item | Edge |\n| --- | --- |\n| A | T1 → T2 |\n| B | T2 → T3 |'));
+    const expected = cellTexts(editor);
+    const stored = htmlToMarkdown(editor.getHTML());
+    const reloaded = makeEditor(markdownToHtml(stored));
+    expect(cellTexts(reloaded), `Editor HTML: ${editor.getHTML()}\nStored Markdown: ${stored}`).toEqual(expected);
+    editor.destroy();
+    reloaded.destroy();
+  });
+
   it("uses a header row when there is more than one row", () => {
     const json = tsvToTableJSON(
       [

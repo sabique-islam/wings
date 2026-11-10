@@ -1,0 +1,15 @@
+# Build from source using the project's Vercel environment settings.
+dist/
+node_modules/
+.git/
+.agents/
+.codex/
+.cursor/
+.aws/
+.env
+.env.*
+**/.env
+**/.env.*
+test-results/
+playwright-report/
+coverage/

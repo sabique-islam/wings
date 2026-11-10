@@ -173,6 +173,7 @@ test.describe("Paste prefers markdown", () => {
     await expect(stored).not.toContainText("chatgpt-mermaid");
     await expect(stored).not.toContainText("stroke-dashoffset");
     const before = await stored.textContent();
+    await test.info().attach("recovered-worked-note.md", { body: before || "", contentType: "text/markdown" });
     await page.getByTestId("reload-from-markdown").click();
     await expect(diagram.locator(".code-mermaid-svg svg")).toBeVisible({ timeout: 15000 });
     await expect(editor.locator("table")).toHaveCount(3);

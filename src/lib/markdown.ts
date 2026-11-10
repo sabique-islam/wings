@@ -63,6 +63,15 @@ const turndown = new TurndownService({
 
 // Keep the surrounding GFM tables when a mixed note is saved/exported as Markdown.
 turndown.use(tables);
+turndown.addRule("editorTableCell", {
+  filter: ["th", "td"],
+  replacement(content, node) {
+    // TipTap wraps cell text in paragraphs; blank lines break a GFM table row.
+    const cell = content.trim().replace(/\n+/g, "<br>").replace(/(\\*)\|/g, (_match, slashes: string) => `${slashes}${slashes.length % 2 === 0 ? "\\" : ""}|`);
+    const prefix = (node as HTMLElement).previousElementSibling ? " " : "| ";
+    return `${prefix}${cell} |`;
+  },
+});
 
 turndown.addRule("taskList", {
   filter: (node) =>
@@ -114,7 +123,14 @@ turndown.addRule("customBlock", {
 
 export function htmlToMarkdown(html: string): string {
   if (!html) return "";
-  const input = html.trim().startsWith("<") ? `<div data-root="1">${html}</div>` : html;
+  let input = html.trim().startsWith("<") ? `<div data-root="1">${html}</div>` : html;
+  if (/<colgroup\b/i.test(input)) {
+    // TipTap's layout columns precede tbody, which otherwise hides the header
+    // row from the GFM converter. Cell data remains in the table rows.
+    const document = new DOMParser().parseFromString(input, "text/html");
+    document.querySelectorAll("table > colgroup").forEach((columns) => columns.remove());
+    input = document.body.innerHTML;
+  }
   return turndown.turndown(input).trim();
 }
 
@@ -133,6 +149,7 @@ const BARE_CLOSING_TAG = /^\s*<\/(?:div|span|h[1-3]|u|mark)>\s*$/;
 
 function isSafeInlineHtml(raw: string): boolean {
   const trimmed = raw.trim();
+  if (/^<br\s*\/?>$/i.test(trimmed)) return true;
   if (/^<\/?(?:u|mark)>$/i.test(trimmed)) return true;
   if (/^<(?:u|mark)>[\s\S]*<\/(?:u|mark)>$/i.test(trimmed) && !/\bon\w+\s*=/i.test(trimmed)) {
     return true;
