@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef, useCallback, type ComponentType } from "react";
 import {
   Sparkles, Send, X, Settings, Square,
-  PenLine, FilePlus2, Wand2, Eye, EyeOff, Image as ImageIcon, ImagePlus,
+  PenLine, FilePlus2, Wand2, Eye, EyeOff, Image as ImageIcon,
   MessageCircle, ListChecks, BookOpen, type IconProps,
 } from "@/lib/icons";
 import { useResizable } from "@/hooks/useResizable";
-import { marked } from "marked";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 import { markdownToHtml } from "@/lib/markdown";
 import { Entry, getEntryTitle, createEntry } from "@/lib/journal";
@@ -15,6 +14,8 @@ import { PROVIDERS, getProvider } from "@/lib/ai/providers";
 import { AIModelSelect } from "@/components/AIModelSelect";
 import { AIModeSelect } from "@/components/AIModeSelect";
 import { AIThinkingStatus } from "@/components/AIThinkingStatus";
+import { AIMessageContent } from "@/components/AIMessageContent";
+import { AIChatAttachment } from "@/components/AIChatAttachment";
 import {
   getAssistantMode, setAssistantMode,
   systemPromptFor, placeholderFor, emptyStateBlurb,
@@ -28,7 +29,12 @@ import {
 } from "@/lib/ai/storage";
 import { collectDrawingsFromContent, snapshotsAsAttachments } from "@/lib/ai/excalidrawContext";
 import { collectImagesFromContent, imagesAsAttachments, MAX_PAGE_IMAGES } from "@/lib/ai/pageImageContext";
-import { filesToImageAttachments, isAllowedImageFile } from "@/lib/ai/imageAttachments";
+import { isAllowedImageFile } from "@/lib/ai/imageAttachments";
+import {
+  attachmentKind, normalizeChatFile, prepareChatAttachments,
+  MAX_CHAT_ATTACHMENTS, MAX_CHAT_FILE_BYTES, MAX_CHAT_TOTAL_BYTES,
+  type ChatAttachment,
+} from "@/lib/ai/attachments";
 import {
   buildPromptContext,
   mentionsVisual,
@@ -53,17 +59,10 @@ interface UIMessage extends ChatMessage {
   id: string;
   pending?: boolean;
   actions?: { label: string; onClick: () => void }[];
-  /** Object URLs for images the user attached — display only. */
-  imagePreviews?: string[];
+  attachments?: ChatAttachment[];
+  /** Extracted file text is retained for follow-up turns, without cluttering the bubble. */
+  requestContent?: string;
 }
-
-interface PendingImage {
-  id: string;
-  file: File;
-  previewUrl: string;
-}
-
-const MAX_PENDING_IMAGES = 5;
 
 const STARTERS: Record<AssistantMode, { icon: ComponentType<IconProps>; label: string }[]> = {
   ask: [
@@ -96,7 +95,8 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
   const [apiKey, setApiKeyState] = useState(getApiKeyFor(getActiveProvider()));
   const [model, setModelState] = useState(getModelFor(getActiveProvider()));
   const [showKey, setShowKey] = useState(false);
-  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [draggingFiles, setDraggingFiles] = useState(false);
   const [mode, setModeState] = useState<AssistantMode>(getAssistantMode);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -104,8 +104,9 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
   modeRef.current = mode;
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const pendingImagesRef = useRef(pendingImages);
-  pendingImagesRef.current = pendingImages;
+  const pendingAttachmentsRef = useRef(pendingAttachments);
+  const attachmentUrlsRef = useRef(new Set<string>());
+  const sendingRef = useRef(false);
   // What the model has already been told, so we don't pay for it twice.
   const sentContextRef = useRef<SentContext>(NO_CONTEXT_SENT);
 
@@ -130,7 +131,8 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
 
   useEffect(() => {
     return () => {
-      for (const img of pendingImagesRef.current) URL.revokeObjectURL(img.previewUrl);
+      abortRef.current?.abort();
+      for (const url of attachmentUrlsRef.current) URL.revokeObjectURL(url);
     };
   }, []);
 
@@ -140,34 +142,46 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
     return providerObj?.models.find((m) => m.id === modelId)?.vision === true;
   }, []);
 
-  const addPendingImages = useCallback((files: FileList | File[]) => {
-    if (!activeModelSupportsVision()) {
-      toast.error("This model doesn't support images", {
-        description: "Switch to a vision-capable model in AI settings.",
-      });
-      return;
-    }
-    const next: PendingImage[] = [];
-    for (const file of files) {
-      if (pendingImages.length + next.length >= MAX_PENDING_IMAGES) {
-        toast.error(`At most ${MAX_PENDING_IMAGES} images per message`);
+  const addPendingAttachments = useCallback((files: FileList | File[]) => {
+    if (sendingRef.current) return;
+    const current = pendingAttachmentsRef.current;
+    const next: ChatAttachment[] = [];
+    let totalBytes = current.reduce((total, item) => total + item.file.size, 0);
+    for (const original of files) {
+      if (current.length + next.length >= MAX_CHAT_ATTACHMENTS) {
+        toast.error(`At most ${MAX_CHAT_ATTACHMENTS} files per message`);
         break;
       }
-      if (!isAllowedImageFile(file)) {
+      const file = normalizeChatFile(original);
+      const kind = attachmentKind(file);
+      if (file.size > MAX_CHAT_FILE_BYTES || totalBytes + file.size > MAX_CHAT_TOTAL_BYTES) {
+        toast.error("File is too large", { description: "Use files under 25 MB, up to 50 MB per message." });
+        continue;
+      }
+      if (kind === "image" && !isAllowedImageFile(file)) {
         toast.error("Unsupported image", { description: "Use PNG, JPEG, WebP, GIF, AVIF, or SVG under 10 MB." });
         continue;
       }
-      next.push({ id: crypto.randomUUID(), file, previewUrl: URL.createObjectURL(file) });
+      const url = URL.createObjectURL(file);
+      attachmentUrlsRef.current.add(url);
+      next.push({ id: crypto.randomUUID(), file, url, kind });
+      totalBytes += file.size;
     }
-    if (next.length) setPendingImages((prev) => [...prev, ...next]);
-  }, [activeModelSupportsVision, pendingImages.length]);
+    if (next.length) {
+      pendingAttachmentsRef.current = [...current, ...next];
+      setPendingAttachments(pendingAttachmentsRef.current);
+    }
+  }, []);
 
-  const removePendingImage = useCallback((id: string) => {
-    setPendingImages((prev) => {
-      const target = prev.find((img) => img.id === id);
-      if (target) URL.revokeObjectURL(target.previewUrl);
-      return prev.filter((img) => img.id !== id);
-    });
+  const removePendingAttachment = useCallback((id: string) => {
+    if (sendingRef.current) return;
+    const target = pendingAttachmentsRef.current.find((item) => item.id === id);
+    if (target) {
+      URL.revokeObjectURL(target.url);
+      attachmentUrlsRef.current.delete(target.url);
+    }
+    pendingAttachmentsRef.current = pendingAttachmentsRef.current.filter((item) => item.id !== id);
+    setPendingAttachments(pendingAttachmentsRef.current);
   }, []);
 
   const applyTools = useCallback(async (tools: { kind: string; body: string }[]): Promise<{ label: string; onClick: () => void }[]> => {
@@ -258,8 +272,9 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
 
   const send = useCallback(async () => {
     const text = input.trim();
-    const hasImages = pendingImages.length > 0;
-    if ((!text && !hasImages) || streaming) return;
+    const queued = [...pendingAttachmentsRef.current];
+    const hasImages = queued.some((item) => item.kind === "image");
+    if ((!text && !queued.length) || sendingRef.current) return;
     if (!getApiKeyFor(getActiveProvider())) { setShowSettings(true); return; }
     const promptedMode = mode;
 
@@ -273,62 +288,45 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
       return;
     }
 
-    const sentImages = [...pendingImages];
-    for (const img of sentImages) URL.revokeObjectURL(img.previewUrl);
-    setPendingImages([]);
-
-    const userAttachments = await filesToImageAttachments(sentImages.map((img) => img.file));
-    const userMsg: UIMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: text || "_(image attached)_",
-      imagePreviews: userAttachments.map((a) => `data:${a.mimeType};base64,${a.base64}`),
-    };
-    const asstMsg: UIMessage = { id: crypto.randomUUID(), role: "model", content: "", pending: true };
-    setMessages((prev) => [...prev, userMsg, asstMsg]);
-    setInput("");
+    sendingRef.current = true;
     setStreaming(true);
-
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-
-    const { context, sent } = buildPromptContext(
-      allEntries.map((e) => ({ id: e.id, title: getEntryTitle(e) })),
-      page,
-      sentContextRef.current,
-    );
-    sentContextRef.current = sent;
-
-    // Vision pixels are large — text context always lists drawings/images;
-    // attach pixels only when the message is about them (or the user attached).
-    let images: { base64: string; mimeType: string }[] | undefined;
-    if (userAttachments.length) images = [...userAttachments];
-
-    if (wantsVisual && activeModelSupportsVision()) {
-      const room = () => MAX_PAGE_IMAGES - (images?.length ?? 0);
-
-      if (page?.images.length && room() > 0) {
-        const pageImgs = await imagesAsAttachments(collectImagesFromContent(page.content));
-        if (pageImgs.length) {
-          images = [...(images || []), ...pageImgs].slice(0, MAX_PAGE_IMAGES);
-        }
-      }
-      if (page?.drawings.length && room() > 0) {
-        const attachments = await snapshotsAsAttachments(
-          collectDrawingsFromContent(page.content),
-        );
-        if (attachments.length) {
-          images = [...(images || []), ...attachments].slice(0, MAX_PAGE_IMAGES);
-        }
-      }
-    }
-
-    const history: ChatMessage[] = [
-      ...messages.map<ChatMessage>((m) => ({ role: m.role, content: m.content })),
-      { role: "user", content: text || "_(image attached)_" },
-    ];
-
+    const asstMsg: UIMessage = { id: crypto.randomUUID(), role: "model", content: "", pending: true };
+    let messageAdded = false;
+    const previousContext = sentContextRef.current;
     try {
+      const prepared = await prepareChatAttachments(queued, ctrl.signal);
+      ctrl.signal.throwIfAborted();
+      const userMsg: UIMessage = {
+        id: crypto.randomUUID(), role: "user", content: text || "Please review the attached files.",
+        requestContent: (text || "Please review the attached files.") + prepared.context,
+        attachments: queued.map((item) => ({ ...item, status: prepared.statuses[item.id] })),
+        images: prepared.images,
+      };
+      pendingAttachmentsRef.current = [];
+      setPendingAttachments([]);
+      setMessages((prev) => [...prev, userMsg, asstMsg]);
+      messageAdded = true;
+      setInput("");
+
+      const { context, sent } = buildPromptContext(
+        allEntries.map((e) => ({ id: e.id, title: getEntryTitle(e) })), page, previousContext,
+      );
+      let images = [...prepared.images];
+      if (wantsVisual && activeModelSupportsVision()) {
+        if (page?.images.length && images.length < MAX_PAGE_IMAGES) {
+          images = [...images, ...await imagesAsAttachments(collectImagesFromContent(page.content))].slice(0, MAX_PAGE_IMAGES);
+        }
+        if (page?.drawings.length && images.length < MAX_PAGE_IMAGES) {
+          images = [...images, ...await snapshotsAsAttachments(collectDrawingsFromContent(page.content))].slice(0, MAX_PAGE_IMAGES);
+        }
+      }
+      ctrl.signal.throwIfAborted();
+      const history: ChatMessage[] = [
+        ...messages.map<ChatMessage>((m) => ({ role: m.role, content: m.requestContent ?? m.content, images: activeModelSupportsVision() ? m.images : undefined })),
+        { role: "user", content: userMsg.requestContent },
+      ];
       let acc = "";
       for await (const chunk of streamChat({
         messages: history,
@@ -339,7 +337,8 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
         acc += chunk;
         setMessages((prev) => prev.map((m) => (m.id === asstMsg.id ? { ...m, content: acc } : m)));
       }
-
+      ctrl.signal.throwIfAborted();
+      sentContextRef.current = sent;
       const { display, toolsToApply } = finalizeAssistantOutput(acc, promptedMode, modeRef.current);
       const actions = toolsToApply.length ? await applyTools(toolsToApply) : [];
       setMessages((prev) =>
@@ -349,14 +348,16 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
             : m
         )
       );
-    } catch (e: any) {
-      const msg = e?.name === "AbortError" ? "_(stopped)_" : (e?.message || "Failed");
-      setMessages((prev) => prev.map((m) => (m.id === asstMsg.id ? { ...m, content: msg, pending: false } : m)));
+    } catch (e: unknown) {
+      const msg = ctrl.signal.aborted ? "_(stopped)_" : (e instanceof Error ? e.message : "Failed");
+      if (messageAdded) setMessages((prev) => prev.map((m) => (m.id === asstMsg.id ? { ...m, content: msg, pending: false } : m)));
+      else if (!ctrl.signal.aborted) toast.error("Could not prepare attachments", { description: msg });
     } finally {
+      sendingRef.current = false;
       setStreaming(false);
       abortRef.current = null;
     }
-  }, [input, streaming, messages, allEntries, activePageContext, applyTools, pendingImages, activeModelSupportsVision, mode]);
+  }, [input, messages, allEntries, activePageContext, applyTools, activeModelSupportsVision, mode]);
 
   const stop = () => abortRef.current?.abort();
 
@@ -379,9 +380,19 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
 
   return (
     <aside
+      aria-label="AI Assistant"
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDraggingFiles(true); }
+      }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDraggingFiles(false); }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault(); setDraggingFiles(false); addPendingAttachments(e.dataTransfer.files);
+      }}
       style={{ width }}
       className="fixed top-0 right-0 bottom-0 z-40 bg-card border-l border-border flex flex-col shadow-2xl animate-in slide-in-from-right duration-200 max-w-full max-md:inset-0 max-md:!w-full max-md:z-50"
     >
+      {draggingFiles && <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center bg-background/90 border-2 border-dashed border-primary"><p className="text-sm">Drop files to attach</p></div>}
       <div
         onMouseDown={onMouseDown}
         className="nw-resize-handle absolute left-0 top-0 bottom-0 w-1.5 -translate-x-1/2 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-50 hidden md:block"
@@ -402,7 +413,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
         </div>
         <span className="nw-ascii-bar ml-2 hidden sm:inline-block" aria-hidden />
         <div className="ml-auto flex items-center gap-0.5">
-          <button onClick={() => setShowSettings((s) => !s)} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" title="AI settings">
+          <button disabled={streaming} onClick={() => setShowSettings((s) => !s)} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-30" title="AI settings">
             <Settings className="h-3.5 w-3.5" />
           </button>
           <button onClick={onClose} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors" title="Close (⌘J)">
@@ -494,29 +505,12 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
         )}
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-1 duration-200`}>
-            <div className={`max-w-[88%] ai-msg-bubble ${m.role === "user" ? "user" : "assistant"}`}>
-              {m.imagePreviews && m.imagePreviews.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {m.imagePreviews.map((url, i) => (
-                    <img
-                      key={i}
-                      src={url}
-                      alt=""
-                      className="h-16 w-16 rounded object-cover border border-border/40"
-                    />
-                  ))}
-                </div>
-              )}
+            <div className={`min-w-0 max-w-[96%] ai-msg-bubble ${m.role === "user" ? "user" : "assistant"}`}>
+              {m.attachments?.map((attachment) => <AIChatAttachment key={attachment.id} attachment={attachment} />)}
               {m.pending && !m.content ? (
                 <AIThinkingStatus />
               ) : (
-                <div
-                  className="ai-msg-prose"
-                  dangerouslySetInnerHTML={{
-                    __html: sanitizeHtml(marked.parse(m.content || "", { async: false }) as string) +
-                      (m.pending ? '<span class="nw-caret"></span>' : ""),
-                  }}
-                />
+                <AIMessageContent content={m.content || ""} pending={m.pending} />
               )}
               {m.actions && m.actions.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -533,53 +527,39 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
       </div>
 
       <div className="p-2.5 border-t border-border shrink-0 bg-card/60">
-        {pendingImages.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-2 px-0.5">
-            {pendingImages.map((img) => (
-              <div key={img.id} className="relative group">
-                <img
-                  src={img.previewUrl}
-                  alt=""
-                  className="h-14 w-14 rounded object-cover border border-border/60"
-                />
-                <button
-                  type="button"
-                  onClick={() => removePendingImage(img.id)}
-                  className="absolute -top-1 -right-1 p-0.5 rounded-full bg-background border border-border text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                  title="Remove image"
-                >
-                  <X className="h-2.5 w-2.5" />
-                </button>
-              </div>
-            ))}
+        {pendingAttachments.length > 0 && (
+          <div className="max-h-52 overflow-y-auto space-y-1.5 mb-2 px-0.5" aria-label="Pending attachments">
+            {pendingAttachments.map((attachment) => <AIChatAttachment key={attachment.id} attachment={attachment} onRemove={streaming ? undefined : () => removePendingAttachment(attachment.id)} />)}
           </div>
         )}
         <div className="relative">
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,image/avif"
+            aria-label="Attach files"
             multiple
             className="hidden"
             onChange={(e) => {
-              if (e.target.files?.length) addPendingImages(e.target.files);
+              if (e.target.files?.length) addPendingAttachments(e.target.files);
               e.target.value = "";
             }}
           />
           <textarea
+            aria-label="Message AI"
+            disabled={streaming}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onPaste={(e) => {
               const files: File[] = [];
               for (const item of e.clipboardData?.items ?? []) {
-                if (item.type.startsWith("image/")) {
+                if (item.kind === "file") {
                   const file = item.getAsFile();
                   if (file) files.push(file);
                 }
               }
               if (files.length) {
                 e.preventDefault();
-                addPendingImages(files);
+                addPendingAttachments(files);
               }
             }}
             onKeyDown={(e) => {
@@ -592,18 +572,18 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={streaming || pendingImages.length >= MAX_PENDING_IMAGES}
+            disabled={streaming || pendingAttachments.length >= MAX_CHAT_ATTACHMENTS}
             className="absolute left-2 top-2 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent disabled:opacity-30 transition-colors"
-            title="Attach image"
+            title="Attach files"
           >
-            <ImagePlus className="h-3.5 w-3.5" />
+            <FilePlus2 className="h-3.5 w-3.5" />
           </button>
           {streaming ? (
             <button onClick={stop} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-destructive hover:bg-accent transition-colors" title="Stop">
               <Square className="h-3.5 w-3.5" />
             </button>
           ) : (
-            <button onClick={send} disabled={!input.trim() && pendingImages.length === 0} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-foreground hover:bg-accent disabled:opacity-30 transition-colors" title="Send (Enter)">
+            <button onClick={send} disabled={!input.trim() && pendingAttachments.length === 0} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded text-foreground hover:bg-accent disabled:opacity-30 transition-colors" title="Send (Enter)">
               <Send className="h-3.5 w-3.5" />
             </button>
           )}
