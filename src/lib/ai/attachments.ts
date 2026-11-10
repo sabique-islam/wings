@@ -97,7 +97,7 @@ async function extractPdfText(file: File, signal: AbortSignal): Promise<string> 
   const pdfjs = await import("pdfjs-dist");
   pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
   signal.throwIfAborted();
-  const task = pdfjs.getDocument({ data: new Uint8Array(await readFile(file, "bytes")), isEvalSupported: false, useSystemFonts: true });
+  const task = pdfjs.getDocument({ data: new Uint8Array(await readFile(file, "bytes")), useSystemFonts: true });
   const abort = () => { void task.destroy(); };
   signal.addEventListener("abort", abort, { once: true });
   // Password dialogs belong to a document viewer, not an indefinitely pending send.
