@@ -63,6 +63,18 @@ describe("markdown <-> html conversion", () => {
     expect(out).toContain("A-->B");
   });
 
+  it("preserves headed tables and inline code alongside Mermaid across a Markdown reload", () => {
+    const source = '| Item | Operation | Edge |\n| --- | --- | --- |\n| A | `r₁(A)` | T1 → T2 |\n| B | `r₂(B)` | T2 → T3 |\n\n```mermaid\nflowchart TD\nT1 --> T2\nT2 --> T3\n```';
+    const stored = roundtrip(source);
+    const reloaded = markdownToHtml(stored);
+    const table = new DOMParser().parseFromString(reloaded, "text/html").querySelector("table");
+    expect(table?.querySelectorAll("tr")).toHaveLength(3);
+    expect(table?.querySelector("code")?.textContent).toBe("r₁(A)");
+    expect(table?.textContent).toContain("T2 → T3");
+    expect(stored).toContain("```mermaid");
+    expect(stored).toContain("T1 --> T2");
+  });
+
   it("renders inline code", () => {
     expect(markdownToHtml("an `inline` token")).toMatch(/<code>inline<\/code>/);
   });

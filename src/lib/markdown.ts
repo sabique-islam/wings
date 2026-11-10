@@ -2,6 +2,7 @@
 
 import { marked } from "marked";
 import TurndownService from "turndown";
+import { tables } from "turndown-plugin-gfm";
 import { PAGE_HREF_PREFIX } from "./linkExtraction";
 import { normalizeMathMarkdown } from "./normalizeMath";
 import { calloutEmojiFromToken, findGfmCalloutBlocks } from "./calloutMarkdown";
@@ -59,6 +60,9 @@ const turndown = new TurndownService({
     return (node as unknown as { isBlock?: boolean }).isBlock ? "\n\n" : "";
   },
 });
+
+// Keep the surrounding GFM tables when a mixed note is saved/exported as Markdown.
+turndown.use(tables);
 
 turndown.addRule("taskList", {
   filter: (node) =>
