@@ -94,8 +94,7 @@ export function extractOfficeText(bytes: Uint8Array, ext: string): string {
 }
 
 async function extractPdfText(file: File, signal: AbortSignal): Promise<string> {
-  const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+  const pdfjs = await (await import("./pdf")).loadPdfJs();
   signal.throwIfAborted();
   const task = pdfjs.getDocument({ data: new Uint8Array(await readFile(file, "bytes")), useSystemFonts: true });
   const abort = () => { void task.destroy(); };

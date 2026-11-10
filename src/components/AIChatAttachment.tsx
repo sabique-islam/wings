@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { attachmentSize, type ChatAttachment, readFile } from "@/lib/ai/attachments";
+
+const PdfPreview = lazy(() => import("./AIChatPdfPreview"));
 
 export function AIChatAttachment({ attachment, onRemove }: { attachment: ChatAttachment; onRemove?: () => void }) {
   const { file, url, kind, status } = attachment;
@@ -24,7 +26,7 @@ export function AIChatAttachment({ attachment, onRemove }: { attachment: ChatAtt
         {onRemove && <button type="button" onClick={onRemove} aria-label={`Remove ${file.name}`}>×</button>}
       </div>
       <p className="mt-1 text-[10px] text-muted-foreground" role="status">{status || (kind === "image" ? "Image will be sent to AI" : ["text", "document", "pdf"].includes(kind) ? "Readable text will be sent to AI" : "Preview only · contents not sent to AI")}</p>
-      {expanded && <Dialog open onOpenChange={setExpanded}><DialogContent className="max-w-[95vw] max-h-[90vh] overflow-auto"><DialogTitle className="break-all pr-6">{file.name}</DialogTitle>{kind === "pdf" ? <iframe title={file.name} src={url} className="h-[70vh] w-full" sandbox="" /> : kind === "text" ? <pre className="whitespace-pre-wrap break-words text-xs max-h-[70vh] overflow-auto">{text ?? "Reading file…"}</pre> : <img src={url} alt={file.name} className="max-h-[75vh] mx-auto object-contain" />}</DialogContent></Dialog>}
+      {expanded && <Dialog open onOpenChange={setExpanded}><DialogContent className="max-w-[95vw] max-h-[90vh] overflow-auto"><DialogTitle className="break-all pr-6">{file.name}</DialogTitle>{kind === "pdf" ? <Suspense fallback={<p>Loading PDF…</p>}><PdfPreview file={file} /></Suspense> : kind === "text" ? <pre className="whitespace-pre-wrap break-words text-xs max-h-[70vh] overflow-auto">{text ?? "Reading file…"}</pre> : <img src={url} alt={file.name} className="max-h-[75vh] mx-auto object-contain" />}</DialogContent></Dialog>}
     </div>
   );
 }
