@@ -17,6 +17,7 @@ import LandingShowcase from "./pages/LandingShowcase";
 import Pricing from "./pages/Pricing";
 import Legal from "./pages/Legal";
 import EditorE2E from "./pages/EditorE2E";
+import AIChatE2E from "./pages/AIChatE2E";
 import { About, Careers, Contact, Roadmap, Docs, Support, Status, Press } from "./pages/StaticPages";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
@@ -147,6 +148,7 @@ function AppRoutes() {
       <Route path="/legal/security" element={<Legal slug="security" />} />
       <Route path="/legal/cookies" element={<Legal slug="cookies" />} />
       <Route path="/__editor-e2e" element={import.meta.env.DEV ? <EditorE2E /> : <NotFound />} />
+      <Route path="/__ai-e2e" element={import.meta.env.DEV ? <AIChatE2E /> : <NotFound />} />
 
       <Route path="/auth" element={<Auth />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
