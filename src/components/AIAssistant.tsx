@@ -546,7 +546,7 @@ export function AIAssistant({ open, onClose, activeEntry, allEntries, onCreateEn
           />
           <textarea
             aria-label="Message AI"
-            disabled={streaming}
+            disabled={streaming && pendingAttachments.length > 0}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onPaste={(e) => {
