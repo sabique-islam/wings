@@ -103,10 +103,73 @@ test.describe("Code blocks", () => {
     await page.keyboard.press("Enter");
     await page.keyboard.type("A-->B");
     await expect(page.getByTestId("code-mermaid-preview")).toBeVisible();
-    await expect(page.locator(".code-mermaid-svg svg, [data-testid='code-mermaid-error']")).toBeVisible({
+    await expect(page.locator(".code-mermaid-svg svg")).toBeVisible({
       timeout: 15000,
     });
+    await expect(page.locator(".code-mermaid-svg svg")).toContainText("A");
+    await expect(page.locator(".code-mermaid-svg svg")).toContainText("B");
     await expect(page.getByTestId("stored-text")).toContainText("```mermaid");
     await expect(page.getByTestId("stored-text")).toContainText("A-->B");
+  });
+
+  for (const command of ["mermaid", "diagram"]) {
+    test(`/${command} inserts a rendered Mermaid diagram in the note`, async ({ page }) => {
+      await page.keyboard.type(`/${command}`);
+      await page.locator(".slash-menu button").filter({ hasText: "Mermaid Diagram" }).click();
+      const block = page.locator('.code-block-wrapper[data-language="mermaid"]');
+      await expect(block.locator(".code-mermaid-svg svg")).toBeVisible({ timeout: 15000 });
+      await expect(block.locator(".code-mermaid-svg svg")).toContainText("Start");
+      await expect(block.locator(".code-block-content")).toContainText("Start --> Finish");
+      // Rendered SVG/UI must never become saved note content.
+      await expect(page.getByTestId("stored-text")).toContainText("```mermaid");
+      await expect(page.getByTestId("stored-text")).not.toContainText("<svg");
+      await expect(page.getByTestId("stored-text")).not.toContainText("Mermaid source");
+      if (command === "mermaid") await block.screenshot({ path: test.info().outputPath("note-mermaid.png") });
+      await page.getByTestId("mermaid-expand").click();
+      await expect(page.getByRole("dialog").locator(".code-mermaid-svg svg")).toBeVisible();
+      await page.getByRole("button", { name: "Close", exact: true }).click();
+      await expect(block.locator(".code-block-content")).toContainText("Start --> Finish");
+    });
+  }
+
+  test("pasted Mermaid renders, updates while editing, and survives reloading the note", async ({ page }) => {
+    const markdown = "```mermaid\nflowchart LR\n  Start --> Finish\n```";
+    await page.locator(".ProseMirror").evaluate((element, text) => {
+      const data = new DataTransfer();
+      data.setData("text/plain", text);
+      element.dispatchEvent(new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: data }));
+    }, markdown);
+    const svg = page.locator(".code-mermaid-svg svg");
+    await expect(svg).toContainText("Start", { timeout: 15000 });
+    await expect(svg).toContainText("Finish");
+    await page.evaluate(() => {
+      const editor = (window as typeof window & { __nw_editor: import("@tiptap/core").Editor }).__nw_editor;
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name !== "codeBlock") return;
+        editor.chain().focus().setTextSelection(pos + node.nodeSize - 1).run();
+        return false;
+      });
+    });
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("  Finish --> Done");
+    await expect(svg).toContainText("Done");
+    await expect(page.getByTestId("stored-text")).toContainText("Finish --> Done");
+    const before = await page.getByTestId("stored-text").textContent();
+    await page.getByTestId("reload-from-markdown").click();
+    await expect(svg).toContainText("Done", { timeout: 15000 });
+    await expect(page.locator(".code-block-content")).toContainText("Finish --> Done");
+    await expect(page.getByTestId("stored-text")).toHaveText(before!);
+  });
+
+  test("shared read-only notes render Mermaid and allow expanding it", async ({ page }) => {
+    await page.route("**/rest/v1/rpc/get_shared_entry", (route) => route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([{ content: "```mermaid\nsequenceDiagram\n Alice->>Bob: Hello\n```", content_json: null, title: "Shared diagram", created_at: "2026-11-10T00:00:00Z" }]),
+    }));
+    await page.goto("/s/0123456789abcdef0123456789abcdef");
+    await expect(page.locator(".ProseMirror")).toHaveAttribute("contenteditable", "false");
+    await expect(page.locator(".code-mermaid-svg svg")).toContainText("Hello", { timeout: 15000 });
+    await page.getByTestId("mermaid-expand").click();
+    await expect(page.getByRole("dialog").locator(".code-mermaid-svg svg")).toContainText("Hello");
   });
 });

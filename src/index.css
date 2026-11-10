@@ -603,6 +603,12 @@
 .code-mermaid-error {
   @apply text-destructive m-0;
 }
+.code-block-wrapper[data-language="mermaid"] > .code-mermaid-preview {
+  border-top: 0;
+}
+.code-mermaid-source-label {
+  @apply border-t border-border/40 px-3 pt-2 text-[10px] text-muted-foreground;
+}
 
 /* Horizontal rule */
 .block-editor-content hr,
