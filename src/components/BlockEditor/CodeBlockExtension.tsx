@@ -1,7 +1,7 @@
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { ReactNodeViewRenderer, NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { useState } from "react";
-import { Check, ChevronDown, ChevronsDownUp, Copy, WrapText } from "@/lib/icons";
+import { Check, ChevronDown, ChevronsDownUp, Copy, Maximize2, WrapText } from "@/lib/icons";
 import {
   Command,
   CommandEmpty,
@@ -11,6 +11,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { CodeBlockMermaidPreview } from "./CodeBlockMermaidPreview";
 import { defaultCodeWrap } from "@/lib/editorAppearance";
 import {
@@ -97,11 +98,13 @@ function CodeLanguagePicker({
 
 function CodeBlockView({ node, updateAttributes, editor }: NodeViewProps) {
   const [copied, setCopied] = useState(false);
+  const [expandedDiagram, setExpandedDiagram] = useState(false);
   const lang = (node.attrs.language as string) || "plaintext";
   const wrap = node.attrs.wrap === true;
   const collapsed = node.attrs.collapsed === true;
   const editable = editor.isEditable;
   const source = node.textContent;
+  const mermaid = isMermaidLanguage(lang);
 
   const copy = async () => {
     await navigator.clipboard.writeText(source);
@@ -123,6 +126,20 @@ function CodeBlockView({ node, updateAttributes, editor }: NodeViewProps) {
           onChange={(language) => updateAttributes({ language })}
         />
         <div className="code-block-toolbar-actions">
+          {mermaid && (
+            <button
+              type="button"
+              className="code-toolbar-btn"
+              data-testid="mermaid-expand"
+              aria-label="Expand diagram"
+              title="Expand diagram"
+              disabled={!source.trim()}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setExpandedDiagram(true)}
+            >
+              <Maximize2 className="h-3 w-3" />
+            </button>
+          )}
           <button
             type="button"
             className="code-toolbar-btn"
@@ -161,10 +178,24 @@ function CodeBlockView({ node, updateAttributes, editor }: NodeViewProps) {
           </button>
         </div>
       </div>
+      {mermaid && <CodeBlockMermaidPreview source={source} />}
+      {mermaid && (
+        <div className="code-mermaid-source-label" contentEditable={false}>
+          {editable ? "Mermaid source · edit below to update the diagram" : "Mermaid source"}
+        </div>
+      )}
       <pre className={`language-${lang}`}>
         <NodeViewContent as="div" className="code-block-content" />
       </pre>
-      {isMermaidLanguage(lang) ? <CodeBlockMermaidPreview source={source} /> : null}
+      {mermaid && expandedDiagram && (
+        <Dialog open onOpenChange={setExpandedDiagram}>
+          <DialogContent className="max-w-[95vw] max-h-[90vh] overflow-auto">
+            <DialogTitle>Mermaid diagram</DialogTitle>
+            <DialogDescription className="sr-only">Expanded preview of the diagram in this note.</DialogDescription>
+            <CodeBlockMermaidPreview source={source} />
+          </DialogContent>
+        </Dialog>
+      )}
     </NodeViewWrapper>
   );
 }

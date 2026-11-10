@@ -269,6 +269,19 @@ const getSuggestionItems = (h: SlashHandlers = {}): CommandItem[] => [
     },
   },
   {
+    title: "Mermaid Diagram",
+    description: "Render a flowchart, sequence diagram, or other Mermaid diagram",
+    icon: Layout,
+    category: "Advanced",
+    aliases: ["mermaid", "diagram", "flowchart", "sequence"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range)
+        .setCodeBlock({ language: "mermaid" })
+        .insertContent({ type: "text", text: "flowchart TD\n  Start --> Finish" })
+        .run();
+    },
+  },
+  {
     title: "Code Block",
     description: "Code with syntax highlighting",
     icon: Code2,
