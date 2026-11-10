@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { marked } from "marked";
 
 const MAX_SVG_CHARACTERS = 1_000_000;
 const DIAGRAM_SELECTOR = 'svg[id*="mermaid"], .mermaid svg, svg[aria-roledescription]';
@@ -125,23 +126,74 @@ export function prepareRenderedDiagramHtml(html: string, text = ""): { html: str
   return { html: document.body.innerHTML, snapshots, missing };
 }
 
-/** A flattened SVG stylesheet has labels but no arrows/source. Never invent its graph. */
-export function replaceFlattenedDiagramCss(text: string): { text: string; missing: number } {
+/** Rebuild only from an adjacent table's explicit edges, corroborated by the copied labels. */
+function diagramFromEdgeTable(context: string, labels: string): string | null {
+  const tokens = marked.lexer(context, { gfm: true }).filter((token) => token.type !== "space");
+  const table = tokens[tokens.length - 1];
+  if (table?.type !== "table") return null;
+  const column = table.header.findIndex((cell) => /^edges?$/i.test(cell.text.replace(/[*_`]/g, "").trim()));
+  if (column < 0 || table.rows.length > 100) return null;
+  const edges: string[] = [];
+  const nodes = new Set<string>();
+  for (const row of table.rows) {
+    const value = (row[column]?.text || "").replace(/`/g, "").replace(/&(?:rarr|#8594|#x2192);/gi, "→").trim();
+    if (!value || /^(?:none|no edge|[-—])$/i.test(value)) continue;
+    const match = /^([a-zA-Z][a-zA-Z0-9_]{0,63})\s*(?:→|-->|->)\s*([a-zA-Z][a-zA-Z0-9_]{0,63})$/.exec(value);
+    if (!match) return null;
+    const [, from, to] = match;
+    if ([from, to].some((id) => /^(?:end|subgraph|graph|flowchart|style|classDef|class|click|direction)$/i.test(id))) return null;
+    nodes.add(from);
+    nodes.add(to);
+    const edge = `  ${from} --> ${to}`;
+    if (!edges.includes(edge)) edges.push(edge);
+  }
+  if (!edges.length || nodes.size < 2) return null;
+  const names = [...nodes].sort((a, b) => b.length - a.length);
+  const compactLabels = labels.replace(/\s/g, "");
+  const seen = new Set<string>();
+  let offset = 0;
+  while (offset < compactLabels.length) {
+    const name = names.find((node) => compactLabels.startsWith(node, offset));
+    if (!name) return null;
+    seen.add(name);
+    offset += name.length;
+  }
+  if (seen.size !== nodes.size) return null;
+  return `flowchart TD\n${edges.join("\n")}`;
+}
+
+/** A flattened SVG has no geometry; use corroborated table edges or retain an explicit missing marker. */
+export function replaceFlattenedDiagramCss(text: string): { text: string; missing: number; recovered: number } {
   let fence: string | null = null;
   let missing = 0;
-  const lines = text.split("\n").map((line) => {
+  let recovered = 0;
+  const lines: string[] = [];
+  for (const original of text.split("\n")) {
+    const line = original;
     const marker = /^\s{0,3}(`{3,}|~{3,})/.exec(line)?.[1];
     if (marker) {
       if (!fence) fence = marker;
       else if (marker[0] === fence[0] && marker.length >= fence.length) fence = null;
-      return line;
+      lines.push(original);
+      continue;
     }
-    if (fence || !/^#chatgpt-mermaid-[^\s{]+\s*\{/.test(line) || !/\.(?:node|flowchart-link|edgePath)\b/.test(line)) return line;
-    const end = flattenedStylesheetEnd(line);
-    if (!end) return line;
-    const labels = line.slice(end).trim();
+    // Markdown export escapes the leading # and underscores in generated SVG IDs.
+    const css = original.replace(/\\([#_])/g, "$1");
+    if (fence || !/^#chatgpt-mermaid-[^\s{]+\s*\{/.test(css) || !/\.(?:node|flowchart-link|edgePath)\b/.test(css)) {
+      lines.push(original);
+      continue;
+    }
+    const end = flattenedStylesheetEnd(css);
+    if (!end) { lines.push(original); continue; }
+    const labels = css.slice(end).trim();
+    const source = diagramFromEdgeTable(lines.join("\n"), labels);
+    if (source) {
+      lines.push(`> Diagram rebuilt from the preceding Edge column.\n\n\`\`\`mermaid\n${source}\n\`\`\``);
+      recovered++;
+      continue;
+    }
     missing++;
-    return `> ${MISSING_DIAGRAM}${labels ? `\n\nCopied labels: ${labels}` : ""}`;
-  });
-  return { text: lines.join("\n"), missing };
+    lines.push(`> ${MISSING_DIAGRAM}${labels ? `\n\nCopied labels: ${labels}` : ""}`);
+  }
+  return { text: lines.join("\n"), missing, recovered };
 }

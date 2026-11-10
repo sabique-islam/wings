@@ -293,10 +293,15 @@ export const BlockEditor = memo(function BlockEditor({
         }
 
         const flattenedDiagrams = replaceFlattenedDiagramCss(rawText);
-        if (flattenedDiagrams.missing) {
+        if (flattenedDiagrams.missing || flattenedDiagrams.recovered) {
           event.preventDefault();
           view.pasteHTML(markdownToHtml(flattenedDiagrams.text));
-          toast.error("Diagram source missing from clipboard", { description: "The rest of the note was pasted. Copy the Mermaid source or paste an image of the diagram." });
+          if (flattenedDiagrams.recovered) {
+            toast.info("Diagram rebuilt from the Edge table", { description: "The diagram uses the explicitly listed connections and matching node labels." });
+          }
+          if (flattenedDiagrams.missing) {
+            toast.error("Diagram source missing from clipboard", { description: "The rest of the note was pasted. Copy the Mermaid source or paste an image of the diagram." });
+          }
           return true;
         }
 
