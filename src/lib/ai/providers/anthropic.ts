@@ -20,7 +20,7 @@ async function* streamAnthropic(opts: {
     const isLastUser = i === opts.messages.length - 1 && m.role === "user";
     return {
       role,
-      content: buildContent(m.content, isLastUser ? opts.images : undefined),
+      content: buildContent(m.content, m.role === "user" ? (isLastUser && opts.images !== undefined ? opts.images : m.images) : undefined),
     };
   });
   const resp = await fetch("https://api.anthropic.com/v1/messages", {

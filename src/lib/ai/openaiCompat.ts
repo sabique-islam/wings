@@ -28,12 +28,13 @@ function buildMessages(
     const m = messages[i];
     const role = m.role === "model" ? "assistant" : "user";
     const isLastUser = i === messages.length - 1 && m.role === "user";
-    if (isLastUser && images && images.length > 0) {
+    const attachments = m.role === "user" ? (isLastUser && images !== undefined ? images : m.images) : undefined;
+    if (attachments?.length) {
       out.push({
         role,
         content: [
           { type: "text", text: m.content },
-          ...images.map((img) => ({
+          ...attachments.map((img) => ({
             type: "image_url",
             image_url: { url: `data:${img.mimeType};base64,${img.base64}` },
           })),

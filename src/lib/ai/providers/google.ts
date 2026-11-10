@@ -11,7 +11,7 @@ async function* streamGemini(opts: {
   };
   const contents = opts.messages.map((m, i) => ({
     role: m.role,
-    parts: buildParts(m.content, i === opts.messages.length - 1 && m.role === "user" ? opts.images : undefined),
+    parts: buildParts(m.content, m.role === "user" ? (i === opts.messages.length - 1 && opts.images !== undefined ? opts.images : m.images) : undefined),
   }));
   const body: any = { contents };
   if (opts.systemInstruction) {

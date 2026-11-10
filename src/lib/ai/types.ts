@@ -5,6 +5,8 @@ export type Role = "user" | "model" | "system";
 export interface ChatMessage {
   role: "user" | "model";
   content: string;
+  /** Retained on user turns so follow-up questions can still see attached images. */
+  images?: ImageAttachment[];
 }
 
 export interface ImageAttachment {
