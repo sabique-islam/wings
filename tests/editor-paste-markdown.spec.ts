@@ -134,6 +134,51 @@ test.describe("Paste prefers markdown", () => {
     await expect(editor).toContainText("Diagram missing from copy");
   });
 
+  test("the full copied worked problem rebuilds escaped diagram CSS from its explicit Edge table", async ({ page }) => {
+    const escapedCss = FLATTENED_DIAGRAM_CSS.replace(/_/g, "\\_").replace(/^#/, "\\#");
+    const note = [
+      "## Module 2 · Step 10: Final two worked problems",
+      "**These cover a cycle involving three transactions and a schedule with multiple equivalent serial orders.**",
+      "### Problem 3: A cycle across three transactions",
+      "```scss\n1. r₁(A)\n2. r₂(B)\n3. r₃(C)\n4. w₂(A)\n5. w₃(B)\n6. w₁(C)\n```",
+      "Find conflicts **item by item**:",
+      "| Item | Earlier operation → later operation | Edge |\n| --- | --- | --- |\n| A | `r₁(A)` → `w₂(A)` | T1 → T2 |\n| B | `r₂(B)` → `w₃(B)` | T2 → T3 |\n| C | `r₃(C)` → `w₁(C)` | T3 → T1 |",
+      escapedCss,
+      "**Conclusion: not conflict serializable.**",
+      "No pair has arrows in both directions, but the **three transactions together form a cycle**.",
+      "### Problem 4: More than one equivalent serial order",
+      "```scss\n1. r₁(A)\n2. r₂(B)\n3. w₁(A)\n4. w₂(B)\n5. r₃(A)\n6. r₃(B)\n7. w₃(C)\n```",
+      "| Item | Earlier operation → later operation | Edge |\n| --- | --- | --- |\n| A | `w₁(A)` → `r₃(A)` | T1 → T3 |\n| B | `w₂(B)` → `r₃(B)` | T2 → T3 |\n| C | Only T3 accesses C | None |",
+      "The constraints are:",
+      "```\nT1 before T3\nT2 before T3\n```",
+      "| Order 1 | Order 2 |\n| --- | --- |\n| T1 → T2 → T3 | T2 → T1 → T3 |",
+      "**Module 2 complete: all 10 steps and four worked problems.**",
+    ].join("\n\n");
+    await pasteClipboard(page, note);
+    const editor = page.locator(".ProseMirror");
+    const diagram = editor.locator('.code-block-wrapper[data-language="mermaid"]');
+    await expect(diagram.locator(".code-mermaid-svg svg")).toContainText("T1", { timeout: 15000 });
+    await expect(diagram.locator(".code-mermaid-svg svg")).toContainText("T2");
+    await expect(diagram.locator(".code-mermaid-svg svg")).toContainText("T3");
+    await expect(diagram.locator(".code-block-content")).toContainText("T3 --> T1");
+    await expect(editor.locator("table")).toHaveCount(3);
+    await expect(editor.locator('.code-block-wrapper[data-language="scss"]')).toHaveCount(2);
+    await expect(editor).toContainText("Module 2 complete");
+    await expect(editor).not.toContainText("chatgpt-mermaid");
+    await expect(page.getByText("Diagram rebuilt from the Edge table", { exact: true })).toBeVisible();
+    const stored = page.getByTestId("stored-text");
+    await expect(stored).toContainText("T1 --> T2");
+    await expect(stored).toContainText("T2 --> T3");
+    await expect(stored).toContainText("T3 --> T1");
+    await expect(stored).not.toContainText("chatgpt-mermaid");
+    await expect(stored).not.toContainText("stroke-dashoffset");
+    const before = await stored.textContent();
+    await page.getByTestId("reload-from-markdown").click();
+    await expect(diagram.locator(".code-mermaid-svg svg")).toBeVisible({ timeout: 15000 });
+    await expect(editor.locator("table")).toHaveCount(3);
+    await expect(stored).toHaveText(before!);
+  });
+
   for (const clipboard of [
     { name: "raw Markdown", text: MIXED_MARKDOWN, html: "" },
     { name: "Markdown with rich-text clipboard HTML", text: MIXED_MARKDOWN, html: JUNK_HTML },
