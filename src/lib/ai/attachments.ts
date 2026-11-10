@@ -29,7 +29,8 @@ export function normalizeChatFile(file: File): File {
 }
 
 export function attachmentKind(file: File): AttachmentKind {
-  if (file.type.startsWith("image/")) return "image";
+  // Keep unsupported image formats attachable as files without promising vision support.
+  if (file.type.startsWith("image/")) return Object.values(IMAGE_MIMES).includes(file.type) ? "image" : "file";
   if (file.type.startsWith("audio/")) return "audio";
   if (file.type.startsWith("video/")) return "video";
   const ext = extension(file);
@@ -86,7 +87,7 @@ export function extractOfficeText(bytes: Uint8Array, ext: string): string {
   let out = "";
   for (const name of names) {
     const doc = parseXml(files[name]);
-    const paragraphs = elements(doc, "p");
+    const paragraphs = Array.from(doc.getElementsByTagName("*")).filter((node) => node.localName === "p" || (ext.startsWith("od") && node.localName === "h"));
     out += paragraphs.map((p) => ext.startsWith("od") ? p.textContent : elements(p, "t").map((t) => t.textContent).join("")).join("\n") + "\n";
     if (out.length > MAX_ATTACHMENT_TEXT) break;
   }
@@ -95,8 +96,9 @@ export function extractOfficeText(bytes: Uint8Array, ext: string): string {
 
 async function extractPdfText(file: File, signal: AbortSignal): Promise<string> {
   const pdfjs = await (await import("./pdf")).loadPdfJs();
+  const data = new Uint8Array(await readFile(file, "bytes"));
   signal.throwIfAborted();
-  const task = pdfjs.getDocument({ data: new Uint8Array(await readFile(file, "bytes")), useSystemFonts: true });
+  const task = pdfjs.getDocument({ data, useSystemFonts: true });
   const abort = () => { void task.destroy(); };
   signal.addEventListener("abort", abort, { once: true });
   // Password dialogs belong to a document viewer, not an indefinitely pending send.
@@ -104,17 +106,20 @@ async function extractPdfText(file: File, signal: AbortSignal): Promise<string> 
   try {
     const pdf = await task.promise;
     let text = "";
+    let hasText = false;
     const pages = Math.min(pdf.numPages, 100);
     for (let index = 1; index <= pages && text.length <= MAX_ATTACHMENT_TEXT; index++) {
       signal.throwIfAborted();
       const page = await pdf.getPage(index);
       const content = await page.getTextContent();
-      text += `\n[Page ${index}]\n` + content.items.map((item) => "str" in item ? item.str + (item.hasEOL ? "\n" : " ") : "").join("");
+      const pageText = content.items.map((item) => "str" in item ? item.str + (item.hasEOL ? "\n" : " ") : "").join("");
+      hasText ||= Boolean(pageText.trim());
+      text += `\n[Page ${index}]\n${pageText}`;
       page.cleanup();
     }
     if (pdf.numPages > pages || text.length > MAX_ATTACHMENT_TEXT) text = text.slice(0, MAX_ATTACHMENT_TEXT) + "\n[PDF truncated]";
     // Page markers alone must not suggest a scanned PDF was read.
-    return text.replace(/\[Page \d+\]/g, "").trim() ? text : "";
+    return hasText ? text : "";
   } finally {
     signal.removeEventListener("abort", abort);
     await task.destroy();
@@ -158,7 +163,7 @@ export async function prepareChatAttachments(attachments: ChatAttachment[], sign
       } else if (kind === "pdf" || kind === "document" || kind === "text") {
         text = kind === "pdf" ? await extractPdfText(file, signal) : kind === "document" ? extractOfficeText(new Uint8Array(await readFile(file, "bytes")), extension(file)) : await readFile(file.slice(0, 2 * 1024 * 1024), "text");
         if (text.includes("\0")) throw new Error("This file contains binary data");
-        if (!text.trim()) { text = undefined; status = "No readable text; scanned PDFs need OCR"; }
+        if (!text.trim()) { text = undefined; status = kind === "pdf" ? "No readable text; scanned PDFs need OCR" : "No readable text in this file"; }
         else {
           const truncated = text.length > MAX_ATTACHMENT_TEXT || (kind === "text" && file.size > 2 * 1024 * 1024);
           text = text.slice(0, MAX_ATTACHMENT_TEXT);

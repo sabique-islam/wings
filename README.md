@@ -37,6 +37,9 @@
 - Lecture Mode: record from the mic, transcribe on-device (Whisper), append a timestamped transcript to the open page. first run downloads the model; after that it stays cached in the browser
 - LaTeX math and Excalidraw drawings in the same note
 - BYOK AI panel (⌘J) with page context; keys stay in the browser
+- Chat renders Mermaid diagrams with preview/source, expand, copy and download, using the editor's existing Markdown, math and code renderers.
+- Attach files by picking, pasting or dropping them into chat: images, PDFs, text/code, CSV, DOCX, PPTX, XLSX and OpenDocument text. Images and readable document text stay in the conversation for follow-up questions. Audio/video have local playback; other files have download cards.
+- Chat attachments stay in memory for the current session. Up to 5 files, 25 MB each (images: 10 MB), 50 MB total per message. Text extraction is capped at 40,000 characters per file and 100 PDF pages, with partial/unreadable files labeled. Scanned PDFs need OCR; audio/video and unknown binaries are preview-only, and their contents are not sent to the AI.
 - Public share links and email invites
 - Local vault: new pages can keep bodies on device (connected folder) [or opt for cloud storage too :)]
 - Account backup: zip download and folder import
