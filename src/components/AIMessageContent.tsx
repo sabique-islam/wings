@@ -40,7 +40,10 @@ function ChatCodeBlock({ source, language, pending }: { source: string; language
           {isDiagram && <button type="button" aria-pressed={showSource} onClick={() => setShowSource(!showSource)}>{showSource ? "Preview" : "Source"}</button>}
           {isDiagram && !pending && <button type="button" onClick={() => setExpanded(true)}>Expand</button>}
           <button type="button" onClick={() => downloadSource(source, language)}>Download</button>
-          <button type="button" onClick={() => { void navigator.clipboard.writeText(source).then(() => toast.success("Copied code"), () => toast.error("Could not copy code")); }}>Copy</button>
+          <button type="button" onClick={() => {
+            if (!navigator.clipboard) { toast.error("Clipboard is unavailable in this browser"); return; }
+            void navigator.clipboard.writeText(source).then(() => toast.success("Copied code"), () => toast.error("Could not copy code"));
+          }}>Copy</button>
         </div>
       </div>
       {isDiagram && !showSource ? (
@@ -101,14 +104,17 @@ export const AIMessageContent = memo(function AIMessageContent({ content, pendin
       const language = normalizeCodeLanguage(code?.className.match(/language-([^\s]+)/)?.[1]);
       return <ChatCodeBlock key={key} source={(code?.textContent ?? el.textContent ?? "").replace(/\n$/, "")} language={language} pending={pending} />;
     }
-    const children = Array.from(el.childNodes).map(renderNode);
+    const nodes = Array.from(el.childNodes).filter((child) => !(["table", "thead", "tbody", "tr"].includes(tag) && child.nodeType === Node.TEXT_NODE && !child.textContent?.trim()));
+    const children = nodes.map(renderNode);
     if (tag === "img") {
       const src = el.getAttribute("src");
       if (!src) return el.getAttribute("alt");
       const kind = mediaKind(src);
       if (kind === "audio") return <audio key={key} controls preload="none" src={src} aria-label={el.getAttribute("alt") || "Audio"} />;
       if (kind === "video") return <video key={key} controls preload="metadata" src={src} aria-label={el.getAttribute("alt") || "Video"} />;
-      return <a key={key} href={src} target="_blank" rel="noopener noreferrer"><img src={src} alt={el.getAttribute("alt") || "Chat image"} loading="lazy" /></a>;
+      const image = <img src={src} alt={el.getAttribute("alt") || "Chat image"} loading="lazy" />;
+      // Data images are safe in <img>, but opening an SVG as a document can run scripts.
+      return src.startsWith("data:") ? <span key={key}>{image}</span> : <a key={key} href={src} target="_blank" rel="noopener noreferrer">{image}</a>;
     }
     if (tag === "a") {
       const href = el.getAttribute("href");

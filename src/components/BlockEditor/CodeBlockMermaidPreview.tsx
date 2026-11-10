@@ -64,6 +64,10 @@ export function CodeBlockMermaidPreview({ source }: { source: string }) {
             mermaid.initialize({
               startOnLoad: false,
               securityLevel: "strict",
+              // SVG sanitization strips foreignObject; use native SVG text in every diagram.
+              htmlLabels: false,
+              suppressErrorRendering: true,
+              secure: ["secure", "securityLevel", "startOnLoad", "maxTextSize", "maxEdges", "suppressErrorRendering", "htmlLabels"],
               theme,
               flowchart: { htmlLabels: false },
             });
