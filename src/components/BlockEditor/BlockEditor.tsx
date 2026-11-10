@@ -42,6 +42,7 @@ import { isInsideTable } from "./outlineNest";
 import { applyTsvPaste } from "./tableTsv";
 import { wrapUnwrappedPlannerWeeks } from "./templateButton";
 import { normalizeWeeklyPlannerDoc } from "@/lib/weeklyPlanner";
+import { prepareRenderedDiagramHtml, replaceFlattenedDiagramCss } from "./diagramClipboard";
 
 const SERIALIZE_DEBOUNCE_MS = 200;
 const URL_ONLY = /^https?:\/\/[^\s]+$/i;
@@ -256,9 +257,13 @@ export const BlockEditor = memo(function BlockEditor({
       },
       handlePaste: (view, event) => {
         if (isPeek) return true;
+        const html = event.clipboardData?.getData("text/html")?.trim() ?? "";
+        const rawText = event.clipboardData?.getData("text/plain") ?? "";
+        const text = rawText.trim();
         const items = Array.from(event.clipboardData?.items || []);
         const imageItems = items.filter((item) => item.type.startsWith("image/"));
-        if (imageItems.length) {
+        const renderedDiagrams = prepareRenderedDiagramHtml(html, rawText);
+        if (imageItems.length && !renderedDiagrams) {
           event.preventDefault();
           for (const item of imageItems) {
             const file = item.getAsFile();
@@ -266,10 +271,6 @@ export const BlockEditor = memo(function BlockEditor({
           }
           return true;
         }
-
-        const html = event.clipboardData?.getData("text/html")?.trim() ?? "";
-        const rawText = event.clipboardData?.getData("text/plain") ?? "";
-        const text = rawText.trim();
 
         // Multi-line / HTML / markdown paste handlers create paragraph nodes, which
         // break code blocks. Keep clipboard content as plain text inside fences.
@@ -281,6 +282,22 @@ export const BlockEditor = memo(function BlockEditor({
             return true;
           }
           return false;
+        }
+
+        if (renderedDiagrams) {
+          event.preventDefault();
+          view.pasteHTML(extractMathHtmlFromClipboard(renderedDiagrams.html) ?? renderedDiagrams.html);
+          if (renderedDiagrams.missing) toast.error("Diagram source missing from clipboard", { description: "The rest of the note was pasted. Copy the Mermaid source or paste an image of the diagram." });
+          else if (renderedDiagrams.snapshots) toast.info("Copied diagram pasted as an image", { description: "The clipboard contained the rendered diagram, without its editable Mermaid source." });
+          return true;
+        }
+
+        const flattenedDiagrams = replaceFlattenedDiagramCss(rawText);
+        if (flattenedDiagrams.missing) {
+          event.preventDefault();
+          view.pasteHTML(markdownToHtml(flattenedDiagrams.text));
+          toast.error("Diagram source missing from clipboard", { description: "The rest of the note was pasted. Copy the Mermaid source or paste an image of the diagram." });
+          return true;
         }
 
         const urlFromText = text && URL_ONLY.test(text) && isSafeHttpUrl(text) ? text : null;
